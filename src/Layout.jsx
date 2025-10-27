@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -9,7 +10,9 @@ import {
   UserCircle,
   LogOut,
   Menu,
-  Briefcase
+  Briefcase,
+  Video,
+  ClipboardCheck
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +54,16 @@ const navigationItems = [
     icon: FileText,
   },
   {
+    title: "Training LMS",
+    url: createPageUrl("Training"),
+    icon: Video,
+  },
+  {
+    title: "Evaluations",
+    url: createPageUrl("Evaluations"),
+    icon: ClipboardCheck,
+  },
+  {
     title: "Analytics",
     url: createPageUrl("Analytics"),
     icon: BarChart3,
@@ -62,6 +75,11 @@ const employeeNavigation = [
     title: "My Onboarding",
     url: createPageUrl("EmployeePortal"),
     icon: Briefcase,
+  },
+  {
+    title: "My Training",
+    url: createPageUrl("Training"),
+    icon: Video,
   },
 ];
 

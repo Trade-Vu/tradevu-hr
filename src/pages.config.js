@@ -4,6 +4,8 @@ import Templates from './pages/Templates';
 import EmployeeDetail from './pages/EmployeeDetail';
 import Analytics from './pages/Analytics';
 import EmployeePortal from './pages/EmployeePortal';
+import Training from './pages/Training';
+import Evaluations from './pages/Evaluations';
 import Layout from './Layout.jsx';
 
 
@@ -14,6 +16,8 @@ export const PAGES = {
     "EmployeeDetail": EmployeeDetail,
     "Analytics": Analytics,
     "EmployeePortal": EmployeePortal,
+    "Training": Training,
+    "Evaluations": Evaluations,
 }
 
 export const pagesConfig = {

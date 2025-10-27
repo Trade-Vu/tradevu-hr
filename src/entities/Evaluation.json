@@ -1,0 +1,94 @@
+{
+  "name": "Evaluation",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee being evaluated"
+    },
+    "evaluator_email": {
+      "type": "string",
+      "description": "Email of person conducting evaluation"
+    },
+    "evaluation_type": {
+      "type": "string",
+      "enum": [
+        "self",
+        "manager",
+        "peer",
+        "360"
+      ],
+      "description": "Type of evaluation"
+    },
+    "period": {
+      "type": "string",
+      "description": "Evaluation period (e.g., Q1 2024)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted",
+        "reviewed"
+      ],
+      "default": "draft",
+      "description": "Evaluation status"
+    },
+    "competencies": {
+      "type": "object",
+      "description": "Competency scores (1-5)",
+      "properties": {
+        "communication": {
+          "type": "number"
+        },
+        "teamwork": {
+          "type": "number"
+        },
+        "problem_solving": {
+          "type": "number"
+        },
+        "technical_skills": {
+          "type": "number"
+        },
+        "leadership": {
+          "type": "number"
+        },
+        "adaptability": {
+          "type": "number"
+        },
+        "initiative": {
+          "type": "number"
+        }
+      }
+    },
+    "strengths": {
+      "type": "string",
+      "description": "Key strengths observed"
+    },
+    "areas_for_improvement": {
+      "type": "string",
+      "description": "Areas that need improvement"
+    },
+    "goals": {
+      "type": "array",
+      "description": "Goals for next period",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overall_rating": {
+      "type": "number",
+      "description": "Overall rating (1-5)"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Additional comments"
+    }
+  },
+  "required": [
+    "employee_id",
+    "evaluator_email",
+    "evaluation_type",
+    "period"
+  ]
+}
