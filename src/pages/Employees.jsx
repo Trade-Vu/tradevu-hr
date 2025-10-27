@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import EmployeeList from "../components/dashboard/EmployeeList";
 import AddEmployeeForm from "../components/employees/AddEmployeeForm";
+import BulkImportDialog from "../components/employees/BulkImportDialog";
 
 export default function Employees() {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ export default function Employees() {
   const urlParams = new URLSearchParams(window.location.search);
   const action = urlParams.get('action');
   const [showAddForm, setShowAddForm] = useState(action === 'add');
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
@@ -93,6 +96,33 @@ export default function Employees() {
     },
   });
 
+  const bulkCreateEmployeesMutation = useMutation({
+    mutationFn: async (employeesData) => {
+      const createdEmployees = [];
+      for (const employeeData of employeesData) {
+        const employee = await base44.entities.Employee.create(employeeData);
+        createdEmployees.push(employee);
+        
+        // Send welcome email
+        try {
+          await base44.integrations.Core.SendEmail({
+            to: employeeData.email,
+            subject: `Welcome to the Team! 🎉`,
+            body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour onboarding journey starts on ${new Date(employeeData.start_date).toLocaleDateString()}.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
+          });
+          await base44.entities.Employee.update(employee.id, { welcome_sent: true });
+        } catch (error) {
+          console.error("Error sending welcome email:", error);
+        }
+      }
+      return createdEmployees;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setShowImportDialog(false);
+    },
+  });
+
   return (
     <div className="p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -124,13 +154,23 @@ export default function Employees() {
             </div>
           </div>
           {!showAddForm && (
-            <Button 
-              onClick={() => setShowAddForm(true)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Hire
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => setShowImportDialog(true)}
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV
+              </Button>
+              <Button 
+                onClick={() => setShowAddForm(true)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Hire
+              </Button>
+            </div>
           )}
         </div>
 
@@ -151,6 +191,16 @@ export default function Employees() {
             <EmployeeList employees={employees} isLoading={isLoading} />
           </div>
         )}
+
+        {/* Bulk Import Dialog */}
+        <BulkImportDialog
+          open={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          onImport={(data) => bulkCreateEmployeesMutation.mutate(data)}
+          isImporting={bulkCreateEmployeesMutation.isPending}
+          templates={templates}
+          departments={departments}
+        />
       </div>
     </div>
   );
