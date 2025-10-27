@@ -1,0 +1,50 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee who uploaded/owns the document"
+    },
+    "document_name": {
+      "type": "string",
+      "description": "Name/type of document (e.g., ID, Resume, Contract)"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to the uploaded file"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "uploaded",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Document status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes about the document"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Email of reviewer"
+    },
+    "reviewed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date document was reviewed"
+    }
+  },
+  "required": [
+    "employee_id",
+    "document_name"
+  ]
+}

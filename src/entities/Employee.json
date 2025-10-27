@@ -1,0 +1,81 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "description": "Employee full name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Employee email"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title/position"
+    },
+    "department_id": {
+      "type": "string",
+      "description": "Department ID"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Onboarding template ID"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected start date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed"
+      ],
+      "default": "not_started",
+      "description": "Onboarding status"
+    },
+    "progress_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Overall completion percentage"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "personal_info": {
+      "type": "object",
+      "description": "Additional personal information",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "emergency_contact": {
+          "type": "string"
+        },
+        "emergency_phone": {
+          "type": "string"
+        }
+      }
+    },
+    "welcome_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether welcome email was sent"
+    },
+    "onboarding_completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date onboarding was completed"
+    }
+  },
+  "required": [
+    "full_name",
+    "email",
+    "job_title",
+    "start_date"
+  ]
+}
