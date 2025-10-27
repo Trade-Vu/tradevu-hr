@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -6,16 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Video, Play, CheckCircle, Clock, Award, BookOpen, TrendingUp } from "lucide-react";
+import { Video, Play, CheckCircle, Clock, Award, BookOpen, TrendingUp, Plus, Edit } from "lucide-react";
 import PlatformCard from "../components/training/PlatformCard";
 import VideoPlayer from "../components/training/VideoPlayer";
 import TrainingStats from "../components/training/TrainingStats";
+import TrainingPlatformForm from "../components/training/TrainingPlatformForm";
+import TrainingVideoForm from "../components/training/TrainingVideoForm";
 
 export default function Training() {
   const [user, setUser] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [showPlatformForm, setShowPlatformForm] = useState(false);
+  const [showVideoForm, setShowVideoForm] = useState(false);
+  const [editingPlatform, setEditingPlatform] = useState(null);
+  const [editingVideo, setEditingVideo] = useState(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -81,6 +88,8 @@ export default function Training() {
     ? platforms 
     : platforms.filter(p => p.category === categoryFilter);
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -109,7 +118,35 @@ export default function Training() {
         )}
 
         {/* Main Content */}
-        {selectedVideo ? (
+        {showPlatformForm ? (
+          <TrainingPlatformForm
+            platform={editingPlatform}
+            onCancel={() => {
+              setShowPlatformForm(false);
+              setEditingPlatform(null);
+            }}
+            onSuccess={() => {
+              setShowPlatformForm(false);
+              setEditingPlatform(null);
+              // Invalidate training-platforms query to refetch updated list
+            }}
+          />
+        ) : showVideoForm ? (
+          <TrainingVideoForm
+            video={editingVideo}
+            platforms={platforms}
+            platformId={selectedPlatform?.id}
+            onCancel={() => {
+              setShowVideoForm(false);
+              setEditingVideo(null);
+            }}
+            onSuccess={() => {
+              setShowVideoForm(false);
+              setEditingVideo(null);
+              // Invalidate training-videos query to refetch updated list
+            }}
+          />
+        ) : selectedVideo ? (
           <VideoPlayer
             video={selectedVideo}
             platform={selectedPlatform}
@@ -123,13 +160,38 @@ export default function Training() {
           <Card className="border-slate-200 shadow-xl">
             <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-purple-50 to-blue-50">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <CardTitle className="text-2xl mb-2">{selectedPlatform.name}</CardTitle>
                   <p className="text-slate-600">{selectedPlatform.description}</p>
                 </div>
-                <Button variant="outline" onClick={() => setSelectedPlatform(null)}>
-                  Back to Platforms
-                </Button>
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingPlatform(selectedPlatform);
+                          setShowPlatformForm(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Platform
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowVideoForm(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Video
+                      </Button>
+                    </>
+                  )}
+                  <Button variant="outline" onClick={() => setSelectedPlatform(null)}>
+                    Back to Platforms
+                  </Button>
+                </div>
               </div>
               {employee && (
                 <div className="mt-4">
@@ -219,7 +281,18 @@ export default function Training() {
 
             {/* Platforms Grid */}
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Training Platforms</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-900">Training Platforms</h2>
+                {isAdmin && (
+                  <Button
+                    onClick={() => setShowPlatformForm(true)}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Platform
+                  </Button>
+                )}
+              </div>
               {loadingPlatforms ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {Array(6).fill(0).map((_, i) => (
@@ -231,6 +304,15 @@ export default function Training() {
                   <CardContent className="p-12 text-center">
                     <Video className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                     <p className="text-slate-500">No training platforms available</p>
+                    {isAdmin && (
+                      <Button
+                        onClick={() => setShowPlatformForm(true)}
+                        className="mt-4"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create First Platform
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -242,6 +324,10 @@ export default function Training() {
                       progress={getPlatformProgress(platform.id)}
                       videoCount={videos.filter(v => v.platform_id === platform.id).length}
                       onClick={() => setSelectedPlatform(platform)}
+                      onEdit={isAdmin ? () => {
+                        setEditingPlatform(platform);
+                        setShowPlatformForm(true);
+                      } : null}
                     />
                   ))}
                 </div>

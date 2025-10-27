@@ -1,8 +1,9 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, CheckCircle } from "lucide-react";
+import { useNavigate } => from "react-router-dom";
+import { ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, CheckCircle, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ export default function EmployeeDetail() {
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const employeeId = urlParams.get('id');
+  const [isEditing, setIsEditing] = useState(false);
 
   const { data: employee, isLoading: loadingEmployee } = useQuery({
     queryKey: ['employee', employeeId],
@@ -45,6 +47,7 @@ export default function EmployeeDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsEditing(false); // Set isEditing to false on successful update
     },
   });
 
@@ -107,6 +110,14 @@ export default function EmployeeDetail() {
           <Badge variant="outline" className={`${statusColors[employee.status]} border px-4 py-2 text-sm`}>
             {employee.status === 'not_started' ? 'Not Started' : employee.status === 'in_progress' ? 'In Progress' : 'Completed'}
           </Badge>
+          <Button
+            variant="outline"
+            onClick={() => setIsEditing(!isEditing)}
+            className="gap-2"
+          >
+            <Edit className="w-4 h-4" />
+            {isEditing ? 'Cancel Edit' : 'Edit Info'}
+          </Button>
         </div>
 
         {/* Progress Overview */}
@@ -160,7 +171,12 @@ export default function EmployeeDetail() {
           </TabsContent>
 
           <TabsContent value="info">
-            <EmployeeInfo employee={employee} />
+            <EmployeeInfo 
+              employee={employee}
+              isEditing={isEditing}
+              onUpdate={(data) => updateEmployeeMutation.mutate({ id: employee.id, data })}
+              isUpdating={updateEmployeeMutation.isPending}
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,9 +1,149 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, Calendar, Briefcase, Building2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Mail, Phone, Calendar, Briefcase, Building2, Save } from "lucide-react";
 import { format } from "date-fns";
 
-export default function EmployeeInfo({ employee }) {
+export default function EmployeeInfo({ employee, isEditing, onUpdate, isUpdating }) {
+  const [formData, setFormData] = useState({
+    full_name: employee.full_name || "",
+    email: employee.email || "",
+    phone: employee.phone || "",
+    job_title: employee.job_title || "",
+    start_date: employee.start_date || "",
+    personal_info: employee.personal_info || {},
+  });
+
+  useEffect(() => {
+    setFormData({
+      full_name: employee.full_name || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      job_title: employee.job_title || "",
+      start_date: employee.start_date || "",
+      personal_info: employee.personal_info || {},
+    });
+  }, [employee]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(formData);
+  };
+
+  if (isEditing) {
+    return (
+      <Card className="border-slate-200 shadow-lg">
+        <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardTitle className="text-xl">Edit Employee Information</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Full Name *</Label>
+                <Input
+                  id="full_name"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="job_title">Job Title *</Label>
+                <Input
+                  id="job_title"
+                  value={formData.job_title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, job_title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Start Date *</Label>
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">Personal Information</h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.personal_info.address || ""}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      personal_info: { ...prev.personal_info, address: e.target.value }
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emergency_contact">Emergency Contact</Label>
+                  <Input
+                    id="emergency_contact"
+                    value={formData.personal_info.emergency_contact || ""}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      personal_info: { ...prev.personal_info, emergency_contact: e.target.value }
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emergency_phone">Emergency Phone</Label>
+                  <Input
+                    id="emergency_phone"
+                    value={formData.personal_info.emergency_phone || ""}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      personal_info: { ...prev.personal_info, emergency_phone: e.target.value }
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <Button
+                type="submit"
+                disabled={isUpdating}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isUpdating ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid md:grid-cols-2 gap-6">
       {/* Basic Information */}

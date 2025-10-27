@@ -1,8 +1,9 @@
+
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Video, Lock, CheckCircle } from "lucide-react";
+import { Video, Lock, CheckCircle, Edit } from "lucide-react"; // Import Edit icon
 
 const categoryColors = {
   technical: "from-blue-500 to-blue-600",
@@ -13,13 +14,12 @@ const categoryColors = {
   leadership: "from-indigo-500 to-indigo-600",
 };
 
-export default function PlatformCard({ platform, progress, videoCount, onClick }) {
+export default function PlatformCard({ platform, progress, videoCount, onClick, onEdit }) {
   const isCompleted = progress === 100;
 
   return (
     <Card 
-      className="border-slate-200 hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1"
-      onClick={onClick}
+      className="border-slate-200 hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1 group" // Added 'group' class
     >
       <CardContent className="p-0">
         <div className={`h-32 bg-gradient-to-r ${categoryColors[platform.category] || 'from-slate-500 to-slate-600'} rounded-t-xl flex items-center justify-center relative overflow-hidden`}>
@@ -36,8 +36,20 @@ export default function PlatformCard({ platform, progress, videoCount, onClick }
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
           )}
+          {onEdit && ( // Conditionally render edit button
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Stop propagation to prevent card's onClick
+                onEdit();
+              }}
+              className="absolute bottom-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20" // Added z-20 to ensure it's above other elements
+              aria-label="Edit platform"
+            >
+              <Edit className="w-4 h-4 text-slate-700" />
+            </button>
+          )}
         </div>
-        <div className="p-6">
+        <div className="p-6" onClick={onClick}> {/* Moved onClick to this div */}
           <h3 className="font-bold text-lg text-slate-900 mb-2">{platform.name}</h3>
           {platform.description && (
             <p className="text-sm text-slate-600 mb-4 line-clamp-2">{platform.description}</p>
