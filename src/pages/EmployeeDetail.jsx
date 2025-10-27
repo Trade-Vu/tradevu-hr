@@ -1,12 +1,11 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } => from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, CheckCircle, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskManager from "../components/employee-detail/TaskManager";
 import DocumentManager from "../components/employee-detail/DocumentManager";
@@ -19,25 +18,31 @@ export default function EmployeeDetail() {
   const employeeId = urlParams.get('id');
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: employee, isLoading: loadingEmployee } = useQuery({
+  const { data: employee, isLoading } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: async () => {
-      const employees = await base44.entities.Employee.filter({ id: employeeId });
-      return employees[0];
+      const employees = await base44.entities.Employee.list();
+      return employees.find(e => e.id === employeeId);
     },
     enabled: !!employeeId,
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks', employeeId],
-    queryFn: () => base44.entities.Task.filter({ employee_id: employeeId }),
+    queryKey: ['employee-tasks', employeeId],
+    queryFn: async () => {
+      const allTasks = await base44.entities.Task.list();
+      return allTasks.filter(t => t.employee_id === employeeId);
+    },
     enabled: !!employeeId,
     initialData: [],
   });
 
   const { data: documents = [] } = useQuery({
-    queryKey: ['documents', employeeId],
-    queryFn: () => base44.entities.Document.filter({ employee_id: employeeId }),
+    queryKey: ['employee-documents', employeeId],
+    queryFn: async () => {
+      const allDocs = await base44.entities.Document.list();
+      return allDocs.filter(d => d.employee_id === employeeId);
+    },
     enabled: !!employeeId,
     initialData: [],
   });
@@ -47,7 +52,7 @@ export default function EmployeeDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      setIsEditing(false); // Set isEditing to false on successful update
+      setIsEditing(false);
     },
   });
 
@@ -70,18 +75,27 @@ export default function EmployeeDetail() {
     }
   }, [tasks, employee]);
 
-  if (loadingEmployee) {
+  if (isLoading) {
     return (
-      <div className="p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading employee details...</p>
+        </div>
       </div>
     );
   }
 
   if (!employee) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-slate-500">Employee not found</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Employee not found</h2>
+          <p className="text-slate-600 mb-4">The employee you're looking for doesn't exist.</p>
+          <Button onClick={() => navigate('/Employees')}>
+            Back to Employees
+          </Button>
+        </div>
       </div>
     );
   }
