@@ -6,6 +6,7 @@ import Analytics from './pages/Analytics';
 import EmployeePortal from './pages/EmployeePortal';
 import Training from './pages/Training';
 import Evaluations from './pages/Evaluations';
+import Attendance from './pages/Attendance';
 import Layout from './Layout.jsx';
 
 
@@ -18,6 +19,7 @@ export const PAGES = {
     "EmployeePortal": EmployeePortal,
     "Training": Training,
     "Evaluations": Evaluations,
+    "Attendance": Attendance,
 }
 
 export const pagesConfig = {

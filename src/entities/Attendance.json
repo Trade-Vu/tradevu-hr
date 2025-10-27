@@ -1,0 +1,72 @@
+{
+  "name": "Attendance",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name for quick reference"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Attendance date"
+    },
+    "check_in": {
+      "type": "string",
+      "description": "Check-in time (HH:MM format)"
+    },
+    "check_out": {
+      "type": "string",
+      "description": "Check-out time (HH:MM format)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "present",
+        "absent",
+        "late",
+        "half_day",
+        "leave",
+        "remote"
+      ],
+      "default": "present",
+      "description": "Attendance status"
+    },
+    "hours_worked": {
+      "type": "number",
+      "description": "Total hours worked"
+    },
+    "overtime_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Overtime hours"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or remarks"
+    },
+    "device_id": {
+      "type": "string",
+      "description": "ZKTeco device ID (if synced from device)"
+    },
+    "sync_source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "csv",
+        "zkteco"
+      ],
+      "default": "manual",
+      "description": "How the attendance was recorded"
+    }
+  },
+  "required": [
+    "employee_id",
+    "date",
+    "status"
+  ]
+}

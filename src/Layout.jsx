@@ -12,7 +12,8 @@ import {
   Menu,
   Briefcase,
   Video,
-  ClipboardCheck
+  ClipboardCheck,
+  Calendar // Added Calendar icon
 } from "lucide-react";
 import {
   Sidebar,
@@ -47,6 +48,11 @@ const navigationItems = [
     title: "Employees",
     url: createPageUrl("Employees"),
     icon: Users,
+  },
+  {
+    title: "Attendance", // New navigation item
+    url: createPageUrl("Attendance"),
+    icon: Calendar,
   },
   {
     title: "Templates",
