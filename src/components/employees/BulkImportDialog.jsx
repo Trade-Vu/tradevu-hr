@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
@@ -28,14 +29,14 @@ export default function BulkImportDialog({ open, onClose, onImport, isImporting,
 
   const downloadTemplate = () => {
     const csvContent = `full_name,email,job_title,department_id,template_id,start_date,phone,status
-John Doe,john.doe@company.com,Software Engineer,dept_id,template_id,2024-02-01,+1234567890,not_started
-Jane Smith,jane.smith@company.com,Product Manager,dept_id,template_id,2024-02-15,+1234567891,not_started`;
+John Doe,john@example.com,Software Engineer,dept_001,template_001,2024-01-15,+966501234567,not_started
+Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+966501234568,not_started`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'employee_import_template.csv';
+    link.download = 'eonhr_employee_import_template.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

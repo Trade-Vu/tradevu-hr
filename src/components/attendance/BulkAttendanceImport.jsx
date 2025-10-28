@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,7 +39,7 @@ emp_003,Bob Johnson,2024-01-15,,,absent,0,0,Sick leave`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'attendance_import_template.csv';
+    link.download = 'eonhr_attendance_import_template.csv'; // Changed filename here
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

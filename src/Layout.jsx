@@ -163,7 +163,7 @@ export default function Layout({ children, currentPageName }) {
                 <Briefcase className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">Onboard Flow</h2>
+                <h2 className="font-bold text-slate-900 text-lg">EonHR</h2>
                 <p className="text-xs text-slate-500">Smart HR System</p>
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function Layout({ children, currentPageName }) {
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
-              <h1 className="text-lg font-semibold text-slate-900">Onboard Flow</h1>
+              <h1 className="text-lg font-semibold text-slate-900">EonHR</h1>
             </div>
           </header>
 
