@@ -9,6 +9,8 @@ import Evaluations from './pages/Evaluations';
 import Attendance from './pages/Attendance';
 import Payroll from './pages/Payroll';
 import HRLetters from './pages/HRLetters';
+import Recruitment from './pages/Recruitment';
+import Expenses from './pages/Expenses';
 import Layout from './Layout.jsx';
 
 
@@ -24,6 +26,8 @@ export const PAGES = {
     "Attendance": Attendance,
     "Payroll": Payroll,
     "HRLetters": HRLetters,
+    "Recruitment": Recruitment,
+    "Expenses": Expenses,
 }
 
 export const pagesConfig = {
