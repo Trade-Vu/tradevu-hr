@@ -1,0 +1,112 @@
+{
+  "name": "Survey",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Survey title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Survey description"
+    },
+    "survey_type": {
+      "type": "string",
+      "enum": [
+        "engagement",
+        "satisfaction",
+        "wellness",
+        "feedback",
+        "pulse",
+        "other"
+      ],
+      "description": "Type of survey"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "rating",
+              "multiple_choice",
+              "yes_no"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "Survey questions"
+    },
+    "target_audience": {
+      "type": "string",
+      "enum": [
+        "all",
+        "department",
+        "specific_employees"
+      ],
+      "default": "all",
+      "description": "Who should take the survey"
+    },
+    "target_departments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target departments if applicable"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "closed"
+      ],
+      "default": "draft",
+      "description": "Survey status"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Survey start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Survey end date"
+    },
+    "responses_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of responses"
+    },
+    "ai_summary": {
+      "type": "string",
+      "description": "AI-generated insights"
+    },
+    "anonymous": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether responses are anonymous"
+    }
+  },
+  "required": [
+    "title",
+    "survey_type",
+    "questions"
+  ]
+}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -13,7 +12,11 @@ import {
   Briefcase,
   Video,
   ClipboardCheck,
-  Calendar // Added Calendar icon
+  Calendar,
+  DollarSign,
+  UserPlus,
+  Receipt,
+  MessageSquare
 } from "lucide-react";
 import {
   Sidebar,
@@ -50,9 +53,34 @@ const navigationItems = [
     icon: Users,
   },
   {
-    title: "Attendance", // New navigation item
+    title: "Attendance",
     url: createPageUrl("Attendance"),
     icon: Calendar,
+  },
+  {
+    title: "Payroll",
+    url: createPageUrl("Payroll"),
+    icon: DollarSign,
+  },
+  {
+    title: "Recruitment",
+    url: createPageUrl("Recruitment"),
+    icon: UserPlus,
+  },
+  {
+    title: "Expenses",
+    url: createPageUrl("Expenses"),
+    icon: Receipt,
+  },
+  {
+    title: "HR Letters",
+    url: createPageUrl("HRLetters"),
+    icon: FileText,
+  },
+  {
+    title: "Surveys",
+    url: createPageUrl("Surveys"),
+    icon: MessageSquare,
   },
   {
     title: "Templates",
@@ -78,7 +106,7 @@ const navigationItems = [
 
 const employeeNavigation = [
   {
-    title: "My Onboarding",
+    title: "My Dashboard",
     url: createPageUrl("EmployeePortal"),
     icon: Briefcase,
   },
@@ -86,6 +114,16 @@ const employeeNavigation = [
     title: "My Training",
     url: createPageUrl("Training"),
     icon: Video,
+  },
+  {
+    title: "Request HR Letter",
+    url: createPageUrl("HRLetters"),
+    icon: FileText,
+  },
+  {
+    title: "Expense Claims",
+    url: createPageUrl("Expenses"),
+    icon: Receipt,
   },
 ];
 
@@ -100,7 +138,6 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
         
-        // Check if user is an employee (has an employee record)
         const employees = await base44.entities.Employee.filter({ email: currentUser.email });
         setIsEmployee(employees.length > 0);
       } catch (error) {
@@ -126,8 +163,8 @@ export default function Layout({ children, currentPageName }) {
                 <Briefcase className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">HR Onboard</h2>
-                <p className="text-xs text-slate-500">Smart Onboarding</p>
+                <h2 className="font-bold text-slate-900 text-lg">Onboard Flow</h2>
+                <p className="text-xs text-slate-500">Smart HR System</p>
               </div>
             </div>
           </SidebarHeader>
@@ -190,7 +227,7 @@ export default function Layout({ children, currentPageName }) {
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
-              <h1 className="text-lg font-semibold text-slate-900">HR Onboard</h1>
+              <h1 className="text-lg font-semibold text-slate-900">Onboard Flow</h1>
             </div>
           </header>
 

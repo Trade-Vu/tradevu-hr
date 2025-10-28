@@ -1,0 +1,107 @@
+{
+  "name": "Payroll",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name for reference"
+    },
+    "month": {
+      "type": "string",
+      "description": "Payroll month (YYYY-MM format)"
+    },
+    "basic_salary": {
+      "type": "number",
+      "description": "Basic monthly salary"
+    },
+    "allowances": {
+      "type": "object",
+      "description": "Allowances breakdown",
+      "properties": {
+        "housing": {
+          "type": "number"
+        },
+        "transport": {
+          "type": "number"
+        },
+        "food": {
+          "type": "number"
+        },
+        "other": {
+          "type": "number"
+        }
+      }
+    },
+    "deductions": {
+      "type": "object",
+      "description": "Deductions breakdown",
+      "properties": {
+        "late_days": {
+          "type": "number"
+        },
+        "absent_days": {
+          "type": "number"
+        },
+        "loans": {
+          "type": "number"
+        },
+        "insurance": {
+          "type": "number"
+        },
+        "other": {
+          "type": "number"
+        }
+      }
+    },
+    "overtime_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Total overtime hours"
+    },
+    "overtime_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Overtime payment"
+    },
+    "total_earnings": {
+      "type": "number",
+      "description": "Total earnings before deductions"
+    },
+    "total_deductions": {
+      "type": "number",
+      "description": "Total deductions"
+    },
+    "net_salary": {
+      "type": "number",
+      "description": "Final net salary"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved",
+        "paid"
+      ],
+      "default": "draft",
+      "description": "Payroll status"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date salary was paid"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "employee_id",
+    "month",
+    "basic_salary"
+  ]
+}
