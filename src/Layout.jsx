@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
   BarChart3,
   UserCircle,
   LogOut,
@@ -154,27 +155,33 @@ export default function Layout({ children, currentPageName }) {
             setOrganization(orgs[0]);
           }
         }
-        
-        const employees = await base44.entities.Employee.filter({ 
+
+        const employees = await base44.entities.Employee.filter({
           email: currentUser.email,
-          organization_id: currentUser.organization_id 
+          organization_id: currentUser.organization_id
         });
         setIsEmployee(employees.length > 0);
       } catch (error) {
         console.error("Error loading user:", error);
+        // If there's an error loading the user (e.g., not authenticated),
+        // and it's not the signup/login page, redirect to login
+        if (error.response?.status === 401 && currentPageName !== 'Signup' && currentPageName !== 'Login') {
+          navigate('/Login');
+        }
       }
     };
     loadUser();
-  }, [currentPageName]);
+  }, [currentPageName, navigate]);
 
   const handleLogout = () => {
     base44.auth.logout();
+    navigate('/Login'); // Redirect to login page after logout
   };
 
   const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationItems;
 
   // If on organization setup page, don't show layout
-  if (currentPageName === 'OrganizationSetup') {
+  if (currentPageName === 'OrganizationSetup' || currentPageName === 'Login' || currentPageName === 'Signup' || currentPageName === 'ForgotPassword') {
     return children;
   }
 
@@ -197,7 +204,7 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
           </SidebarHeader>
-          
+
           <SidebarContent className="p-3">
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
@@ -207,8 +214,8 @@ export default function Layout({ children, currentPageName }) {
                 <SidebarMenu>
                   {navItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
+                      <SidebarMenuButton
+                        asChild
                         className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
                           location.pathname === item.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
                         }`}
@@ -222,8 +229,8 @@ export default function Layout({ children, currentPageName }) {
                   ))}
                   {(user?.role === 'admin' || user?.is_organization_owner) && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        asChild 
+                      <SidebarMenuButton
+                        asChild
                         className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
                           location.pathname === createPageUrl("Settings") ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
                         }`}
@@ -244,9 +251,13 @@ export default function Layout({ children, currentPageName }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start gap-3 hover:bg-slate-100">
-                  <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-                    <UserCircle className="w-5 h-5 text-white" />
-                  </div>
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                      <UserCircle className="w-5 h-5 text-white" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0 text-left">
                     <p className="font-medium text-slate-900 text-sm truncate">
                       {user?.full_name || 'User'}
@@ -256,6 +267,10 @@ export default function Layout({ children, currentPageName }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => navigate('/Profile')}>
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  My Profile
+                </DropdownMenuItem>
                 {(user?.role === 'admin' || user?.is_organization_owner) && (
                   <DropdownMenuItem onClick={() => navigate('/Settings')}>
                     <Settings className="w-4 h-4 mr-2" />

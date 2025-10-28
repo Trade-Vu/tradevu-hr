@@ -49,6 +49,51 @@
       "type": "string",
       "format": "date-time",
       "description": "Last login timestamp"
+    },
+    "social_accounts": {
+      "type": "object",
+      "description": "Connected social accounts",
+      "properties": {
+        "linkedin": {
+          "type": "string"
+        },
+        "twitter": {
+          "type": "string"
+        },
+        "github": {
+          "type": "string"
+        },
+        "facebook": {
+          "type": "string"
+        }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "description": "User preferences",
+      "properties": {
+        "language": {
+          "type": "string",
+          "default": "en"
+        },
+        "timezone": {
+          "type": "string",
+          "default": "Asia/Riyadh"
+        },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "boolean",
+              "default": true
+            },
+            "push": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
     }
   },
   "required": []

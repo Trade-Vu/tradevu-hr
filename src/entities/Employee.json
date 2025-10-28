@@ -62,6 +62,60 @@
         },
         "emergency_phone": {
           "type": "string"
+        },
+        "date_of_birth": {
+          "type": "string",
+          "format": "date"
+        },
+        "nationality": {
+          "type": "string"
+        },
+        "national_id": {
+          "type": "string"
+        },
+        "passport_number": {
+          "type": "string"
+        }
+      }
+    },
+    "payroll_details": {
+      "type": "object",
+      "description": "Payroll and banking information",
+      "properties": {
+        "basic_salary": {
+          "type": "number"
+        },
+        "bank_name": {
+          "type": "string"
+        },
+        "account_number": {
+          "type": "string"
+        },
+        "iban": {
+          "type": "string"
+        },
+        "tax_number": {
+          "type": "string"
+        },
+        "social_insurance_number": {
+          "type": "string"
+        },
+        "allowances": {
+          "type": "object",
+          "properties": {
+            "housing": {
+              "type": "number"
+            },
+            "transport": {
+              "type": "number"
+            },
+            "food": {
+              "type": "number"
+            },
+            "other": {
+              "type": "number"
+            }
+          }
         }
       }
     },

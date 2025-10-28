@@ -14,6 +14,7 @@ import Expenses from './pages/Expenses';
 import Surveys from './pages/Surveys';
 import OrganizationSetup from './pages/OrganizationSetup';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 import Layout from './Layout.jsx';
 
 
@@ -34,6 +35,7 @@ export const PAGES = {
     "Surveys": Surveys,
     "OrganizationSetup": OrganizationSetup,
     "Settings": Settings,
+    "Profile": Profile,
 }
 
 export const pagesConfig = {

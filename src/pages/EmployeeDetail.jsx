@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskManager from "../components/employee-detail/TaskManager";
 import DocumentManager from "../components/employee-detail/DocumentManager";
 import EmployeeInfo from "../components/employee-detail/EmployeeInfo";
+import PayrollDetails from "../components/employee-detail/PayrollDetails";
 
 export default function EmployeeDetail() {
   const navigate = useNavigate();
@@ -167,6 +169,7 @@ export default function EmployeeDetail() {
           <TabsList className="bg-white border border-slate-200">
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="payroll">Payroll</TabsTrigger>
             <TabsTrigger value="info">Employee Info</TabsTrigger>
           </TabsList>
 
@@ -181,6 +184,14 @@ export default function EmployeeDetail() {
             <DocumentManager 
               documents={documents}
               employeeId={employeeId}
+            />
+          </TabsContent>
+
+          <TabsContent value="payroll">
+            <PayrollDetails
+              employee={employee}
+              onUpdate={(data) => updateEmployeeMutation.mutate({ id: employee.id, data })}
+              isUpdating={updateEmployeeMutation.isPending}
             />
           </TabsContent>
 
