@@ -3,15 +3,17 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Calendar, Upload, Settings, Users } from "lucide-react";
+import { Calendar, Upload, Settings, Users, Smartphone } from "lucide-react";
 import AttendanceRecords from "../components/attendance/AttendanceRecords";
 import BulkAttendanceImport from "../components/attendance/BulkAttendanceImport";
 import ZKTecoSettings from "../components/attendance/ZKTecoSettings";
+import ZKTecoDeviceManager from "../components/attendance/ZKTecoDeviceManager";
 import AttendanceSummary from "../components/attendance/AttendanceSummary";
 
 export default function Attendance() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showDeviceManager, setShowDeviceManager] = useState(false);
 
   const { data: attendanceRecords = [] } = useQuery({
     queryKey: ['attendance'],
@@ -56,6 +58,14 @@ export default function Attendance() {
             </p>
           </div>
           <div className="flex gap-3">
+            <Button 
+              onClick={() => setShowDeviceManager(true)}
+              variant="outline"
+              className="border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Devices
+            </Button>
             <Button 
               onClick={() => setShowSettingsDialog(true)}
               variant="outline"
@@ -121,6 +131,12 @@ export default function Attendance() {
           open={showSettingsDialog}
           onClose={() => setShowSettingsDialog(false)}
           currentSettings={currentSettings}
+        />
+
+        {/* Device Manager */}
+        <ZKTecoDeviceManager
+          open={showDeviceManager}
+          onClose={() => setShowDeviceManager(false)}
         />
       </div>
     </div>
