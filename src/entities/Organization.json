@@ -1,0 +1,191 @@
+{
+  "name": "Organization",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Organization/Company name"
+    },
+    "industry": {
+      "type": "string",
+      "enum": [
+        "technology",
+        "healthcare",
+        "education",
+        "retail",
+        "manufacturing",
+        "finance",
+        "hospitality",
+        "other"
+      ],
+      "description": "Industry type"
+    },
+    "size": {
+      "type": "string",
+      "enum": [
+        "1-10",
+        "11-50",
+        "51-200",
+        "201-500",
+        "501-1000",
+        "1000+"
+      ],
+      "description": "Company size"
+    },
+    "country": {
+      "type": "string",
+      "default": "Saudi Arabia",
+      "description": "Country"
+    },
+    "city": {
+      "type": "string",
+      "description": "City"
+    },
+    "address": {
+      "type": "string",
+      "description": "Full address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Company phone"
+    },
+    "email": {
+      "type": "string",
+      "description": "Company email"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "Company logo URL"
+    },
+    "subscription_plan": {
+      "type": "string",
+      "enum": [
+        "trial",
+        "starter",
+        "professional",
+        "enterprise"
+      ],
+      "default": "trial",
+      "description": "Subscription plan"
+    },
+    "subscription_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "trial",
+        "expired",
+        "cancelled"
+      ],
+      "default": "trial",
+      "description": "Subscription status"
+    },
+    "trial_ends_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Trial expiration date"
+    },
+    "subscription_ends_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Subscription end date"
+    },
+    "max_employees": {
+      "type": "number",
+      "default": 10,
+      "description": "Maximum employees allowed"
+    },
+    "features_enabled": {
+      "type": "object",
+      "description": "Enabled features per plan",
+      "properties": {
+        "attendance": {
+          "type": "boolean",
+          "default": true
+        },
+        "payroll": {
+          "type": "boolean",
+          "default": false
+        },
+        "recruitment": {
+          "type": "boolean",
+          "default": false
+        },
+        "lms": {
+          "type": "boolean",
+          "default": false
+        },
+        "surveys": {
+          "type": "boolean",
+          "default": false
+        },
+        "expenses": {
+          "type": "boolean",
+          "default": false
+        },
+        "zkteco": {
+          "type": "boolean",
+          "default": false
+        },
+        "whatsapp": {
+          "type": "boolean",
+          "default": false
+        },
+        "ai_features": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "branding": {
+      "type": "object",
+      "description": "Custom branding settings",
+      "properties": {
+        "primary_color": {
+          "type": "string",
+          "default": "#3b82f6"
+        },
+        "secondary_color": {
+          "type": "string",
+          "default": "#6366f1"
+        }
+      }
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Organization owner email"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Organization-specific settings",
+      "properties": {
+        "work_week": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timezone": {
+          "type": "string",
+          "default": "Asia/Riyadh"
+        },
+        "currency": {
+          "type": "string",
+          "default": "SAR"
+        },
+        "language": {
+          "type": "string",
+          "default": "en"
+        }
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether organization is active"
+    }
+  },
+  "required": [
+    "name",
+    "owner_email"
+  ]
+}

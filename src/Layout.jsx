@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { 
   LayoutDashboard, 
@@ -16,7 +16,8 @@ import {
   DollarSign,
   UserPlus,
   Receipt,
-  MessageSquare
+  MessageSquare,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -129,7 +130,9 @@ const employeeNavigation = [
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [organization, setOrganization] = useState(null);
   const [isEmployee, setIsEmployee] = useState(false);
 
   useEffect(() => {
@@ -137,15 +140,32 @@ export default function Layout({ children, currentPageName }) {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+
+        // Check if user needs to set up organization
+        if (!currentUser.organization_id && currentPageName !== 'OrganizationSetup') {
+          navigate('/OrganizationSetup');
+          return;
+        }
+
+        // Load organization
+        if (currentUser.organization_id) {
+          const orgs = await base44.entities.Organization.filter({ id: currentUser.organization_id });
+          if (orgs.length > 0) {
+            setOrganization(orgs[0]);
+          }
+        }
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
+        const employees = await base44.entities.Employee.filter({ 
+          email: currentUser.email,
+          organization_id: currentUser.organization_id 
+        });
         setIsEmployee(employees.length > 0);
       } catch (error) {
         console.error("Error loading user:", error);
       }
     };
     loadUser();
-  }, []);
+  }, [currentPageName]);
 
   const handleLogout = () => {
     base44.auth.logout();
@@ -153,17 +173,26 @@ export default function Layout({ children, currentPageName }) {
 
   const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationItems;
 
+  // If on organization setup page, don't show layout
+  if (currentPageName === 'OrganizationSetup') {
+    return children;
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-blue-50">
         <Sidebar className="border-r border-slate-200 bg-white">
           <SidebarHeader className="border-b border-slate-200 p-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Briefcase className="w-6 h-6 text-white" />
-              </div>
+              {organization?.logo_url ? (
+                <img src={organization.logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Briefcase className="w-6 h-6 text-white" />
+                </div>
+              )}
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">EonHR</h2>
+                <h2 className="font-bold text-slate-900 text-lg">{organization?.name || 'EonHR'}</h2>
                 <p className="text-xs text-slate-500">Smart HR System</p>
               </div>
             </div>
@@ -191,6 +220,21 @@ export default function Layout({ children, currentPageName }) {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+                  {(user?.role === 'admin' || user?.is_organization_owner) && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        asChild 
+                        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
+                          location.pathname === createPageUrl("Settings") ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+                        }`}
+                      >
+                        <Link to={createPageUrl("Settings")} className="flex items-center gap-3 px-3 py-2.5">
+                          <Settings className="w-5 h-5" />
+                          <span className="font-medium">Settings</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -212,6 +256,12 @@ export default function Layout({ children, currentPageName }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {(user?.role === 'admin' || user?.is_organization_owner) && (
+                  <DropdownMenuItem onClick={() => navigate('/Settings')}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
@@ -227,7 +277,7 @@ export default function Layout({ children, currentPageName }) {
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200">
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
-              <h1 className="text-lg font-semibold text-slate-900">EonHR</h1>
+              <h1 className="text-lg font-semibold text-slate-900">{organization?.name || 'EonHR'}</h1>
             </div>
           </header>
 

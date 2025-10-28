@@ -12,6 +12,8 @@ import HRLetters from './pages/HRLetters';
 import Recruitment from './pages/Recruitment';
 import Expenses from './pages/Expenses';
 import Surveys from './pages/Surveys';
+import OrganizationSetup from './pages/OrganizationSetup';
+import Settings from './pages/Settings';
 import Layout from './Layout.jsx';
 
 
@@ -30,6 +32,8 @@ export const PAGES = {
     "Recruitment": Recruitment,
     "Expenses": Expenses,
     "Surveys": Surveys,
+    "OrganizationSetup": OrganizationSetup,
+    "Settings": Settings,
 }
 
 export const pagesConfig = {
