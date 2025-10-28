@@ -11,6 +11,7 @@ import Payroll from './pages/Payroll';
 import HRLetters from './pages/HRLetters';
 import Recruitment from './pages/Recruitment';
 import Expenses from './pages/Expenses';
+import Surveys from './pages/Surveys';
 import Layout from './Layout.jsx';
 
 
@@ -28,6 +29,7 @@ export const PAGES = {
     "HRLetters": HRLetters,
     "Recruitment": Recruitment,
     "Expenses": Expenses,
+    "Surveys": Surveys,
 }
 
 export const pagesConfig = {
