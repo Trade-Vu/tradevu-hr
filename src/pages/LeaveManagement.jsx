@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,10 @@ export default function LeaveManagement() {
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
+      if (!employee) {
+        throw new Error("Employee data not found");
+      }
+      
       const managers = employee?.manager_email ? [employee.manager_email] : [];
       
       return base44.entities.LeaveRequest.create({

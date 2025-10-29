@@ -5,8 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Home, Heart, MessageSquare, Send, Image, Video, PinIcon, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Home, Heart, MessageSquare, Send, Image, Video, PinIcon, Upload, Users } from "lucide-react";
 import { format } from "date-fns";
 
 export default function CompanyWall() {
@@ -17,6 +20,8 @@ export default function CompanyWall() {
   const [commentText, setCommentText] = useState({});
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [mediaFiles, setMediaFiles] = useState([]);
+  const [visibility, setVisibility] = useState('all');
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -43,9 +48,9 @@ export default function CompanyWall() {
     initialData: [],
   });
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => base44.entities.Department.list(),
     initialData: [],
   });
 
@@ -55,6 +60,8 @@ export default function CompanyWall() {
       queryClient.invalidateQueries({ queryKey: ['company-posts'] });
       setPostText('');
       setMediaFiles([]);
+      setVisibility('all');
+      setSelectedDepartments([]);
     },
   });
 
@@ -62,7 +69,6 @@ export default function CompanyWall() {
     mutationFn: async (data) => {
       await base44.entities.PostComment.create(data);
       
-      // Update comment count
       const post = posts.find(p => p.id === data.post_id);
       if (post) {
         await base44.entities.CompanyPost.update(post.id, {
@@ -122,7 +128,8 @@ export default function CompanyWall() {
       posted_by_name: user.full_name,
       content: postText,
       media: mediaFiles,
-      visibility: 'all',
+      visibility: visibility,
+      target_departments: visibility === 'department' ? selectedDepartments : [],
     });
   };
 
@@ -142,6 +149,14 @@ export default function CompanyWall() {
 
   const getPostComments = (postId) => {
     return comments.filter(c => c.post_id === postId);
+  };
+
+  const toggleDepartment = (deptId) => {
+    setSelectedDepartments(prev => 
+      prev.includes(deptId) 
+        ? prev.filter(id => id !== deptId)
+        : [...prev, deptId]
+    );
   };
 
   return (
@@ -181,6 +196,43 @@ export default function CompanyWall() {
                     rows={3}
                     className="resize-none"
                   />
+                  
+                  {/* Visibility Selection */}
+                  <div className="space-y-2">
+                    <Label>Who can see this post?</Label>
+                    <Select value={visibility} onValueChange={setVisibility}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            All Employees
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="department">Specific Departments</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Department Selection */}
+                  {visibility === 'department' && (
+                    <div className="space-y-2">
+                      <Label>Select Departments</Label>
+                      <div className="border border-slate-200 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                        {departments.map(dept => (
+                          <div key={dept.id} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={selectedDepartments.includes(dept.id)}
+                              onCheckedChange={() => toggleDepartment(dept.id)}
+                            />
+                            <Label className="cursor-pointer">{dept.name}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {mediaFiles.length > 0 && (
                     <div className="grid grid-cols-3 gap-2">
@@ -262,9 +314,16 @@ export default function CompanyWall() {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-slate-900">{post.posted_by_name}</h4>
-                        <p className="text-xs text-slate-500">
-                          {format(new Date(post.created_date), 'MMM d, yyyy • h:mm a')}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-slate-500">
+                            {format(new Date(post.created_date), 'MMM d, yyyy • h:mm a')}
+                          </p>
+                          {post.visibility === 'department' && (
+                            <Badge variant="outline" className="text-xs">
+                              {post.target_departments?.length} departments
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       {post.is_pinned && (
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">

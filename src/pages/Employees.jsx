@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ export default function Employees() {
   const action = urlParams.get('action');
   const [showAddForm, setShowAddForm] = useState(action === 'add');
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
+  const [viewMode, setViewMode] = useState('cards'); // Changed default to 'cards'
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 

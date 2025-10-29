@@ -4,7 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MessageCircle, Send, Plus, Search, Users, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
@@ -14,6 +17,10 @@ export default function Chat() {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
+  const [newChatType, setNewChatType] = useState('direct');
+  const [selectedParticipants, setSelectedParticipants] = useState([]);
+  const [groupName, setGroupName] = useState('');
 
   useEffect(() => {
     const loadUser = async () => {
@@ -26,6 +33,12 @@ export default function Chat() {
     };
     loadUser();
   }, []);
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+  });
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations', user?.email],
@@ -47,11 +60,21 @@ export default function Chat() {
     initialData: [],
   });
 
+  const createConversationMutation = useMutation({
+    mutationFn: (data) => base44.entities.Conversation.create(data),
+    onSuccess: (newConversation) => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      setShowNewChatDialog(false);
+      setSelectedParticipants([]);
+      setGroupName('');
+      setSelectedConversation(newConversation);
+    },
+  });
+
   const sendMessageMutation = useMutation({
     mutationFn: async (data) => {
       const message = await base44.entities.ChatMessage.create(data);
       
-      // Update conversation
       await base44.entities.Conversation.update(selectedConversation.id, {
         last_message: data.message,
         last_message_time: new Date().toISOString(),
@@ -66,6 +89,20 @@ export default function Chat() {
     },
   });
 
+  const handleCreateConversation = () => {
+    if (selectedParticipants.length === 0) return;
+
+    const participants = [...selectedParticipants, user.email];
+    
+    createConversationMutation.mutate({
+      organization_id: user.organization_id,
+      conversation_type: selectedParticipants.length === 1 ? 'direct' : 'group',
+      participants,
+      group_name: selectedParticipants.length > 1 ? groupName : null,
+      group_admin: selectedParticipants.length > 1 ? user.email : null,
+    });
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!messageText.trim() || !selectedConversation) return;
@@ -79,6 +116,14 @@ export default function Chat() {
       message_type: 'text',
       timestamp: new Date().toISOString(),
     });
+  };
+
+  const toggleParticipant = (email) => {
+    setSelectedParticipants(prev => 
+      prev.includes(email) 
+        ? prev.filter(e => e !== email)
+        : [...prev, email]
+    );
   };
 
   const filteredConversations = conversations.filter(conv => {
@@ -97,9 +142,61 @@ export default function Chat() {
               <div className="p-4 border-b border-slate-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-slate-900">Messages</h2>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                  <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>New Conversation</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {selectedParticipants.length > 1 && (
+                          <div className="space-y-2">
+                            <Label>Group Name</Label>
+                            <Input
+                              placeholder="Enter group name..."
+                              value={groupName}
+                              onChange={(e) => setGroupName(e.target.value)}
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <Label>Select People</Label>
+                          <div className="max-h-64 overflow-y-auto space-y-2 border border-slate-200 rounded-lg p-3">
+                            {employees
+                              .filter(emp => emp.email !== user?.email)
+                              .map(emp => (
+                                <div key={emp.id} className="flex items-center gap-3">
+                                  <Checkbox
+                                    checked={selectedParticipants.includes(emp.email)}
+                                    onCheckedChange={() => toggleParticipant(emp.email)}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs">
+                                      {emp.full_name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-slate-900">{emp.full_name}</p>
+                                      <p className="text-xs text-slate-500">{emp.job_title}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={handleCreateConversation}
+                          disabled={selectedParticipants.length === 0 || createConversationMutation.isPending}
+                          className="w-full"
+                        >
+                          {createConversationMutation.isPending ? 'Creating...' : 'Create Conversation'}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
