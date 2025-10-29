@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -159,7 +158,6 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="p-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Logo Upload */}
                   <div className="space-y-2">
                     <Label>Organization Logo</Label>
                     <div className="flex items-center gap-4">
@@ -253,7 +251,6 @@ export default function Settings() {
                 <CardTitle>Subscription & Billing</CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
-                {/* Current Plan */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
@@ -287,7 +284,6 @@ export default function Settings() {
                   </ul>
                 </div>
 
-                {/* Usage */}
                 <div>
                   <h4 className="font-semibold text-slate-900 mb-3">Usage</h4>
                   <div className="space-y-2">
