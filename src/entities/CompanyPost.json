@@ -1,0 +1,93 @@
+{
+  "name": "CompanyPost",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "posted_by": {
+      "type": "string",
+      "description": "Email of poster"
+    },
+    "posted_by_name": {
+      "type": "string",
+      "description": "Name of poster"
+    },
+    "content": {
+      "type": "string",
+      "description": "Post content/text"
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "document"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Attached media (photos, videos)"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "all",
+        "department",
+        "specific"
+      ],
+      "default": "all",
+      "description": "Who can see this post"
+    },
+    "target_departments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target departments (if visibility is department)"
+    },
+    "target_employees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target employee emails (if visibility is specific)"
+    },
+    "likes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of emails who liked"
+    },
+    "likes_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of likes"
+    },
+    "comments_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of comments"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether post is pinned"
+    }
+  },
+  "required": [
+    "organization_id",
+    "posted_by",
+    "content"
+  ]
+}

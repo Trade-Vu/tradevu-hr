@@ -1,0 +1,56 @@
+{
+  "name": "Conversation",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "conversation_type": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "group",
+        "project"
+      ],
+      "description": "Type of conversation"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of participant emails"
+    },
+    "group_name": {
+      "type": "string",
+      "description": "Group name (for group chats)"
+    },
+    "group_admin": {
+      "type": "string",
+      "description": "Admin email (for group chats)"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project ID (for project chats)"
+    },
+    "last_message": {
+      "type": "string",
+      "description": "Last message preview"
+    },
+    "last_message_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last message"
+    },
+    "unread_count": {
+      "type": "object",
+      "description": "Unread count per participant"
+    }
+  },
+  "required": [
+    "organization_id",
+    "conversation_type",
+    "participants"
+  ]
+}

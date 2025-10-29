@@ -1,0 +1,118 @@
+{
+  "name": "LeaveRequest",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee requesting leave"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "employee_email": {
+      "type": "string",
+      "description": "Employee email"
+    },
+    "leave_type": {
+      "type": "string",
+      "enum": [
+        "annual",
+        "sick",
+        "personal",
+        "emergency",
+        "unpaid",
+        "maternity",
+        "paternity",
+        "bereavement"
+      ],
+      "description": "Type of leave"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Leave start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Leave end date"
+    },
+    "total_days": {
+      "type": "number",
+      "description": "Number of leave days"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for leave"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "cancelled"
+      ],
+      "default": "pending",
+      "description": "Leave request status"
+    },
+    "approvers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "approved_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "comments": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "List of approvers and their decisions"
+    },
+    "reporting_managers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Emails of reporting managers"
+    },
+    "attachment_url": {
+      "type": "string",
+      "description": "Supporting document URL"
+    },
+    "comments": {
+      "type": "string",
+      "description": "Additional comments"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "leave_type",
+    "start_date",
+    "end_date",
+    "total_days"
+  ]
+}

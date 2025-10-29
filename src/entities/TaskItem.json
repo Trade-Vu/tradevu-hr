@@ -1,0 +1,98 @@
+{
+  "name": "TaskItem",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project ID (if part of project)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Task description"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Email of assigned person"
+    },
+    "assigned_by": {
+      "type": "string",
+      "description": "Email of person who assigned"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "backlog",
+        "todo",
+        "in_progress",
+        "review",
+        "done"
+      ],
+      "default": "todo",
+      "description": "Task status"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium",
+      "description": "Task priority"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Task due date"
+    },
+    "estimated_hours": {
+      "type": "number",
+      "description": "Estimated hours to complete"
+    },
+    "actual_hours": {
+      "type": "number",
+      "description": "Actual hours spent"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Task tags"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File URLs"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When task was completed"
+    },
+    "handover_from": {
+      "type": "string",
+      "description": "Previous assignee email (for handover)"
+    },
+    "handover_notes": {
+      "type": "string",
+      "description": "Handover notes"
+    }
+  },
+  "required": [
+    "organization_id",
+    "title",
+    "assigned_to"
+  ]
+}

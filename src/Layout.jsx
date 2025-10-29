@@ -17,7 +17,11 @@ import {
   UserPlus,
   Receipt,
   MessageSquare,
-  Settings
+  Settings,
+  CheckSquare,
+  Plane,
+  MessageCircle,
+  Home
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,9 +53,29 @@ const navigationItems = [
     icon: LayoutDashboard,
   },
   {
+    title: "Company Wall",
+    url: createPageUrl("CompanyWall"),
+    icon: Home,
+  },
+  {
+    title: "Tasks & Projects",
+    url: createPageUrl("TaskManager"),
+    icon: CheckSquare,
+  },
+  {
+    title: "Chat",
+    url: createPageUrl("Chat"),
+    icon: MessageCircle,
+  },
+  {
     title: "Employees",
     url: createPageUrl("Employees"),
     icon: Users,
+  },
+  {
+    title: "Leave Requests",
+    url: createPageUrl("LeaveManagement"),
+    icon: Plane,
   },
   {
     title: "Attendance",
@@ -112,6 +136,26 @@ const employeeNavigation = [
     icon: Briefcase,
   },
   {
+    title: "Company Wall",
+    url: createPageUrl("CompanyWall"),
+    icon: Home,
+  },
+  {
+    title: "My Tasks",
+    url: createPageUrl("TaskManager"),
+    icon: CheckSquare,
+  },
+  {
+    title: "Chat",
+    url: createPageUrl("Chat"),
+    icon: MessageCircle,
+  },
+  {
+    title: "Leave Requests",
+    url: createPageUrl("LeaveManagement"),
+    icon: Plane,
+  },
+  {
     title: "My Training",
     url: createPageUrl("Training"),
     icon: Video,
@@ -141,13 +185,11 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
 
-        // Check if user needs to set up organization
         if (!currentUser.organization_id && currentPageName !== 'OrganizationSetup') {
           navigate('/OrganizationSetup');
           return;
         }
 
-        // Load organization
         if (currentUser.organization_id) {
           const orgs = await base44.entities.Organization.filter({ id: currentUser.organization_id });
           if (orgs.length > 0) {
@@ -173,7 +215,6 @@ export default function Layout({ children, currentPageName }) {
 
   const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationItems;
 
-  // If on organization setup page, don't show layout
   if (currentPageName === 'OrganizationSetup') {
     return children;
   }
