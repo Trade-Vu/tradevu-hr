@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, CheckCircle, Edit } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, CheckCircle, Edit, MessageCircle, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import TaskManager from "../components/employee-detail/TaskManager";
 import DocumentManager from "../components/employee-detail/DocumentManager";
 import EmployeeInfo from "../components/employee-detail/EmployeeInfo";
@@ -18,6 +21,9 @@ export default function EmployeeDetail() {
   const urlParams = new URLSearchParams(window.location.search);
   const employeeId = urlParams.get('id');
   const [isEditing, setIsEditing] = useState(false);
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [messageType, setMessageType] = useState('');
+  const [messageContent, setMessageContent] = useState('');
 
   const { data: employee, isLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -56,6 +62,34 @@ export default function EmployeeDetail() {
       setIsEditing(false);
     },
   });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ type, content }) => {
+      if (type === 'email') {
+        return base44.integrations.Core.SendEmail({
+          to: employee.email,
+          subject: 'Message from HR',
+          body: content
+        });
+      }
+      // For WhatsApp/SMS, you would integrate with respective services
+      return Promise.resolve();
+    },
+    onSuccess: () => {
+      setShowMessageDialog(false);
+      setMessageContent('');
+      alert('Message sent successfully!');
+    },
+  });
+
+  const handleSendMessage = () => {
+    if (!messageContent.trim()) return;
+    sendMessageMutation.mutate({ type: messageType, content: messageContent });
+  };
+
+  const handleStartChat = () => {
+    navigate(`/Chat?employee=${employee.email}`);
+  };
 
   // Calculate progress based on tasks
   React.useEffect(() => {
@@ -133,6 +167,57 @@ export default function EmployeeDetail() {
             <Edit className="w-4 h-4" />
             {isEditing ? 'Cancel Edit' : 'Edit Info'}
           </Button>
+        </div>
+
+        {/* Communication Buttons */}
+        <div className="flex gap-3 mb-8 flex-wrap">
+          <Button variant="outline" onClick={handleStartChat}>
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
+          <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => { setMessageType('email'); setShowMessageDialog(true); }}>
+                <Mail className="w-4 h-4 mr-2" />
+                Email
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Send {messageType === 'email' ? 'Email' : messageType === 'sms' ? 'SMS' : 'WhatsApp'} to {employee.full_name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Message</Label>
+                  <Textarea
+                    placeholder="Type your message..."
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    rows={6}
+                  />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <Button variant="outline" onClick={() => setShowMessageDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSendMessage} disabled={sendMessageMutation.isPending}>
+                    <Send className="w-4 h-4 mr-2" />
+                    {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={() => { setMessageType('sms'); setShowMessageDialog(true); }}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            SMS
+          </Button>
+          {employee.whatsapp_number && (
+            <Button variant="outline" onClick={() => { setMessageType('whatsapp'); setShowMessageDialog(true); }}>
+              <Phone className="w-4 h-4 mr-2" />
+              WhatsApp
+            </Button>
+          )}
         </div>
 
         {/* Progress Overview */}
