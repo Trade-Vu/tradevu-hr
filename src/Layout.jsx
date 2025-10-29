@@ -21,7 +21,11 @@ import {
   CheckSquare,
   Plane,
   MessageCircle,
-  Home
+  Home,
+  ChevronDown,
+  ChevronRight,
+  Target,
+  ShieldCheck
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,87 +49,75 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-const navigationItems = [
+const navigationStructure = [
   {
     title: "Dashboard",
     url: createPageUrl("Dashboard"),
     icon: LayoutDashboard,
   },
   {
-    title: "Company Wall",
-    url: createPageUrl("CompanyWall"),
-    icon: Home,
-  },
-  {
-    title: "Tasks & Projects",
-    url: createPageUrl("TaskManager"),
-    icon: CheckSquare,
-  },
-  {
-    title: "Chat",
-    url: createPageUrl("Chat"),
-    icon: MessageCircle,
-  },
-  {
     title: "Employees",
-    url: createPageUrl("Employees"),
     icon: Users,
-  },
-  {
-    title: "Leave Requests",
-    url: createPageUrl("LeaveManagement"),
-    icon: Plane,
-  },
-  {
-    title: "Attendance",
-    url: createPageUrl("Attendance"),
-    icon: Calendar,
+    isParent: true,
+    children: [
+      { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
+      { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
+      { title: "Leave Requests", url: createPageUrl("LeaveManagement"), icon: Plane },
+      { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
+    ]
   },
   {
     title: "Payroll",
-    url: createPageUrl("Payroll"),
     icon: DollarSign,
+    isParent: true,
+    children: [
+      { title: "Payroll", url: createPageUrl("Payroll"), icon: DollarSign },
+      { title: "Expenses", url: createPageUrl("Expenses"), icon: Receipt },
+    ]
   },
   {
     title: "Recruitment",
-    url: createPageUrl("Recruitment"),
     icon: UserPlus,
-  },
-  {
-    title: "Expenses",
-    url: createPageUrl("Expenses"),
-    icon: Receipt,
-  },
-  {
-    title: "HR Letters",
-    url: createPageUrl("HRLetters"),
-    icon: FileText,
-  },
-  {
-    title: "Surveys",
-    url: createPageUrl("Surveys"),
-    icon: MessageSquare,
-  },
-  {
-    title: "Templates",
-    url: createPageUrl("Templates"),
-    icon: FileText,
+    isParent: true,
+    children: [
+      { title: "Recruitment", url: createPageUrl("Recruitment"), icon: UserPlus },
+    ]
   },
   {
     title: "Training LMS",
-    url: createPageUrl("Training"),
     icon: Video,
+    isParent: true,
+    children: [
+      { title: "Training", url: createPageUrl("Training"), icon: Video },
+      { title: "Evaluations", url: createPageUrl("Evaluations"), icon: ClipboardCheck },
+    ]
   },
   {
-    title: "Evaluations",
-    url: createPageUrl("Evaluations"),
-    icon: ClipboardCheck,
+    title: "Compliance",
+    icon: ShieldCheck,
+    isParent: true,
+    children: [
+      { title: "HR Letters", url: createPageUrl("HRLetters"), icon: FileText },
+      { title: "Surveys", url: createPageUrl("Surveys"), icon: MessageSquare },
+      { title: "Templates", url: createPageUrl("Templates"), icon: FileText },
+    ]
   },
   {
     title: "Analytics",
     url: createPageUrl("Analytics"),
     icon: BarChart3,
+  },
+  {
+    title: "Company Wall",
+    url: createPageUrl("CompanyWall"),
+    icon: Home,
   },
 ];
 
@@ -172,6 +164,61 @@ const employeeNavigation = [
   },
 ];
 
+function NavMenuItem({ item, location }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (item.isParent) {
+    return (
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton className="hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 text-slate-600">
+            <div className="flex items-center justify-between w-full px-3 py-2.5">
+              <div className="flex items-center gap-3">
+                <item.icon className="w-5 h-5" />
+                <span className="font-medium">{item.title}</span>
+              </div>
+              {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </div>
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-4 space-y-1">
+          {item.children.map((child) => (
+            <SidebarMenuItem key={child.title}>
+              <SidebarMenuButton 
+                asChild 
+                className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg ${
+                  location.pathname === child.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                <Link to={child.url} className="flex items-center gap-3 px-3 py-2">
+                  <child.icon className="w-4 h-4" />
+                  <span className="text-sm">{child.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton 
+        asChild 
+        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
+          location.pathname === item.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+        }`}
+      >
+        <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
+          <item.icon className="w-5 h-5" />
+          <span className="font-medium">{item.title}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,7 +260,7 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationItems;
+  const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationStructure;
 
   if (currentPageName === 'OrganizationSetup') {
     return children;
@@ -247,19 +294,7 @@ export default function Layout({ children, currentPageName }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {navItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
-                          location.pathname === item.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
-                        }`}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium">{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <NavMenuItem key={item.title} item={item} location={location} />
                   ))}
                   {(user?.role === 'admin' || user?.is_organization_owner) && (
                     <SidebarMenuItem>

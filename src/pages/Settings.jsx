@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Users, Settings as SettingsIcon, Upload } from "lucide-react";
+import { Building2, CreditCard, Users, Settings as SettingsIcon, Upload, Activity } from "lucide-react";
+import { format } from "date-fns";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -47,6 +49,12 @@ export default function Settings() {
     email: '',
     city: '',
     address: '',
+  });
+
+  const { data: auditLogs = [] } = useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: () => base44.entities.AuditLog.list('-timestamp'),
+    initialData: [],
   });
 
   const updateOrganizationMutation = useMutation({
@@ -98,6 +106,14 @@ export default function Settings() {
     ? Math.ceil((new Date(organization.trial_ends_at) - new Date()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  const actionColors = {
+    create: 'bg-green-100 text-green-700',
+    update: 'bg-blue-100 text-blue-700',
+    delete: 'bg-red-100 text-red-700',
+    approve: 'bg-purple-100 text-purple-700',
+    reject: 'bg-orange-100 text-orange-700',
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -124,6 +140,10 @@ export default function Settings() {
             <TabsTrigger value="subscription">
               <CreditCard className="w-4 h-4 mr-2" />
               Subscription
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              <Activity className="w-4 h-4 mr-2" />
+              System Logs
             </TabsTrigger>
             <TabsTrigger value="team">
               <Users className="w-4 h-4 mr-2" />
@@ -282,6 +302,51 @@ export default function Settings() {
                   <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600">
                     Upgrade Now
                   </Button>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* System Logs Tab */}
+          <TabsContent value="logs">
+            <Card className="border-slate-200">
+              <CardHeader className="border-b border-slate-200">
+                <CardTitle>System Activity Logs</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {auditLogs.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Activity className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                    <p className="text-slate-500">No activity logs yet</p>
+                  </div>
+                ) : (
+                  <div className="max-h-[600px] overflow-y-auto">
+                    {auditLogs.map(log => (
+                      <div key={log.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge variant="outline" className={actionColors[log.action] || 'bg-slate-100 text-slate-700'}>
+                                {log.action}
+                              </Badge>
+                              <span className="text-sm font-medium text-slate-900">
+                                {log.entity_type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 mb-2">
+                              <strong>{log.user_name}</strong> ({log.user_email}) {log.action}d {log.entity_name || log.entity_type}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                              <span>🕐 {format(new Date(log.timestamp || log.created_date), 'MMM d, yyyy h:mm a')}</span>
+                              {log.ip_address && <span>📍 IP: {log.ip_address}</span>}
+                              {log.device_info?.device_type && <span>💻 {log.device_info.device_type}</span>}
+                              {log.location?.city && <span>🌍 {log.location.city}, {log.location.country}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
