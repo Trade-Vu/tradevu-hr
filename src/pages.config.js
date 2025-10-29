@@ -17,6 +17,8 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import TaskManager from './pages/TaskManager';
 import LeaveManagement from './pages/LeaveManagement';
+import Chat from './pages/Chat';
+import CompanyWall from './pages/CompanyWall';
 import Layout from './Layout.jsx';
 
 
@@ -40,6 +42,8 @@ export const PAGES = {
     "Profile": Profile,
     "TaskManager": TaskManager,
     "LeaveManagement": LeaveManagement,
+    "Chat": Chat,
+    "CompanyWall": CompanyWall,
 }
 
 export const pagesConfig = {
