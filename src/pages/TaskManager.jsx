@@ -1,0 +1,350 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Kanban, List, FolderKanban, Calendar, Users } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+
+export default function TaskManager() {
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState(null);
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'projects'
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Error loading user:", error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => base44.entities.Project.list('-created_date'),
+    initialData: [],
+  });
+
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ['task-items'],
+    queryFn: () => base44.entities.TaskItem.list('-created_date'),
+    initialData: [],
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.TaskItem.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-items'] });
+    },
+  });
+
+  // Filter tasks by project if selected
+  const tasks = selectedProject 
+    ? allTasks.filter(t => t.project_id === selectedProject.id)
+    : allTasks.filter(t => t.assigned_to === user?.email || t.assigned_by === user?.email);
+
+  const tasksByStatus = {
+    backlog: tasks.filter(t => t.status === 'backlog'),
+    todo: tasks.filter(t => t.status === 'todo'),
+    in_progress: tasks.filter(t => t.status === 'in_progress'),
+    review: tasks.filter(t => t.status === 'review'),
+    done: tasks.filter(t => t.status === 'done'),
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+    
+    const taskId = result.draggableId;
+    const newStatus = result.destination.droppableId;
+    const task = tasks.find(t => t.id === taskId);
+    
+    if (task && task.status !== newStatus) {
+      updateTaskMutation.mutate({
+        id: taskId,
+        data: { 
+          status: newStatus,
+          completed_date: newStatus === 'done' ? new Date().toISOString().split('T')[0] : undefined
+        }
+      });
+    }
+  };
+
+  const statusConfig = {
+    backlog: { title: 'Backlog', color: 'bg-slate-100 text-slate-700' },
+    todo: { title: 'To Do', color: 'bg-blue-100 text-blue-700' },
+    in_progress: { title: 'In Progress', color: 'bg-yellow-100 text-yellow-700' },
+    review: { title: 'Review', color: 'bg-purple-100 text-purple-700' },
+    done: { title: 'Done', color: 'bg-green-100 text-green-700' },
+  };
+
+  const priorityColors = {
+    low: 'border-l-blue-500',
+    medium: 'border-l-yellow-500',
+    high: 'border-l-orange-500',
+    urgent: 'border-l-red-500',
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
+              <FolderKanban className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">Task Management</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
+              Tasks & Projects
+            </h1>
+            <p className="text-lg text-slate-600">
+              Manage tasks, track progress, and collaborate with your team
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Button>
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+              <Plus className="w-4 h-4 mr-2" />
+              New Task
+            </Button>
+          </div>
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'kanban' ? 'default' : 'outline'}
+            onClick={() => setViewMode('kanban')}
+          >
+            <Kanban className="w-4 h-4 mr-2" />
+            Kanban
+          </Button>
+          <Button
+            variant={viewMode === 'projects' ? 'default' : 'outline'}
+            onClick={() => setViewMode('projects')}
+          >
+            <FolderKanban className="w-4 h-4 mr-2" />
+            Projects
+          </Button>
+        </div>
+
+        {/* Project Filter */}
+        {projects.length > 0 && (
+          <Card className="border-slate-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 overflow-x-auto">
+                <Button
+                  size="sm"
+                  variant={!selectedProject ? 'default' : 'outline'}
+                  onClick={() => setSelectedProject(null)}
+                >
+                  My Tasks
+                </Button>
+                {projects.map(project => (
+                  <Button
+                    key={project.id}
+                    size="sm"
+                    variant={selectedProject?.id === project.id ? 'default' : 'outline'}
+                    onClick={() => setSelectedProject(project)}
+                  >
+                    {project.project_name}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Kanban View */}
+        {viewMode === 'kanban' && (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {Object.entries(statusConfig).map(([status, config]) => (
+                <Droppable key={status} droppableId={status}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-blue-50' : ''} rounded-lg p-3`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-slate-900">{config.title}</h3>
+                        <Badge variant="outline" className={config.color}>
+                          {tasksByStatus[status].length}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {tasksByStatus[status].map((task, index) => (
+                          <Draggable key={task.id} draggableId={task.id} index={index}>
+                            {(provided, snapshot) => (
+                              <Card
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`border-l-4 ${priorityColors[task.priority]} ${
+                                  snapshot.isDragging ? 'shadow-lg' : ''
+                                } cursor-move hover:shadow-md transition-shadow`}
+                              >
+                                <CardContent className="p-4">
+                                  <h4 className="font-medium text-slate-900 mb-2 text-sm">
+                                    {task.title}
+                                  </h4>
+                                  {task.description && (
+                                    <p className="text-xs text-slate-600 mb-3 line-clamp-2">
+                                      {task.description}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className="text-xs">
+                                      {task.priority}
+                                    </Badge>
+                                    {task.due_date && (
+                                      <span className="text-xs text-slate-500">
+                                        {new Date(task.due_date).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {task.assigned_to && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs text-blue-700">
+                                        {task.assigned_to.charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="text-xs text-slate-600 truncate">
+                                        {task.assigned_to.split('@')[0]}
+                                      </span>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    </div>
+                  )}
+                </Droppable>
+              ))}
+            </div>
+          </DragDropContext>
+        )}
+
+        {/* Projects View */}
+        {viewMode === 'projects' && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map(project => {
+              const projectTasks = allTasks.filter(t => t.project_id === project.id);
+              const completedTasks = projectTasks.filter(t => t.status === 'done').length;
+              const progress = projectTasks.length > 0 
+                ? Math.round((completedTasks / projectTasks.length) * 100)
+                : 0;
+
+              return (
+                <Card key={project.id} className="border-slate-200 hover:shadow-lg transition-shadow">
+                  <CardHeader className="border-b border-slate-100">
+                    <CardTitle className="text-lg">{project.project_name}</CardTitle>
+                    <Badge variant="outline" className={
+                      project.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      project.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                      'bg-slate-100 text-slate-700'
+                    }>
+                      {project.status.replace('_', ' ')}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <p className="text-sm text-slate-600 line-clamp-2">{project.description}</p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Progress</span>
+                        <span className="font-medium">{progress}%</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Tasks</span>
+                        <p className="font-semibold text-slate-900">
+                          {completedTasks}/{projectTasks.length}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Due Date</span>
+                        <p className="font-semibold text-slate-900">
+                          {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'No deadline'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {project.team_members && project.team_members.length > 0 && (
+                      <div>
+                        <span className="text-xs text-slate-500">Team</span>
+                        <div className="flex -space-x-2 mt-2">
+                          {project.team_members.slice(0, 3).map((email, idx) => (
+                            <div 
+                              key={idx}
+                              className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white"
+                            >
+                              {email.charAt(0).toUpperCase()}
+                            </div>
+                          ))}
+                          {project.team_members.length > 3 && (
+                            <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 text-xs border-2 border-white">
+                              +{project.team_members.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setViewMode('kanban');
+                      }}
+                    >
+                      View Tasks
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {projects.length === 0 && (
+              <Card className="col-span-full border-slate-200">
+                <CardContent className="p-12 text-center">
+                  <FolderKanban className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No projects yet</h3>
+                  <p className="text-slate-500 mb-4">Create your first project to get started</p>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Project
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

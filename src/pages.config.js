@@ -15,6 +15,8 @@ import Surveys from './pages/Surveys';
 import OrganizationSetup from './pages/OrganizationSetup';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import TaskManager from './pages/TaskManager';
+import LeaveManagement from './pages/LeaveManagement';
 import Layout from './Layout.jsx';
 
 
@@ -36,6 +38,8 @@ export const PAGES = {
     "OrganizationSetup": OrganizationSetup,
     "Settings": Settings,
     "Profile": Profile,
+    "TaskManager": TaskManager,
+    "LeaveManagement": LeaveManagement,
 }
 
 export const pagesConfig = {
