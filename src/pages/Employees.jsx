@@ -1,13 +1,15 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Grid, List, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmployeeList from "../components/dashboard/EmployeeList";
 import AddEmployeeForm from "../components/employees/AddEmployeeForm";
 import BulkImportDialog from "../components/employees/BulkImportDialog";
+import EmployeeCard from "../components/employees/EmployeeCard";
 
 export default function Employees() {
   const navigate = useNavigate();
@@ -16,6 +18,9 @@ export default function Employees() {
   const action = urlParams.get('action');
   const [showAddForm, setShowAddForm] = useState(action === 'add');
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
@@ -77,7 +82,7 @@ export default function Employees() {
         await base44.integrations.Core.SendEmail({
           to: employeeData.email,
           subject: `Welcome to the Team! 🎉`,
-          body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour onboarding journey starts on ${new Date(employeeData.start_date).toLocaleDateString()}. You'll receive more information about your first day soon.\n\nWe've prepared everything to make your start smooth and enjoyable.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
+          body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour employment starts on ${new Date(employeeData.start_date).toLocaleDateString()}. You'll receive more information about your first day soon.\n\nWe've prepared everything to make your start smooth and enjoyable.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
         });
         
         await base44.entities.Employee.update(employee.id, { welcome_sent: true });
@@ -108,7 +113,7 @@ export default function Employees() {
           await base44.integrations.Core.SendEmail({
             to: employeeData.email,
             subject: `Welcome to the Team! 🎉`,
-            body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour onboarding journey starts on ${new Date(employeeData.start_date).toLocaleDateString()}.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
+            body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour employment starts on ${new Date(employeeData.start_date).toLocaleDateString()}.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
           });
           await base44.entities.Employee.update(employee.id, { welcome_sent: true });
         } catch (error) {
@@ -121,6 +126,15 @@ export default function Employees() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       setShowImportDialog(false);
     },
+  });
+
+  // Filter employees
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          employee.job_title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || employee.employment_status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -143,11 +157,11 @@ export default function Employees() {
             )}
             <div>
               <h1 className="text-3xl font-bold text-slate-900">
-                {showAddForm ? "Add New Employee" : "All Employees"}
+                {showAddForm ? "Add New Employee" : "Employees"}
               </h1>
               <p className="text-slate-500 mt-1">
                 {showAddForm 
-                  ? "Onboard a new team member" 
+                  ? "Add a new team member" 
                   : `Manage your ${employees.length} employee${employees.length !== 1 ? 's' : ''}`
                 }
               </p>
@@ -168,7 +182,7 @@ export default function Employees() {
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add New Hire
+                Add Employee
               </Button>
             </div>
           )}
@@ -187,9 +201,65 @@ export default function Employees() {
             isSubmitting={createEmployeeMutation.isPending}
           />
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-            <EmployeeList employees={employees} isLoading={isLoading} />
-          </div>
+          <>
+            {/* Filters and View Toggle */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex gap-2 w-full md:w-auto">
+                  <div className="relative flex-1 md:flex-none">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      placeholder="Search employees..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-full md:w-64"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="on_leave">On Leave</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="terminated">Terminated</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'cards' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('cards')}
+                  >
+                    <Grid className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Employee Display */}
+            {viewMode === 'list' ? (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                <EmployeeList employees={filteredEmployees} isLoading={isLoading} />
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredEmployees.map(employee => (
+                  <EmployeeCard key={employee.id} employee={employee} />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Bulk Import Dialog */}

@@ -2,6 +2,10 @@
   "name": "Survey",
   "type": "object",
   "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
     "title": {
       "type": "string",
       "description": "Survey title"
@@ -102,9 +106,32 @@
       "type": "boolean",
       "default": true,
       "description": "Whether responses are anonymous"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Email of survey creator"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Email of approver"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date survey was approved"
+    },
+    "last_modified_by": {
+      "type": "string",
+      "description": "Email of last person who modified survey"
+    },
+    "last_modified_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last modification timestamp"
     }
   },
   "required": [
+    "organization_id",
     "title",
     "survey_type",
     "questions"

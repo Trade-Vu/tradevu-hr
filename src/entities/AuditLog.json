@@ -1,0 +1,124 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of user who performed action"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Name of user who performed action"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "create",
+        "update",
+        "delete",
+        "view",
+        "approve",
+        "reject",
+        "export",
+        "import",
+        "login",
+        "logout"
+      ],
+      "description": "Action performed"
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Type of entity affected (e.g., Employee, Survey, Payroll)"
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "ID of affected entity"
+    },
+    "entity_name": {
+      "type": "string",
+      "description": "Name/title of affected entity for reference"
+    },
+    "changes": {
+      "type": "object",
+      "description": "Details of what changed",
+      "properties": {
+        "before": {
+          "type": "object"
+        },
+        "after": {
+          "type": "object"
+        },
+        "fields_changed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "IP address of user"
+    },
+    "device_info": {
+      "type": "object",
+      "description": "Device information",
+      "properties": {
+        "device_type": {
+          "type": "string"
+        },
+        "browser": {
+          "type": "string"
+        },
+        "os": {
+          "type": "string"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "description": "Approximate location",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        }
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When action was performed"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of action"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed",
+        "warning"
+      ],
+      "default": "success",
+      "description": "Action status"
+    }
+  },
+  "required": [
+    "organization_id",
+    "user_email",
+    "action",
+    "entity_type",
+    "timestamp"
+  ]
+}
