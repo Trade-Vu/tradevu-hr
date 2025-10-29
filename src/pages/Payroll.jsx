@@ -1,16 +1,29 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DollarSign, TrendingUp, Users, Calendar, Plus, Download, Search } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Payroll() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    employee_id: '',
+    month: new Date().toISOString().slice(0, 7),
+    basic_salary: 0,
+    allowances: { housing: 0, transport: 0, food: 0, other: 0 },
+    deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
+    overtime_hours: 0,
+  });
 
   const { data: payrolls = [] } = useQuery({
     queryKey: ['payroll'],
@@ -22,6 +35,40 @@ export default function Payroll() {
     queryKey: ['employees'],
     queryFn: () => base44.entities.Employee.list(),
     initialData: [],
+  });
+
+  const createPayrollMutation = useMutation({
+    mutationFn: async (data) => {
+      const employee = employees.find(e => e.id === data.employee_id);
+      
+      const totalAllowances = Object.values(data.allowances).reduce((sum, val) => sum + (val || 0), 0);
+      const totalDeductions = Object.values(data.deductions).reduce((sum, val) => sum + (val || 0), 0);
+      const overtimeAmount = data.overtime_hours * 50; // SAR 50 per hour
+      const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
+      const netSalary = totalEarnings - totalDeductions;
+
+      return base44.entities.Payroll.create({
+        ...data,
+        employee_name: employee.full_name,
+        total_earnings: totalEarnings,
+        total_deductions: totalDeductions,
+        overtime_amount: overtimeAmount,
+        net_salary: netSalary,
+        status: 'draft',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll'] });
+      setShowAddDialog(false);
+      setFormData({
+        employee_id: '',
+        month: new Date().toISOString().slice(0, 7),
+        basic_salary: 0,
+        allowances: { housing: 0, transport: 0, food: 0, other: 0 },
+        deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
+        overtime_hours: 0,
+      });
+    },
   });
 
   const currentMonthPayrolls = payrolls.filter(p => p.month === monthFilter);
@@ -50,10 +97,102 @@ export default function Payroll() {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button className="bg-gradient-to-r from-green-600 to-emerald-600">
-              <Plus className="w-4 h-4 mr-2" />
-              Generate Payroll
-            </Button>
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-green-600 to-emerald-600">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Payroll
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add Payroll Record</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); createPayrollMutation.mutate(formData); }} className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Employee *</Label>
+                      <Select value={formData.employee_id} onValueChange={(value) => {
+                        const emp = employees.find(e => e.id === value);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          employee_id: value,
+                          basic_salary: emp?.payroll_details?.basic_salary || 0,
+                          allowances: emp?.payroll_details?.allowances || { housing: 0, transport: 0, food: 0, other: 0 }
+                        }));
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map(emp => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.full_name} - {emp.job_title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Month *</Label>
+                      <Input 
+                        type="month" 
+                        value={formData.month}
+                        onChange={(e) => setFormData(prev => ({ ...prev, month: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Basic Salary</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.basic_salary}
+                        onChange={(e) => setFormData(prev => ({ ...prev, basic_salary: parseFloat(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Overtime Hours</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.overtime_hours}
+                        onChange={(e) => setFormData(prev => ({ ...prev, overtime_hours: parseFloat(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Allowances</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Housing" type="number" value={formData.allowances.housing} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, housing: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Transport" type="number" value={formData.allowances.transport} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, transport: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Food" type="number" value={formData.allowances.food} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, food: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Other" type="number" value={formData.allowances.other} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, other: parseFloat(e.target.value) || 0 }}))} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Deductions</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Late Days" type="number" value={formData.deductions.late_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, late_days: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Absent Days" type="number" value={formData.deductions.absent_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, absent_days: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Unpaid Leave" type="number" value={formData.deductions.unpaid_leave_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, unpaid_leave_days: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Loans" type="number" value={formData.deductions.loans} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, loans: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Insurance" type="number" value={formData.deductions.insurance} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, insurance: parseFloat(e.target.value) || 0 }}))} />
+                      <Input placeholder="Other" type="number" value={formData.deductions.other} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, other: parseFloat(e.target.value) || 0 }}))} />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createPayrollMutation.isPending || !formData.employee_id}>
+                      {createPayrollMutation.isPending ? 'Creating...' : 'Create Payroll'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -149,8 +288,11 @@ export default function Payroll() {
               <div className="p-12 text-center">
                 <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">No payroll records</h3>
-                <p className="text-slate-500 mb-4">Generate payroll for this month to get started</p>
-                <Button>Generate Payroll</Button>
+                <p className="text-slate-500 mb-4">Add payroll for this month to get started</p>
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Payroll
+                </Button>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
