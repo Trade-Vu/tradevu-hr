@@ -32,6 +32,10 @@
       ],
       "description": "Type of leave"
     },
+    "is_paid": {
+      "type": "boolean",
+      "description": "Whether this leave type is paid or deductible"
+    },
     "start_date": {
       "type": "string",
       "format": "date",
@@ -100,11 +104,15 @@
     },
     "attachment_url": {
       "type": "string",
-      "description": "Supporting document URL"
+      "description": "Supporting document URL (required)"
     },
     "comments": {
       "type": "string",
       "description": "Additional comments"
+    },
+    "applied_by": {
+      "type": "string",
+      "description": "Who submitted this request (for admin applying on behalf)"
     }
   },
   "required": [
@@ -113,6 +121,7 @@
     "leave_type",
     "start_date",
     "end_date",
-    "total_days"
+    "total_days",
+    "attachment_url"
   ]
 }

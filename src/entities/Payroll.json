@@ -46,6 +46,9 @@
         "absent_days": {
           "type": "number"
         },
+        "unpaid_leave_days": {
+          "type": "number"
+        },
         "loans": {
           "type": "number"
         },
@@ -56,6 +59,27 @@
           "type": "number"
         }
       }
+    },
+    "leave_deductions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "leave_type": {
+            "type": "string"
+          },
+          "days": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "is_paid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "Leave-based deductions"
     },
     "overtime_hours": {
       "type": "number",
