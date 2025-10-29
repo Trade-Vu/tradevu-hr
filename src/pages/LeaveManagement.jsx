@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock, Upload, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
 export default function LeaveManagement() {
@@ -17,12 +17,16 @@ export default function LeaveManagement() {
   const [user, setUser] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [formData, setFormData] = useState({
+    employee_email: '',
     leave_type: 'annual',
     start_date: '',
     end_date: '',
     reason: '',
     total_days: 0,
+    attachment_url: '',
   });
 
   useEffect(() => {
@@ -30,12 +34,14 @@ export default function LeaveManagement() {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+        setIsAdmin(currentUser.role === 'admin' || currentUser.is_organization_owner);
         
         const employees = await base44.entities.Employee.filter({ 
           email: currentUser.email 
         });
         if (employees.length > 0) {
           setEmployee(employees[0]);
+          setFormData(prev => ({ ...prev, employee_email: employees[0].email }));
         }
       } catch (error) {
         console.error("Error loading user:", error);
@@ -43,6 +49,13 @@ export default function LeaveManagement() {
     };
     loadUser();
   }, []);
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+    enabled: isAdmin, // Only fetch employees if the user is an admin
+  });
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
@@ -52,17 +65,22 @@ export default function LeaveManagement() {
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      if (!employee) {
-        throw new Error("Employee data not found");
+      // Determine the employee for whom the leave is being requested
+      const selectedEmployee = isAdmin 
+        ? employees.find(e => e.email === data.employee_email) 
+        : employee;
+
+      if (!selectedEmployee) {
+        throw new Error("Employee data not found for the request");
       }
       
-      const managers = employee?.manager_email ? [employee.manager_email] : [];
+      const managers = selectedEmployee?.manager_email ? [selectedEmployee.manager_email] : [];
       
       return base44.entities.LeaveRequest.create({
-        ...data,
-        employee_id: employee.id,
-        employee_name: employee.full_name,
-        employee_email: employee.email,
+        ...data, // This will include employee_email, attachment_url, leave_type, dates, reason, etc.
+        employee_id: selectedEmployee.id,
+        employee_name: selectedEmployee.full_name,
+        // employee_email is already in data due to form field, no need to explicitly re-add
         organization_id: user.organization_id,
         reporting_managers: managers,
         approvers: managers.map(email => ({
@@ -76,11 +94,13 @@ export default function LeaveManagement() {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       setShowForm(false);
       setFormData({
+        employee_email: employee?.email || '', // Reset to current user's email or empty
         leave_type: 'annual',
         start_date: '',
         end_date: '',
         reason: '',
         total_days: 0,
+        attachment_url: '',
       });
     },
   });
@@ -91,6 +111,22 @@ export default function LeaveManagement() {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
     },
   });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setFormData(prev => ({ ...prev, attachment_url: file_url }));
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Failed to upload file. Please try again.");
+      setFormData(prev => ({ ...prev, attachment_url: '' })); // Clear attachment on error
+    }
+    setUploadingFile(false);
+  };
 
   const handleApprove = (request, approverEmail) => {
     const updatedApprovers = request.approvers.map(approver => 
@@ -128,7 +164,11 @@ export default function LeaveManagement() {
 
   const calculateDays = (start, end) => {
     if (!start || !end) return 0;
-    const diffTime = Math.abs(new Date(end) - new Date(start));
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (endDate < startDate) return 0; // Prevent negative days
+
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
@@ -187,13 +227,39 @@ export default function LeaveManagement() {
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (!formData.attachment_url) {
+                    alert("Please upload a supporting document for your leave request.");
+                    return;
+                  }
                   createLeaveMutation.mutate(formData);
                 }}
                 className="space-y-6"
               >
+                {/* Conditional Employee Selection for Admin */}
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label>Apply For</Label>
+                    <Select 
+                      value={formData.employee_email} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_email: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map(emp => (
+                          <SelectItem key={emp.id} value={emp.email}>
+                            {emp.full_name} - {emp.job_title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label>Leave Type</Label>
+                    <Label>Leave Type *</Label>
                     <Select 
                       value={formData.leave_type} 
                       onValueChange={(value) => setFormData(prev => ({ ...prev, leave_type: value }))}
@@ -219,7 +285,7 @@ export default function LeaveManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Start Date</Label>
+                    <Label>Start Date *</Label>
                     <Input 
                       type="date" 
                       value={formData.start_date}
@@ -229,7 +295,7 @@ export default function LeaveManagement() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>End Date</Label>
+                    <Label>End Date *</Label>
                     <Input 
                       type="date" 
                       value={formData.end_date}
@@ -240,7 +306,7 @@ export default function LeaveManagement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Reason</Label>
+                  <Label>Reason *</Label>
                   <Textarea
                     value={formData.reason}
                     onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
@@ -249,11 +315,44 @@ export default function LeaveManagement() {
                   />
                 </div>
 
+                {/* File Upload Section */}
+                <div className="space-y-2">
+                  <Label>Supporting Document * (Required)</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="attachment"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('attachment').click()}
+                      disabled={uploadingFile}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadingFile ? 'Uploading...' : 'Upload Document'}
+                    </Button>
+                    {formData.attachment_url && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <Paperclip className="w-4 h-4" />
+                        Document attached
+                      </div>
+                    )}
+                    {!formData.attachment_url && (
+                      <span className="text-sm text-red-500">
+                        No document attached.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-3">
                   <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createLeaveMutation.isPending}>
+                  <Button type="submit" disabled={createLeaveMutation.isPending || !formData.attachment_url}>
                     {createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 </div>
@@ -282,6 +381,19 @@ export default function LeaveManagement() {
                           <p><strong>Type:</strong> {request.leave_type.replace('_', ' ')}</p>
                           <p><strong>Duration:</strong> {format(new Date(request.start_date), 'MMM d')} - {format(new Date(request.end_date), 'MMM d')} ({request.total_days} days)</p>
                           <p><strong>Reason:</strong> {request.reason}</p>
+                          {request.attachment_url && (
+                            <p className="flex items-center gap-2">
+                              <Paperclip className="w-4 h-4 text-blue-500" />
+                              <a 
+                                href={request.attachment_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:underline"
+                              >
+                                View Document
+                              </a>
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -344,6 +456,20 @@ export default function LeaveManagement() {
                             <p><strong>Days:</strong> {request.total_days}</p>
                             <p><strong>Reason:</strong> {request.reason}</p>
                             
+                            {request.attachment_url && (
+                               <p className="flex items-center gap-2">
+                                 <Paperclip className="w-4 h-4 text-blue-500" />
+                                 <a 
+                                   href={request.attachment_url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer" 
+                                   className="text-blue-600 hover:underline"
+                                 >
+                                   View Document
+                                 </a>
+                               </p>
+                             )}
+
                             {request.approvers && request.approvers.length > 0 && (
                               <div className="mt-3 pt-3 border-t border-slate-100">
                                 <p className="font-medium text-slate-700 mb-2">Approvals:</p>
