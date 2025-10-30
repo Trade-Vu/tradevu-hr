@@ -24,6 +24,7 @@ import Assets from './pages/Assets';
 import Organogram from './pages/Organogram';
 import AllLeaveRequests from './pages/AllLeaveRequests';
 import Offboarding from './pages/Offboarding';
+import HRAssistant from './pages/HRAssistant';
 import Layout from './Layout.jsx';
 
 
@@ -54,6 +55,7 @@ export const PAGES = {
     "Organogram": Organogram,
     "AllLeaveRequests": AllLeaveRequests,
     "Offboarding": Offboarding,
+    "HRAssistant": HRAssistant,
 }
 
 export const pagesConfig = {

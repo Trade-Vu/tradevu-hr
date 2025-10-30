@@ -134,6 +134,11 @@ const navigationStructure = [
     url: createPageUrl("CompanyWall"),
     icon: Home,
   },
+  {
+    title: "AI HR Assistant",
+    url: createPageUrl("HRAssistant"),
+    icon: Target,
+  },
 ];
 
 const employeeNavigation = [
@@ -181,6 +186,11 @@ const employeeNavigation = [
     title: "Expense Claims",
     url: createPageUrl("Expenses"),
     icon: Receipt,
+  },
+  {
+    title: "AI HR Assistant",
+    url: createPageUrl("HRAssistant"),
+    icon: Target,
   },
 ];
 

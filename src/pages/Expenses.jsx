@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,16 +18,25 @@ export default function Expenses() {
   const [employee, setEmployee] = useState(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [canAddForOthers, setCanAddForOthers] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+        const adminStatus = currentUser.role === 'admin' || currentUser.is_organization_owner;
+        setIsAdmin(adminStatus);
         
         const employees = await base44.entities.Employee.filter({ email: currentUser.email });
         if (employees.length > 0) {
           setEmployee(employees[0]);
+          
+          // Check if this employee has direct reports
+          const allEmployees = await base44.entities.Employee.list();
+          const directReports = allEmployees.filter(e => e.manager_email === currentUser.email);
+          setCanAddForOthers(adminStatus || directReports.length > 0);
         }
       } catch (error) {
         console.error("Error loading user:", error);
@@ -41,11 +51,18 @@ export default function Expenses() {
     initialData: [],
   });
 
-  const isAdmin = user?.role === 'admin';
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+    enabled: canAddForOthers,
+  });
+
   const myClaims = claims.filter(c => c.employee_id === employee?.id);
   const displayClaims = isAdmin ? claims : myClaims;
 
   const [formData, setFormData] = useState({
+    employee_id: employee?.id || '', // Added this for selecting employee
     expense_type: 'travel',
     amount: '',
     date: new Date().toISOString().split('T')[0],
@@ -54,17 +71,29 @@ export default function Expenses() {
   });
 
   const createClaimMutation = useMutation({
-    mutationFn: (data) => base44.entities.ExpenseClaim.create({
-      ...data,
-      employee_id: employee.id,
-      employee_name: employee.full_name,
-      status: 'pending',
-      currency: 'SAR',
-    }),
+    mutationFn: (data) => {
+      const selectedEmployee = canAddForOthers && data.employee_id !== employee?.id
+        ? employees.find(e => e.id === data.employee_id)
+        : employee;
+        
+      if (!selectedEmployee) {
+        throw new Error("Selected employee not found.");
+      }
+
+      return base44.entities.ExpenseClaim.create({
+        ...data,
+        organization_id: user.organization_id, // Ensure organization_id is included
+        employee_id: selectedEmployee.id,
+        employee_name: selectedEmployee.full_name,
+        status: 'pending',
+        currency: 'SAR',
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] });
       setShowClaimForm(false);
       setFormData({
+        employee_id: employee?.id || '', // Reset employee_id to current user after submission
         expense_type: 'travel',
         amount: '',
         date: new Date().toISOString().split('T')[0],
@@ -134,6 +163,9 @@ export default function Expenses() {
     rejected: { color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
   };
 
+  // Get direct reports for non-admin, if applicable
+  const myDirectReports = employees.filter(e => e.manager_email === user?.email);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -153,11 +185,14 @@ export default function Expenses() {
           </div>
           {employee && (
             <Button 
-              onClick={() => setShowClaimForm(!showClaimForm)}
+              onClick={() => {
+                setFormData({ ...formData, employee_id: employee.id });
+                setShowClaimForm(true);
+              }}
               className="bg-gradient-to-r from-purple-600 to-pink-600"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Claim
+              New Expense
             </Button>
           )}
         </div>
@@ -229,6 +264,28 @@ export default function Expenses() {
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {canAddForOthers && (
+                  <div className="space-y-2">
+                    <Label htmlFor="submit_for_employee">Submit For</Label>
+                    <Select 
+                      value={formData.employee_id} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}
+                    >
+                      <SelectTrigger id="submit_for_employee">
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={employee.id}>Myself - {employee.full_name}</SelectItem>
+                        {myDirectReports.map(emp => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.full_name} - {emp.job_title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="expense_type">Expense Type *</Label>
