@@ -1,0 +1,66 @@
+{
+  "name": "CommunicationLog",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "sent_by": {
+      "type": "string",
+      "description": "Who sent the communication"
+    },
+    "communication_type": {
+      "type": "string",
+      "enum": [
+        "email",
+        "sms",
+        "whatsapp",
+        "in_app"
+      ],
+      "description": "Type of communication"
+    },
+    "recipient": {
+      "type": "string",
+      "description": "Recipient email/phone"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject/title"
+    },
+    "message": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "sent_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When communication was sent"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "sent",
+        "delivered",
+        "failed"
+      ],
+      "default": "sent",
+      "description": "Delivery status"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "communication_type",
+    "recipient",
+    "message"
+  ]
+}

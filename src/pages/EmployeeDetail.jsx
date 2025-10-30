@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, 
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
-  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, Send
+  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, CheckCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,11 +23,10 @@ const menuItems = [
   { id: 'contracts', label: 'Contracts', icon: FileText },
   { id: 'financial', label: 'Financial', icon: DollarSign },
   { id: 'leave', label: 'Leave', icon: Calendar },
-  { id: 'time', label: 'Time', icon: Clock },
+  { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'benefits', label: 'Benefits', icon: Gift },
   { id: 'assets', label: 'Assets', icon: Laptop },
-  { id: 'shifts', label: 'Shifts', icon: Clock },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
   { id: 'notes', label: 'Notes', icon: StickyNote },
 ];
@@ -40,6 +39,15 @@ export default function EmployeeDetail() {
   const [activeSection, setActiveSection] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
+  const [user, setUser] = useState(null);
+
+  React.useEffect(() => {
+    const loadUser = async () => {
+      const currentUser = await base44.auth.me();
+      setUser(currentUser);
+    };
+    loadUser();
+  }, []);
 
   const { data: employee, isLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -53,6 +61,12 @@ export default function EmployeeDetail() {
   const { data: employees = [] } = useQuery({
     queryKey: ['all-employees'],
     queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+  });
+
+  const { data: shifts = [] } = useQuery({
+    queryKey: ['shifts'],
+    queryFn: () => base44.entities.Shift.list(),
     initialData: [],
   });
 
@@ -86,6 +100,16 @@ export default function EmployeeDetail() {
     initialData: [],
   });
 
+  const { data: attendance = [] } = useQuery({
+    queryKey: ['employee-attendance', employeeId],
+    queryFn: async () => {
+      const allAttendance = await base44.entities.Attendance.list('-date');
+      return allAttendance.filter(a => a.employee_id === employeeId);
+    },
+    enabled: !!employeeId,
+    initialData: [],
+  });
+
   React.useEffect(() => {
     if (employee && !isEditing) {
       setEditData(employee);
@@ -100,19 +124,54 @@ export default function EmployeeDetail() {
     },
   });
 
+  const createCommLogMutation = useMutation({
+    mutationFn: (data) => base44.entities.CommunicationLog.create(data),
+  });
+
   const handleSave = () => {
     updateEmployeeMutation.mutate({ id: employee.id, data: editData });
   };
 
-  const handleSendEmail = (email) => {
+  const handleSendEmail = async (email, type = 'work') => {
+    await createCommLogMutation.mutateAsync({
+      organization_id: user?.organization_id,
+      employee_id: employee.id,
+      employee_name: employee.full_name,
+      sent_by: user?.email,
+      communication_type: 'email',
+      recipient: email,
+      subject: 'Communication from HR',
+      message: 'Email sent via employee profile',
+      sent_date: new Date().toISOString(),
+    });
     window.location.href = `mailto:${email}`;
   };
 
-  const handleSendSMS = (phone) => {
+  const handleSendSMS = async (phone) => {
+    await createCommLogMutation.mutateAsync({
+      organization_id: user?.organization_id,
+      employee_id: employee.id,
+      employee_name: employee.full_name,
+      sent_by: user?.email,
+      communication_type: 'sms',
+      recipient: phone,
+      message: 'SMS sent via employee profile',
+      sent_date: new Date().toISOString(),
+    });
     window.location.href = `sms:${phone}`;
   };
 
-  const handleSendWhatsApp = (phone) => {
+  const handleSendWhatsApp = async (phone) => {
+    await createCommLogMutation.mutateAsync({
+      organization_id: user?.organization_id,
+      employee_id: employee.id,
+      employee_name: employee.full_name,
+      sent_by: user?.email,
+      communication_type: 'whatsapp',
+      recipient: phone,
+      message: 'WhatsApp message sent via employee profile',
+      sent_date: new Date().toISOString(),
+    });
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${cleanPhone}`, '_blank');
   };
@@ -124,6 +183,17 @@ export default function EmployeeDetail() {
       </div>
     );
   }
+
+  const thisMonthAttendance = attendance.filter(a => {
+    const recordDate = new Date(a.date);
+    const now = new Date();
+    return recordDate.getMonth() === now.getMonth() && recordDate.getFullYear() === now.getFullYear();
+  });
+
+  const presentDays = thisMonthAttendance.filter(a => a.status === 'present' || a.status === 'remote').length;
+  const absentDays = thisMonthAttendance.filter(a => a.status === 'absent').length;
+  const lateDays = thisMonthAttendance.filter(a => a.status === 'late').length;
+  const leaveDays = thisMonthAttendance.filter(a => a.status === 'leave').length;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -273,7 +343,7 @@ export default function EmployeeDetail() {
                       <p className="font-medium text-slate-900">{employee.email}</p>
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.email)}>
+                  <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.email, 'work')}>
                     <Mail className="w-4 h-4" />
                   </Button>
                 </div>
@@ -288,7 +358,7 @@ export default function EmployeeDetail() {
                       placeholder="personal@email.com"
                     />
                   </div>
-                ) : employee.private_email && (
+                ) : employee.private_email ? (
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Mail className="w-5 h-5 text-slate-400" />
@@ -297,11 +367,11 @@ export default function EmployeeDetail() {
                         <p className="font-medium text-slate-900">{employee.private_email}</p>
                       </div>
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.private_email)}>
+                    <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.private_email, 'private')}>
                       <Mail className="w-4 h-4" />
                     </Button>
                   </div>
-                )}
+                ) : null}
                 
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -459,6 +529,25 @@ export default function EmployeeDetail() {
                   </Select>
                 </div>
                 <div className="space-y-2">
+                  <Label>Assigned Shift</Label>
+                  <Select
+                    value={editData.work_schedule?.shift_id || ''}
+                    onValueChange={(value) => setEditData(prev => ({
+                      ...prev,
+                      work_schedule: { ...prev.work_schedule, shift_id: value }
+                    }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select shift" /></SelectTrigger>
+                    <SelectContent>
+                      {shifts.map(shift => (
+                        <SelectItem key={shift.id} value={shift.id}>
+                          {shift.shift_name} ({shift.start_time} - {shift.end_time})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>Contract Start Date</Label>
                   <Input
                     type="date"
@@ -487,6 +576,12 @@ export default function EmployeeDetail() {
                   <p className="text-sm text-slate-500 mb-1">Contract Type</p>
                   <p className="font-medium text-slate-900">
                     {employee.contract_details?.contract_type || 'Not set'}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-500 mb-1">Assigned Shift</p>
+                  <p className="font-medium text-slate-900">
+                    {shifts.find(s => s.id === employee.work_schedule?.shift_id)?.shift_name || 'Not assigned'}
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-lg">
@@ -757,81 +852,64 @@ export default function EmployeeDetail() {
           </div>
         );
 
-      case 'time':
+      case 'attendance':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Time & Attendance</h3>
-            {isEditing ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Schedule Type</Label>
-                  <Select
-                    value={editData.work_schedule?.schedule_type || 'standard'}
-                    onValueChange={(value) => setEditData(prev => ({
-                      ...prev,
-                      work_schedule: { ...prev.work_schedule, schedule_type: value }
-                    }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="flexible">Flexible</SelectItem>
-                      <SelectItem value="shift">Shift</SelectItem>
-                      <SelectItem value="remote">Remote</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Work Location</Label>
-                  <Select
-                    value={editData.work_schedule?.work_location || 'office'}
-                    onValueChange={(value) => setEditData(prev => ({
-                      ...prev,
-                      work_schedule: { ...prev.work_schedule, work_location: value }
-                    }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="office">Office</SelectItem>
-                      <SelectItem value="remote">Remote</SelectItem>
-                      <SelectItem value="hybrid">Hybrid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Hours Per Day</Label>
-                  <Input
-                    type="number"
-                    value={editData.work_schedule?.working_hours_per_day || 8}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      work_schedule: { ...prev.work_schedule, working_hours_per_day: parseFloat(e.target.value) }
-                    }))}
-                  />
-                </div>
+            <h3 className="text-lg font-semibold text-slate-900">Attendance Overview</h3>
+            
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className="p-4 bg-green-50 rounded-lg text-center">
+                <p className="text-3xl font-bold text-green-700">{presentDays}</p>
+                <p className="text-sm text-slate-600 mt-1">Present</p>
               </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Schedule Type</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.work_schedule?.schedule_type || 'Standard'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Work Location</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.work_schedule?.work_location || 'Office'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Hours Per Day</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.work_schedule?.working_hours_per_day || 8} hours
-                  </p>
-                </div>
+              <div className="p-4 bg-red-50 rounded-lg text-center">
+                <p className="text-3xl font-bold text-red-700">{absentDays}</p>
+                <p className="text-sm text-slate-600 mt-1">Absent</p>
               </div>
-            )}
+              <div className="p-4 bg-yellow-50 rounded-lg text-center">
+                <p className="text-3xl font-bold text-yellow-700">{lateDays}</p>
+                <p className="text-sm text-slate-600 mt-1">Late</p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-lg text-center">
+                <p className="text-3xl font-bold text-blue-700">{leaveDays}</p>
+                <p className="text-sm text-slate-600 mt-1">On Leave</p>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Attendance Calendar - {format(new Date(), 'MMMM yyyy')}</h3>
+              {thisMonthAttendance.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-slate-500">No attendance records this month</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {thisMonthAttendance.map(record => (
+                    <div key={record.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="font-medium text-slate-900">{format(new Date(record.date), 'EEEE, MMM d')}</p>
+                          <p className="text-xs text-slate-500">
+                            {record.check_in && record.check_out && `${record.check_in} - ${record.check_out}`}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={
+                        record.status === 'present' ? 'bg-green-100 text-green-700' :
+                        record.status === 'absent' ? 'bg-red-100 text-red-700' :
+                        record.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                        record.status === 'leave' ? 'bg-blue-100 text-blue-700' :
+                        'bg-slate-100 text-slate-700'
+                      }>
+                        {record.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         );
 
@@ -913,65 +991,6 @@ export default function EmployeeDetail() {
           </div>
         );
 
-      case 'shifts':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Shift Schedule</h3>
-            {isEditing ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Shift Start Time</Label>
-                  <Input
-                    type="time"
-                    value={editData.work_schedule?.shift_start_time || ''}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      work_schedule: { ...prev.work_schedule, shift_start_time: e.target.value }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Shift End Time</Label>
-                  <Input
-                    type="time"
-                    value={editData.work_schedule?.shift_end_time || ''}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      work_schedule: { ...prev.work_schedule, shift_end_time: e.target.value }
-                    }))}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Shift Start</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.work_schedule?.shift_start_time || 'Not set'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Shift End</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.work_schedule?.shift_end_time || 'Not set'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'performance':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Performance Reviews</h3>
-            <div className="text-center py-12">
-              <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-slate-500">Performance reviews coming soon</p>
-            </div>
-          </div>
-        );
-
       case 'assets':
         return (
           <div className="space-y-6">
@@ -1032,6 +1051,17 @@ export default function EmployeeDetail() {
           </div>
         );
 
+      case 'performance':
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-slate-900">Performance Reviews</h3>
+            <div className="text-center py-12">
+              <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+              <p className="text-slate-500">Performance reviews coming soon</p>
+            </div>
+          </div>
+        );
+
       case 'notes':
         return (
           <div className="space-y-4">
@@ -1064,57 +1094,12 @@ export default function EmployeeDetail() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Back Button */}
         <Button variant="ghost" onClick={() => navigate('/Employees')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Employees
         </Button>
 
-        {/* Top Section Icons */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          <Card 
-            className="border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('personal')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-teal-100 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <User className="w-8 h-8 text-teal-600" />
-              </div>
-              <h3 className="font-semibold text-teal-900">Personal</h3>
-              <h3 className="font-semibold text-teal-900">Information</h3>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('job')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <Briefcase className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="font-semibold text-orange-900">Job & Contract</h3>
-              <h3 className="font-semibold text-orange-900">Details</h3>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="border-slate-300 bg-gradient-to-br from-slate-100 to-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('documents')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-slate-200 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <FileText className="w-8 h-8 text-slate-600" />
-              </div>
-              <h3 className="font-semibold text-slate-900">Documents &</h3>
-              <h3 className="font-semibold text-slate-900">Files</h3>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Card */}
         <Card className="border-slate-200 overflow-hidden shadow-xl">
-          {/* Employee Header */}
           <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white relative">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -1138,9 +1123,7 @@ export default function EmployeeDetail() {
             </div>
           </div>
 
-          {/* Content Area */}
           <div className="flex">
-            {/* Left Sidebar Menu */}
             <div className="w-64 border-r border-slate-200 bg-slate-50 p-4">
               <div className="space-y-1">
                 {menuItems.map(item => {
@@ -1163,7 +1146,6 @@ export default function EmployeeDetail() {
               </div>
             </div>
 
-            {/* Main Content */}
             <div className="flex-1 p-8">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-slate-900">
@@ -1199,48 +1181,6 @@ export default function EmployeeDetail() {
             </div>
           </div>
         </Card>
-
-        {/* Bottom Section Cards */}
-        <div className="grid grid-cols-3 gap-6">
-          <Card 
-            className="border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('financial')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-teal-100 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <DollarSign className="w-8 h-8 text-teal-600" />
-              </div>
-              <h3 className="font-semibold text-teal-900">Financial</h3>
-              <h3 className="font-semibold text-teal-900">Details</h3>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('time')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <Clock className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="font-semibold text-orange-900">Time &</h3>
-              <h3 className="font-semibold text-orange-900">Attendance</h3>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="border-slate-300 bg-gradient-to-br from-slate-100 to-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setActiveSection('assets')}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-slate-200 rounded-2xl mx-auto mb-3 flex items-center justify-center">
-                <Laptop className="w-8 h-8 text-slate-600" />
-              </div>
-              <h3 className="font-semibold text-slate-900">Assets &</h3>
-              <h3 className="font-semibold text-slate-900">Benefits</h3>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );

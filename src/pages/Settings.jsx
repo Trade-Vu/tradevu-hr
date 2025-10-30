@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Users, Settings as SettingsIcon, Upload, Activity } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Building2, CreditCard, Users, Settings as SettingsIcon, Upload, Activity, Clock, Plus, CheckCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
 export default function Settings() {
@@ -15,6 +18,13 @@ export default function Settings() {
   const [user, setUser] = useState(null);
   const [organization, setOrganization] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showShiftDialog, setShowShiftDialog] = useState(false);
+  const [shiftForm, setShiftForm] = useState({
+    shift_name: '',
+    start_time: '',
+    end_time: '',
+    break_duration_minutes: 60,
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -52,14 +62,40 @@ export default function Settings() {
 
   const { data: auditLogs = [] } = useQuery({
     queryKey: ['audit-logs'],
-    queryFn: () => base44.entities.AuditLog.list('-timestamp'),
+    queryFn: () => base44.entities.AuditLog.list('-created_date'),
     initialData: [],
   });
+
+  const { data: shifts = [] } = useQuery({
+    queryKey: ['shifts'],
+    queryFn: () => base44.entities.Shift.list(),
+    initialData: [],
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+  });
+
+  const [payrollApprovers, setPayrollApprovers] = useState([]);
 
   const updateOrganizationMutation = useMutation({
     mutationFn: (data) => base44.entities.Organization.update(organization.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries();
+    },
+  });
+
+  const createShiftMutation = useMutation({
+    mutationFn: (data) => base44.entities.Shift.create({
+      ...data,
+      organization_id: user.organization_id,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      setShowShiftDialog(false);
+      setShiftForm({ shift_name: '', start_time: '', end_time: '', break_duration_minutes: 60 });
     },
   });
 
@@ -135,6 +171,14 @@ export default function Settings() {
             <TabsTrigger value="general">
               <Building2 className="w-4 h-4 mr-2" />
               General
+            </TabsTrigger>
+            <TabsTrigger value="shifts">
+              <Clock className="w-4 h-4 mr-2" />
+              Shifts
+            </TabsTrigger>
+            <TabsTrigger value="approvals">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Approvals
             </TabsTrigger>
             <TabsTrigger value="subscription">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -240,6 +284,107 @@ export default function Settings() {
                     </Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Shifts Tab */}
+          <TabsContent value="shifts">
+            <Card className="border-slate-200">
+              <CardHeader className="border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Work Shifts</CardTitle>
+                  <Dialog open={showShiftDialog} onOpenChange={setShowShiftDialog}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Shift
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New Shift</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={(e) => { e.preventDefault(); createShiftMutation.mutate(shiftForm); }} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Shift Name</Label>
+                          <Input value={shiftForm.shift_name} onChange={(e) => setShiftForm(prev => ({ ...prev, shift_name: e.target.value }))} placeholder="e.g., Morning Shift" required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Start Time</Label>
+                            <Input type="time" value={shiftForm.start_time} onChange={(e) => setShiftForm(prev => ({ ...prev, start_time: e.target.value }))} required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>End Time</Label>
+                            <Input type="time" value={shiftForm.end_time} onChange={(e) => setShiftForm(prev => ({ ...prev, end_time: e.target.value }))} required />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Break Duration (minutes)</Label>
+                          <Input type="number" value={shiftForm.break_duration_minutes} onChange={(e) => setShiftForm(prev => ({ ...prev, break_duration_minutes: parseInt(e.target.value) }))} />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                          <Button type="button" variant="outline" onClick={() => setShowShiftDialog(false)}>Cancel</Button>
+                          <Button type="submit" disabled={createShiftMutation.isPending}>
+                            {createShiftMutation.isPending ? 'Creating...' : 'Create Shift'}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {shifts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Clock className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-slate-500">No shifts created</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {shifts.map(shift => (
+                      <div key={shift.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                        <div>
+                          <p className="font-semibold text-slate-900">{shift.shift_name}</p>
+                          <p className="text-sm text-slate-600">{shift.start_time} - {shift.end_time}</p>
+                        </div>
+                        <Badge>{shift.is_active ? 'Active' : 'Inactive'}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Approvals Tab */}
+          <TabsContent value="approvals">
+            <Card className="border-slate-200">
+              <CardHeader className="border-b border-slate-200">
+                <CardTitle>Payroll Approval Workflow</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <Label>Payroll Approvers</Label>
+                  {employees.map(emp => (
+                    <div key={emp.id} className="flex items-center gap-3">
+                      <Checkbox
+                        id={`approver-${emp.id}`}
+                        checked={payrollApprovers.includes(emp.email)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setPayrollApprovers(prev => [...prev, emp.email]);
+                          } else {
+                            setPayrollApprovers(prev => prev.filter(e => e !== emp.email));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`approver-${emp.id}`}>{emp.full_name} - {emp.job_title}</Label>
+                    </div>
+                  ))}
+                </div>
+                <Button>Save Approval Settings</Button>
               </CardContent>
             </Card>
           </TabsContent>
