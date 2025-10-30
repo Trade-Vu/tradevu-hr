@@ -12,7 +12,11 @@
     },
     "email": {
       "type": "string",
-      "description": "Employee email"
+      "description": "Work email"
+    },
+    "private_email": {
+      "type": "string",
+      "description": "Personal/private email"
     },
     "job_title": {
       "type": "string",
@@ -24,7 +28,7 @@
     },
     "manager_email": {
       "type": "string",
-      "description": "Direct manager email"
+      "description": "Direct manager email (for organogram)"
     },
     "employment_type": {
       "type": "string",
@@ -69,6 +73,36 @@
       "format": "date",
       "description": "Probation period end date"
     },
+    "contract_details": {
+      "type": "object",
+      "description": "Contract information",
+      "properties": {
+        "contract_type": {
+          "type": "string",
+          "enum": [
+            "indefinite",
+            "fixed_term",
+            "probation",
+            "internship"
+          ]
+        },
+        "contract_start_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "contract_end_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "contract_file_url": {
+          "type": "string"
+        },
+        "renewal_date": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
     "onboarding_status": {
       "type": "string",
       "enum": [
@@ -86,7 +120,7 @@
     },
     "phone": {
       "type": "string",
-      "description": "Phone number"
+      "description": "Work phone number"
     },
     "whatsapp_number": {
       "type": "string",
@@ -108,7 +142,8 @@
           "type": "string"
         },
         "country": {
-          "type": "string"
+          "type": "string",
+          "default": "Saudi Arabia"
         },
         "postal_code": {
           "type": "string"
@@ -155,6 +190,13 @@
         "visa_expiry": {
           "type": "string",
           "format": "date"
+        },
+        "iqama_number": {
+          "type": "string"
+        },
+        "iqama_expiry": {
+          "type": "string",
+          "format": "date"
         }
       }
     },
@@ -180,6 +222,9 @@
         "social_insurance_number": {
           "type": "string"
         },
+        "gosi_number": {
+          "type": "string"
+        },
         "allowances": {
           "type": "object",
           "properties": {
@@ -196,6 +241,36 @@
               "type": "number"
             }
           }
+        }
+      }
+    },
+    "leave_balances": {
+      "type": "object",
+      "description": "Leave balance tracking",
+      "properties": {
+        "annual_leave_total": {
+          "type": "number",
+          "default": 21
+        },
+        "annual_leave_used": {
+          "type": "number",
+          "default": 0
+        },
+        "annual_leave_remaining": {
+          "type": "number",
+          "default": 21
+        },
+        "sick_leave_total": {
+          "type": "number",
+          "default": 30
+        },
+        "sick_leave_used": {
+          "type": "number",
+          "default": 0
+        },
+        "sick_leave_remaining": {
+          "type": "number",
+          "default": 30
         }
       }
     },
@@ -247,6 +322,68 @@
             "remote",
             "hybrid"
           ]
+        }
+      }
+    },
+    "benefits": {
+      "type": "object",
+      "description": "Employee benefits",
+      "properties": {
+        "health_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "life_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "dental_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "gym_membership": {
+          "type": "boolean",
+          "default": false
+        },
+        "transportation": {
+          "type": "boolean",
+          "default": false
+        },
+        "meal_allowance": {
+          "type": "boolean",
+          "default": false
+        },
+        "education_assistance": {
+          "type": "boolean",
+          "default": false
+        },
+        "custom_benefits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "performance_reviews": {
+      "type": "array",
+      "description": "Performance review history",
+      "items": {
+        "type": "object",
+        "properties": {
+          "review_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reviewer": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "string"
+          }
         }
       }
     },
