@@ -12,6 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Building2, CreditCard, Users, Settings as SettingsIcon, Upload, Activity, Clock, Plus, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -25,6 +27,7 @@ export default function Settings() {
     end_time: '',
     break_duration_minutes: 60,
   });
+  const [departmentHeads, setDepartmentHeads] = useState({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,6 +46,7 @@ export default function Settings() {
               city: orgs[0].city || '',
               address: orgs[0].address || '',
             });
+            setDepartmentHeads(orgs[0].department_heads || {});
           }
         }
       } catch (error) {
@@ -119,6 +123,10 @@ export default function Settings() {
     updateOrganizationMutation.mutate(formData);
   };
 
+  const handleSaveDepartmentHeads = () => {
+    updateOrganizationMutation.mutate({ department_heads: departmentHeads });
+  };
+
   if (!organization) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -149,10 +157,11 @@ export default function Settings() {
     reject: 'bg-orange-100 text-orange-700',
   };
 
+  const departments = [...new Set(employees.map(e => e.department_id).filter(Boolean))];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div>
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
             <SettingsIcon className="w-4 h-4 text-blue-600" />
@@ -172,6 +181,10 @@ export default function Settings() {
               <Building2 className="w-4 h-4 mr-2" />
               General
             </TabsTrigger>
+            <TabsTrigger value="departments">
+              <Users className="w-4 h-4 mr-2" />
+              Departments
+            </TabsTrigger>
             <TabsTrigger value="shifts">
               <Clock className="w-4 h-4 mr-2" />
               Shifts
@@ -187,10 +200,6 @@ export default function Settings() {
             <TabsTrigger value="logs">
               <Activity className="w-4 h-4 mr-2" />
               System Logs
-            </TabsTrigger>
-            <TabsTrigger value="team">
-              <Users className="w-4 h-4 mr-2" />
-              Team
             </TabsTrigger>
           </TabsList>
 
@@ -288,6 +297,40 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
+          {/* Departments Tab */}
+          <TabsContent value="departments">
+            <Card className="border-slate-200">
+              <CardHeader className="border-b border-slate-200">
+                <CardTitle>Department Heads</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {departments.map(dept => (
+                  <div key={dept} className="space-y-2">
+                    <Label>{dept} Department Head</Label>
+                    <Select 
+                      value={departmentHeads[dept] || ''} 
+                      onValueChange={(value) => setDepartmentHeads(prev => ({ ...prev, [dept]: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department head" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.filter(e => e.department_id === dept).map(emp => (
+                          <SelectItem key={emp.id} value={emp.email}>
+                            {emp.full_name} - {emp.job_title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+                <Button onClick={handleSaveDepartmentHeads} disabled={updateOrganizationMutation.isPending}>
+                  {updateOrganizationMutation.isPending ? 'Saving...' : 'Save Department Heads'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Shifts Tab */}
           <TabsContent value="shifts">
             <Card className="border-slate-200">
@@ -370,7 +413,6 @@ export default function Settings() {
                   {employees.map(emp => (
                     <div key={emp.id} className="flex items-center gap-3">
                       <Checkbox
-                        id={`approver-${emp.id}`}
                         checked={payrollApprovers.includes(emp.email)}
                         onCheckedChange={(checked) => {
                           if (checked) {
@@ -380,7 +422,7 @@ export default function Settings() {
                           }
                         }}
                       />
-                      <Label htmlFor={`approver-${emp.id}`}>{emp.full_name} - {emp.job_title}</Label>
+                      <Label>{emp.full_name} - {emp.job_title}</Label>
                     </div>
                   ))}
                 </div>
@@ -489,27 +531,6 @@ export default function Settings() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Team Tab */}
-          <TabsContent value="team">
-            <Card className="border-slate-200">
-              <CardHeader className="border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <CardTitle>Team Members</CardTitle>
-                  <Button>
-                    <Users className="w-4 h-4 mr-2" />
-                    Invite Member
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <p className="text-slate-500">Team management coming soon</p>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>

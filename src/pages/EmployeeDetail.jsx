@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, 
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
-  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, CheckCircle
+  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, 
+  CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
 const menuItems = [
@@ -22,7 +25,6 @@ const menuItems = [
   { id: 'job', label: 'Job Info', icon: Briefcase },
   { id: 'contracts', label: 'Contracts', icon: FileText },
   { id: 'financial', label: 'Financial', icon: DollarSign },
-  { id: 'leave', label: 'Leave', icon: Calendar },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'benefits', label: 'Benefits', icon: Gift },
@@ -40,6 +42,11 @@ export default function EmployeeDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [user, setUser] = useState(null);
+  const [showDocDialog, setShowDocDialog] = useState(false);
+  const [showAssetDialog, setShowAssetDialog] = useState(false); // Declared in outline, but not explicitly used for an 'add asset' dialog in current changes.
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [docForm, setDocForm] = useState({ document_name: '', file_url: '', file_name: '' });
+  const [assetToRemove, setAssetToRemove] = useState(null);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -124,6 +131,35 @@ export default function EmployeeDetail() {
     },
   });
 
+  const createDocumentMutation = useMutation({
+    mutationFn: (data) => base44.entities.Document.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      setShowDocDialog(false);
+      setDocForm({ document_name: '', file_url: '', file_name: '' });
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: (id) => base44.entities.Document.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+    },
+  });
+
+  const unassignAssetMutation = useMutation({
+    mutationFn: (assetId) => base44.entities.Asset.update(assetId, {
+      assigned_to: null,
+      assigned_to_name: null,
+      assignment_status: 'available',
+      return_date: new Date().toISOString().split('T')[0],
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-assets', employeeId] });
+      setAssetToRemove(null); // Clear state after successful unassignment
+    },
+  });
+
   const createCommLogMutation = useMutation({
     mutationFn: (data) => base44.entities.CommunicationLog.create(data),
   });
@@ -174,6 +210,45 @@ export default function EmployeeDetail() {
     });
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  };
+
+  const handleDocUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setDocForm(prev => ({ 
+        ...prev, 
+        file_url, 
+        file_name: file.name 
+      }));
+    } catch (error) {
+      console.error("Error uploading:", error);
+    }
+    setUploadingFile(false);
+  };
+
+  const handlePrintAttendance = () => {
+    window.print();
+  };
+
+  const handleExportPDF = () => {
+    alert('PDF export feature coming soon');
+  };
+
+  const handleExportExcel = () => {
+    const csvData = thisMonthAttendance.map(record => 
+      `${format(new Date(record.date), 'yyyy-MM-dd')},${record.status},${record.check_in || ''},${record.check_out || ''}`
+    ).join('\n');
+    
+    const blob = new Blob([`Date,Status,Check In,Check Out\n${csvData}`], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${employee.full_name}_attendance_${format(new Date(), 'yyyy-MM')}.csv`;
+    a.click();
   };
 
   if (isLoading || !employee) {
@@ -598,6 +673,98 @@ export default function EmployeeDetail() {
                 </div>
               </div>
             )}
+
+            <div className="pt-6 border-t">
+              <h3 className="text-lg font-semibold text-slate-900">Leave Balance</h3>
+              {isEditing ? (
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label>Annual Leave Total</Label>
+                    <Input
+                      type="number"
+                      value={editData.leave_balances?.annual_leave_total || 21}
+                      onChange={(e) => setEditData(prev => ({
+                        ...prev,
+                        leave_balances: { ...prev.leave_balances, annual_leave_total: parseFloat(e.target.value) }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Annual Leave Used</Label>
+                    <Input
+                      type="number"
+                      value={editData.leave_balances?.annual_leave_used || 0}
+                      onChange={(e) => setEditData(prev => ({
+                        ...prev,
+                        leave_balances: { ...prev.leave_balances, annual_leave_used: parseFloat(e.target.value) }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sick Leave Total</Label>
+                    <Input
+                      type="number"
+                      value={editData.leave_balances?.sick_leave_total || 30}
+                      onChange={(e) => setEditData(prev => ({
+                        ...prev,
+                        leave_balances: { ...prev.leave_balances, sick_leave_total: parseFloat(e.target.value) }
+                      }))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="p-6 bg-blue-50 rounded-xl text-center">
+                    <p className="text-3xl font-bold text-blue-700">
+                      {(employee.leave_balances?.annual_leave_total || 21) - (employee.leave_balances?.annual_leave_used || 0)}
+                    </p>
+                    <p className="text-sm text-slate-600 mt-2">Annual Leave Days</p>
+                    <p className="text-xs text-slate-500">
+                      {employee.leave_balances?.annual_leave_used || 0} used of {employee.leave_balances?.annual_leave_total || 21}
+                    </p>
+                  </div>
+                  <div className="p-6 bg-green-50 rounded-xl text-center">
+                    <p className="text-3xl font-bold text-green-700">
+                      {(employee.leave_balances?.sick_leave_total || 30) - (employee.leave_balances?.sick_leave_used || 0)}
+                    </p>
+                    <p className="text-sm text-slate-600 mt-2">Sick Leave Days</p>
+                    <p className="text-xs text-slate-500">
+                      {employee.leave_balances?.sick_leave_used || 0} used of {employee.leave_balances?.sick_leave_total || 30}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="pt-6">
+                <h4 className="font-semibold text-slate-900 mb-3">Leave History</h4>
+                {leaveRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-slate-500">No leave requests</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {leaveRequests.map(leave => (
+                      <div key={leave.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-slate-900">{leave.leave_type.replace('_', ' ')}</p>
+                          <p className="text-sm text-slate-500">
+                            {format(new Date(leave.start_date), 'MMM d')} - {format(new Date(leave.end_date), 'MMM d, yyyy')} ({leave.total_days} days)
+                          </p>
+                        </div>
+                        <Badge className={
+                          leave.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }>
+                          {leave.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         );
 
@@ -757,105 +924,26 @@ export default function EmployeeDetail() {
           </div>
         );
 
-      case 'leave':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Leave Balance</h3>
-            {isEditing ? (
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label>Annual Leave Total</Label>
-                  <Input
-                    type="number"
-                    value={editData.leave_balances?.annual_leave_total || 21}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      leave_balances: { ...prev.leave_balances, annual_leave_total: parseFloat(e.target.value) }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Annual Leave Used</Label>
-                  <Input
-                    type="number"
-                    value={editData.leave_balances?.annual_leave_used || 0}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      leave_balances: { ...prev.leave_balances, annual_leave_used: parseFloat(e.target.value) }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sick Leave Total</Label>
-                  <Input
-                    type="number"
-                    value={editData.leave_balances?.sick_leave_total || 30}
-                    onChange={(e) => setEditData(prev => ({
-                      ...prev,
-                      leave_balances: { ...prev.leave_balances, sick_leave_total: parseFloat(e.target.value) }
-                    }))}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="p-6 bg-blue-50 rounded-xl text-center">
-                  <p className="text-3xl font-bold text-blue-700">
-                    {(employee.leave_balances?.annual_leave_total || 21) - (employee.leave_balances?.annual_leave_used || 0)}
-                  </p>
-                  <p className="text-sm text-slate-600 mt-2">Annual Leave Days</p>
-                  <p className="text-xs text-slate-500">
-                    {employee.leave_balances?.annual_leave_used || 0} used of {employee.leave_balances?.annual_leave_total || 21}
-                  </p>
-                </div>
-                <div className="p-6 bg-green-50 rounded-xl text-center">
-                  <p className="text-3xl font-bold text-green-700">
-                    {(employee.leave_balances?.sick_leave_total || 30) - (employee.leave_balances?.sick_leave_used || 0)}
-                  </p>
-                  <p className="text-sm text-slate-600 mt-2">Sick Leave Days</p>
-                  <p className="text-xs text-slate-500">
-                    {employee.leave_balances?.sick_leave_used || 0} used of {employee.leave_balances?.sick_leave_total || 30}
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            <div className="pt-6 border-t">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Leave History</h3>
-              {leaveRequests.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                  <p className="text-slate-500">No leave requests</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {leaveRequests.map(leave => (
-                    <div key={leave.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-slate-900">{leave.leave_type.replace('_', ' ')}</p>
-                        <p className="text-sm text-slate-500">
-                          {format(new Date(leave.start_date), 'MMM d')} - {format(new Date(leave.end_date), 'MMM d, yyyy')} ({leave.total_days} days)
-                        </p>
-                      </div>
-                      <Badge className={
-                        leave.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }>
-                        {leave.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
       case 'attendance':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Attendance Overview</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Attendance Overview</h3>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handlePrintAttendance}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExportPDF}>
+                  <Download className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
+              </div>
+            </div>
             
             <div className="grid md:grid-cols-4 gap-4">
               <div className="p-4 bg-green-50 rounded-lg text-center">
@@ -913,6 +1001,92 @@ export default function EmployeeDetail() {
           </div>
         );
 
+      case 'documents':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-900">Documents</h3>
+              <Dialog open={showDocDialog} onOpenChange={setShowDocDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Document
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Upload Document</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    createDocumentMutation.mutate({
+                      employee_id: employeeId,
+                      ...docForm,
+                      status: 'uploaded',
+                    });
+                  }} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="document_name">Document Name</Label>
+                      <Input id="document_name" value={docForm.document_name} onChange={(e) => setDocForm(prev => ({ ...prev, document_name: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="doc-upload">File</Label>
+                      <input type="file" onChange={handleDocUpload} className="hidden" id="doc-upload" />
+                      <Button type="button" variant="outline" className="w-full" onClick={() => document.getElementById('doc-upload').click()} disabled={uploadingFile}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        {uploadingFile ? 'Uploading...' : docForm.file_url ? 'Change File' : 'Upload File'}
+                      </Button>
+                      {docForm.file_name && <p className="text-sm text-slate-500">Selected file: {docForm.file_name}</p>}
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <Button type="button" variant="outline" onClick={() => setShowDocDialog(false)}>Cancel</Button>
+                      <Button type="submit" disabled={createDocumentMutation.isPending || !docForm.file_url || !docForm.document_name}>
+                        {createDocumentMutation.isPending ? 'Adding...' : 'Add Document'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            {documents.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                <p className="text-slate-500">No documents</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {documents.map(doc => (
+                  <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900">{doc.document_name}</p>
+                        <p className="text-sm text-slate-500">{doc.file_name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge>{doc.status}</Badge>
+                      {doc.file_url && (
+                        <Button size="sm" variant="ghost" asChild>
+                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => deleteDocumentMutation.mutate(doc.id)} disabled={deleteDocumentMutation.isPending}>
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
       case 'benefits':
         return (
           <div className="space-y-6">
@@ -921,53 +1095,58 @@ export default function EmployeeDetail() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Checkbox
+                    id="health_insurance"
                     checked={editData.benefits?.health_insurance || false}
                     onCheckedChange={(checked) => setEditData(prev => ({
                       ...prev,
                       benefits: { ...prev.benefits, health_insurance: checked }
                     }))}
                   />
-                  <Label>Health Insurance</Label>
+                  <Label htmlFor="health_insurance">Health Insurance</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
+                    id="life_insurance"
                     checked={editData.benefits?.life_insurance || false}
                     onCheckedChange={(checked) => setEditData(prev => ({
                       ...prev,
                       benefits: { ...prev.benefits, life_insurance: checked }
                     }))}
                   />
-                  <Label>Life Insurance</Label>
+                  <Label htmlFor="life_insurance">Life Insurance</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
+                    id="dental_insurance"
                     checked={editData.benefits?.dental_insurance || false}
                     onCheckedChange={(checked) => setEditData(prev => ({
                       ...prev,
                       benefits: { ...prev.benefits, dental_insurance: checked }
                     }))}
                   />
-                  <Label>Dental Insurance</Label>
+                  <Label htmlFor="dental_insurance">Dental Insurance</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
+                    id="gym_membership"
                     checked={editData.benefits?.gym_membership || false}
                     onCheckedChange={(checked) => setEditData(prev => ({
                       ...prev,
                       benefits: { ...prev.benefits, gym_membership: checked }
                     }))}
                   />
-                  <Label>Gym Membership</Label>
+                  <Label htmlFor="gym_membership">Gym Membership</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
+                    id="transportation"
                     checked={editData.benefits?.transportation || false}
                     onCheckedChange={(checked) => setEditData(prev => ({
                       ...prev,
                       benefits: { ...prev.benefits, transportation: checked }
                     }))}
                   />
-                  <Label>Transportation</Label>
+                  <Label htmlFor="transportation">Transportation</Label>
                 </div>
               </div>
             ) : (
@@ -994,7 +1173,10 @@ export default function EmployeeDetail() {
       case 'assets':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Assigned Assets</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-900">Assigned Assets</h3>
+            </div>
+            
             {assets.length === 0 ? (
               <div className="text-center py-12">
                 <Laptop className="w-16 h-16 mx-auto mb-4 text-slate-300" />
@@ -1013,37 +1195,28 @@ export default function EmployeeDetail() {
                         <p className="text-sm text-slate-500">{asset.asset_type}</p>
                       </div>
                     </div>
-                    <Badge className="bg-green-100 text-green-700">{asset.status || 'Active'}</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'documents':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Documents</h3>
-            {documents.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <p className="text-slate-500">No documents</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {documents.map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{doc.document_name}</p>
-                        <p className="text-sm text-slate-500">{doc.file_name}</p>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-100 text-green-700">{asset.assignment_status || 'Active'}</Badge>
+                      <Dialog open={assetToRemove?.id === asset.id} onOpenChange={(open) => !open && setAssetToRemove(null)}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="ghost" onClick={() => setAssetToRemove(asset)}>
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Return Asset</DialogTitle>
+                          </DialogHeader>
+                          <p>Are you sure you want to return "{assetToRemove?.asset_name}" from {employee.full_name}?</p>
+                          <div className="flex justify-end gap-3 mt-4">
+                            <Button variant="outline" onClick={() => setAssetToRemove(null)}>Cancel</Button>
+                            <Button onClick={() => unassignAssetMutation.mutate(assetToRemove.id)} disabled={unassignAssetMutation.isPending}>
+                              {unassignAssetMutation.isPending ? 'Returning...' : 'Return Asset'}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
-                    <Badge>{doc.status}</Badge>
                   </div>
                 ))}
               </div>

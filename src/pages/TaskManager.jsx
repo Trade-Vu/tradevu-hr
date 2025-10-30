@@ -1,11 +1,16 @@
+
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Kanban, List, FolderKanban, Calendar, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Kanban, FolderKanban } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export default function TaskManager() {
@@ -13,12 +18,29 @@ export default function TaskManager() {
   const [user, setUser] = useState(null);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'projects'
   const [selectedProject, setSelectedProject] = useState(null);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [projectForm, setProjectForm] = useState({
+    project_name: '',
+    description: '',
+    project_manager: '',
+  });
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    assigned_to: '',
+    priority: 'medium',
+    due_date: '',
+  });
 
   useEffect(() => {
     const loadUser = async () => {
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
+        // Set initial form values based on the logged-in user
+        setProjectForm(prev => ({ ...prev, project_manager: currentUser.email }));
+        setTaskForm(prev => ({ ...prev, assigned_to: currentUser.email }));
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -38,11 +60,62 @@ export default function TaskManager() {
     initialData: [],
   });
 
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => base44.entities.Employee.list(),
+    initialData: [],
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: (data) => base44.entities.Project.create({
+      ...data,
+      organization_id: user.organization_id, // Ensure organization_id is passed
+      status: 'planning', // Default status for new projects
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setShowProjectDialog(false);
+      setProjectForm({ project_name: '', description: '', project_manager: user?.email || '' }); // Reset form
+    },
+    onError: (error) => {
+      console.error("Error creating project:", error);
+      // Optionally show a toast notification
+    }
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: (data) => base44.entities.TaskItem.create({
+      ...data,
+      organization_id: user.organization_id, // Ensure organization_id is passed
+      assigned_by: user.email,
+      project_id: selectedProject?.id, // Assign to current selected project if any
+      status: 'todo', // Default status for new tasks
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-items'] });
+      setShowTaskDialog(false);
+      setTaskForm({ // Reset form
+        title: '',
+        description: '',
+        assigned_to: user?.email || '',
+        priority: 'medium',
+        due_date: '',
+      });
+    },
+    onError: (error) => {
+      console.error("Error creating task:", error);
+      // Optionally show a toast notification
+    }
+  });
+
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.TaskItem.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-items'] });
     },
+    onError: (error) => {
+      console.error("Error updating task:", error);
+    }
   });
 
   // Filter tasks by project if selected
@@ -109,14 +182,111 @@ export default function TaskManager() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
-              <Plus className="w-4 h-4 mr-2" />
-              New Task
-            </Button>
+            {/* New Project Dialog */}
+            <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Project</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(projectForm); }} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="project_name">Project Name</Label>
+                    <Input id="project_name" value={projectForm.project_name} onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="project_description">Description</Label>
+                    <Textarea id="project_description" value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} rows={3} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="project_manager">Project Manager</Label>
+                    <Select value={projectForm.project_manager} onValueChange={(value) => setProjectForm(prev => ({ ...prev, project_manager: value }))} required>
+                      <SelectTrigger id="project_manager"><SelectValue placeholder="Select a manager" /></SelectTrigger>
+                      <SelectContent>
+                        {employees.map(emp => (
+                          <SelectItem key={emp.id} value={emp.email}>
+                            {emp.full_name || emp.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => setShowProjectDialog(false)}>Cancel</Button>
+                    <Button type="submit" disabled={createProjectMutation.isPending}>
+                      {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* New Task Dialog */}
+            <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Task</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); createTaskMutation.mutate(taskForm); }} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="task_title">Task Title</Label>
+                    <Input id="task_title" value={taskForm.title} onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task_description">Description</Label>
+                    <Textarea id="task_description" value={taskForm.description} onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} rows={3} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="assigned_to">Assign To</Label>
+                      <Select value={taskForm.assigned_to} onValueChange={(value) => setTaskForm(prev => ({ ...prev, assigned_to: value }))} required>
+                        <SelectTrigger id="assigned_to"><SelectValue placeholder="Assignee" /></SelectTrigger>
+                        <SelectContent>
+                          {employees.map(emp => (
+                            <SelectItem key={emp.id} value={emp.email}>
+                              {emp.full_name || emp.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select value={taskForm.priority} onValueChange={(value) => setTaskForm(prev => ({ ...prev, priority: value }))} required>
+                        <SelectTrigger id="priority"><SelectValue placeholder="Priority" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date">Due Date</Label>
+                    <Input id="due_date" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))} />
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)}>Cancel</Button>
+                    <Button type="submit" disabled={createTaskMutation.isPending}>
+                      {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -335,7 +505,7 @@ export default function TaskManager() {
                   <FolderKanban className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">No projects yet</h3>
                   <p className="text-slate-500 mb-4">Create your first project to get started</p>
-                  <Button>
+                  <Button onClick={() => setShowProjectDialog(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create Project
                   </Button>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, ChevronDown } from "lucide-react";
+import { Users } from "lucide-react";
 
 export default function Organogram() {
   const [user, setUser] = useState(null);
@@ -25,15 +25,14 @@ export default function Organogram() {
     initialData: [],
   });
 
-  // Build org chart structure
   const getDirectReports = (managerEmail) => {
+    if (!managerEmail) return [];
     return employees.filter(emp => emp.manager_email === managerEmail);
   };
 
-  const ceo = employees.find(emp => !emp.manager_email && emp.job_title?.toLowerCase().includes('ceo'));
-  const topLevel = ceo ? [ceo] : employees.filter(emp => !emp.manager_email).slice(0, 1);
+  const topLevel = employees.filter(emp => !emp.manager_email || emp.manager_email === '');
 
-  const renderEmployee = (employee, level = 0) => {
+  const renderEmployee = (employee) => {
     const directReports = getDirectReports(employee.email);
     
     return (
@@ -59,7 +58,7 @@ export default function Organogram() {
             <div className="flex gap-8">
               {directReports.map(report => (
                 <div key={report.id} className="flex flex-col items-center">
-                  {renderEmployee(report, level + 1)}
+                  {renderEmployee(report)}
                 </div>
               ))}
             </div>
@@ -83,18 +82,18 @@ export default function Organogram() {
 
         <div className="overflow-x-auto pb-8">
           <div className="min-w-max flex justify-center p-8">
-            {topLevel.map(emp => renderEmployee(emp))}
+            {topLevel.length > 0 ? (
+              topLevel.map(emp => renderEmployee(emp))
+            ) : (
+              <Card className="border-slate-200">
+                <CardContent className="p-12 text-center">
+                  <Users className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <p className="text-slate-500">No reporting structure defined. Assign managers to employees to build the org chart.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
-
-        {employees.length === 0 && (
-          <Card className="border-slate-200">
-            <CardContent className="p-12 text-center">
-              <Users className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-slate-500">No employees to display</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

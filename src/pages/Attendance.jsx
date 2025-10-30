@@ -3,7 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Calendar, Upload, Settings, Users, Smartphone } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, Upload, Settings, Users, Smartphone, Printer, Download, FileSpreadsheet } from "lucide-react";
+import { format } from "date-fns";
 import AttendanceRecords from "../components/attendance/AttendanceRecords";
 import BulkAttendanceImport from "../components/attendance/BulkAttendanceImport";
 import ZKTecoSettings from "../components/attendance/ZKTecoSettings";
@@ -14,6 +17,9 @@ export default function Attendance() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showDeviceManager, setShowDeviceManager] = useState(false);
+  const [reportType, setReportType] = useState('all');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
 
   const { data: attendanceRecords = [] } = useQuery({
     queryKey: ['attendance'],
@@ -40,10 +46,41 @@ export default function Attendance() {
     zkteco_enabled: false,
   };
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
+  const handleExportPDF = () => {
+    alert('PDF export coming soon');
+  };
+
+  const handleExportExcel = () => {
+    let data = attendanceRecords;
+    
+    if (reportType === 'employee' && selectedEmployee) {
+      data = attendanceRecords.filter(r => r.employee_id === selectedEmployee);
+    } else if (reportType === 'department' && selectedDepartment) {
+      const deptEmployees = employees.filter(e => e.department_id === selectedDepartment).map(e => e.id);
+      data = attendanceRecords.filter(r => deptEmployees.includes(r.employee_id));
+    }
+    
+    const csvData = data.map(record => 
+      `${record.employee_name},${format(new Date(record.date), 'yyyy-MM-dd')},${record.status},${record.check_in || ''},${record.check_out || ''}`
+    ).join('\n');
+    
+    const blob = new Blob([`Employee,Date,Status,Check In,Check Out\n${csvData}`], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  };
+
+  const departments = [...new Set(employees.map(e => e.department_id).filter(Boolean))];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
@@ -58,6 +95,18 @@ export default function Attendance() {
             </p>
           </div>
           <div className="flex gap-3">
+            <Button size="sm" variant="outline" onClick={handlePrintReport}>
+              <Printer className="w-4 h-4 mr-2" />
+              Print
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExportPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              PDF
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExportExcel}>
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Excel
+            </Button>
             <Button 
               onClick={() => setShowDeviceManager(true)}
               variant="outline"
@@ -84,24 +133,121 @@ export default function Attendance() {
           </div>
         </div>
 
-        {/* Summary Stats */}
+        {/* Report Options */}
+        <Card className="border-slate-200">
+          <CardContent className="p-4">
+            <div className="flex gap-4 items-center">
+              <Label>Report Type:</Label>
+              <Select value={reportType} onValueChange={setReportType}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Staff Report</SelectItem>
+                  <SelectItem value="employee">Individual Employee</SelectItem>
+                  <SelectItem value="department">Department Report</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {reportType === 'employee' && (
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              
+              {reportType === 'department' && (
+                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(dept => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <AttendanceSummary 
           attendanceRecords={attendanceRecords}
           employees={employees}
         />
 
-        {/* Main Content */}
-        <Tabs defaultValue="records" className="space-y-6">
+        <Tabs defaultValue="summary" className="space-y-6">
           <TabsList className="bg-white border border-slate-200">
-            <TabsTrigger value="records" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Records
-            </TabsTrigger>
             <TabsTrigger value="summary" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Employee Summary
             </TabsTrigger>
+            <TabsTrigger value="records" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Records
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="summary">
+            <Card className="border-slate-200">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {employees.map(emp => {
+                    const empAttendance = attendanceRecords.filter(r => r.employee_id === emp.id);
+                    const thisMonth = empAttendance.filter(r => {
+                      const d = new Date(r.date);
+                      const now = new Date();
+                      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                    });
+                    const present = thisMonth.filter(r => r.status === 'present' || r.status === 'remote').length;
+                    const absent = thisMonth.filter(r => r.status === 'absent').length;
+                    const late = thisMonth.filter(r => r.status === 'late').length;
+
+                    return (
+                      <div key={emp.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-700 font-semibold">
+                              {emp.full_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">{emp.full_name}</p>
+                            <p className="text-sm text-slate-500">{emp.job_title}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-4 text-sm">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-green-600">{present}</p>
+                            <p className="text-xs text-slate-500">Present</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-red-600">{absent}</p>
+                            <p className="text-xs text-slate-500">Absent</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-yellow-600">{late}</p>
+                            <p className="text-xs text-slate-500">Late</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="records">
             <AttendanceRecords 
@@ -110,30 +256,20 @@ export default function Attendance() {
               settings={currentSettings}
             />
           </TabsContent>
-
-          <TabsContent value="summary">
-            <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-              <Users className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-slate-500">Employee attendance summary coming soon</p>
-            </div>
-          </TabsContent>
         </Tabs>
 
-        {/* Import Dialog */}
         <BulkAttendanceImport
           open={showImportDialog}
           onClose={() => setShowImportDialog(false)}
           employees={employees}
         />
 
-        {/* Settings Dialog */}
         <ZKTecoSettings
           open={showSettingsDialog}
           onClose={() => setShowSettingsDialog(false)}
           currentSettings={currentSettings}
         />
 
-        {/* Device Manager */}
         <ZKTecoDeviceManager
           open={showDeviceManager}
           onClose={() => setShowDeviceManager(false)}
