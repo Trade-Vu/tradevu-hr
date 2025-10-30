@@ -19,6 +19,11 @@ import TaskManager from './pages/TaskManager';
 import LeaveManagement from './pages/LeaveManagement';
 import Chat from './pages/Chat';
 import CompanyWall from './pages/CompanyWall';
+import Loans from './pages/Loans';
+import Assets from './pages/Assets';
+import Organogram from './pages/Organogram';
+import AllLeaveRequests from './pages/AllLeaveRequests';
+import Offboarding from './pages/Offboarding';
 import Layout from './Layout.jsx';
 
 
@@ -44,6 +49,11 @@ export const PAGES = {
     "LeaveManagement": LeaveManagement,
     "Chat": Chat,
     "CompanyWall": CompanyWall,
+    "Loans": Loans,
+    "Assets": Assets,
+    "Organogram": Organogram,
+    "AllLeaveRequests": AllLeaveRequests,
+    "Offboarding": Offboarding,
 }
 
 export const pagesConfig = {

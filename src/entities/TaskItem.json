@@ -54,6 +54,16 @@
       "format": "date",
       "description": "Task due date"
     },
+    "reminder_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When to send reminder"
+    },
+    "reminder_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether reminder was sent"
+    },
     "estimated_hours": {
       "type": "number",
       "description": "Estimated hours to complete"

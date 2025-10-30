@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -24,8 +25,10 @@ import {
   Home,
   ChevronDown,
   ChevronRight,
-  Target,
-  ShieldCheck
+  Target, // Keeping existing import
+  ShieldCheck,
+  Laptop, // New import
+  CheckCircle // New import
 } from "lucide-react";
 import {
   Sidebar,
@@ -69,7 +72,7 @@ const navigationStructure = [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
       { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      { title: "Leave Requests", url: createPageUrl("LeaveManagement"), icon: Plane },
+      { title: "Leave Requests", url: createPageUrl("AllLeaveRequests"), icon: Plane }, // Changed URL
       { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
     ]
   },
@@ -79,6 +82,7 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "Payroll", url: createPageUrl("Payroll"), icon: DollarSign },
+      { title: "Loans", url: createPageUrl("Loans"), icon: DollarSign }, // New item
       { title: "Expenses", url: createPageUrl("Expenses"), icon: Receipt },
     ]
   },
@@ -87,7 +91,9 @@ const navigationStructure = [
     icon: UserPlus,
     isParent: true,
     children: [
-      { title: "Recruitment", url: createPageUrl("Recruitment"), icon: UserPlus },
+      { title: "Job Postings", url: createPageUrl("Recruitment"), icon: UserPlus }, // Title changed
+      { title: "Onboarding", url: createPageUrl("Templates"), icon: CheckCircle }, // New item
+      { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle }, // New item
     ]
   },
   {
@@ -110,9 +116,18 @@ const navigationStructure = [
     ]
   },
   {
-    title: "Analytics",
-    url: createPageUrl("Analytics"),
+    title: "Assets", // New top-level item
+    url: createPageUrl("Assets"),
+    icon: Laptop,
+  },
+  {
+    title: "Analytics", // Now a parent
     icon: BarChart3,
+    isParent: true,
+    children: [
+      { title: "Analytics", url: createPageUrl("Analytics"), icon: BarChart3 },
+      { title: "Organogram", url: createPageUrl("Organogram"), icon: Users }, // New item
+    ]
   },
   {
     title: "Company Wall",
@@ -166,6 +181,16 @@ const employeeNavigation = [
 
 function NavMenuItem({ item, location }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Determine if the current path is a child of this parent item
+  useEffect(() => {
+    if (item.isParent && item.children) {
+      const isChildActive = item.children.some(child => location.pathname === child.url);
+      if (isChildActive) {
+        setIsOpen(true);
+      }
+    }
+  }, [location.pathname, item.isParent, item.children]);
 
   if (item.isParent) {
     return (
