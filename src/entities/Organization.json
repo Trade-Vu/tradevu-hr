@@ -154,6 +154,10 @@
       "type": "string",
       "description": "Organization owner email"
     },
+    "department_heads": {
+      "type": "object",
+      "description": "Department head assignments (dept_id: email)"
+    },
     "settings": {
       "type": "object",
       "description": "Organization-specific settings",
