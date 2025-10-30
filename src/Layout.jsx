@@ -163,6 +163,11 @@ const employeeNavigation = [
     icon: Plane,
   },
   {
+    title: "My Loans",
+    url: createPageUrl("Loans"),
+    icon: DollarSign,
+  },
+  {
     title: "My Training",
     url: createPageUrl("Training"),
     icon: Video,
