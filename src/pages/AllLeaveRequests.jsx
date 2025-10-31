@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -232,7 +231,7 @@ export default function AllLeaveRequests() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Supporting Document (Required)</Label>
+                  <Label>Supporting Document (Optional)</Label>
                   <input type="file" onChange={handleDocUpload} className="hidden" id="leave-doc" />
                   <Button type="button" variant="outline" className="w-full" onClick={() => document.getElementById('leave-doc').click()} disabled={uploadingDoc}>
                     <Upload className="w-4 h-4 mr-2" />
@@ -242,7 +241,7 @@ export default function AllLeaveRequests() {
 
                 <div className="flex justify-end gap-3">
                   <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-                  <Button type="submit" disabled={createLeaveMutation.isPending || !formData.attachment_url}>
+                  <Button type="submit" disabled={createLeaveMutation.isPending}>
                     {createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 </div>
