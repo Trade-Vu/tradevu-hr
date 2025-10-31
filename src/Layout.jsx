@@ -25,10 +25,11 @@ import {
   Home,
   ChevronDown,
   ChevronRight,
-  Target, // Keeping existing import
+  Target,
   ShieldCheck,
-  Laptop, // New import
-  CheckCircle // New import
+  Laptop,
+  CheckCircle,
+  TrendingUp // New import
 } from "lucide-react";
 import {
   Sidebar,
@@ -72,7 +73,7 @@ const navigationStructure = [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
       { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      { title: "Leave Requests", url: createPageUrl("AllLeaveRequests"), icon: Plane }, // Changed URL
+      { title: "Leave Requests", url: createPageUrl("AllLeaveRequests"), icon: Plane },
       { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
     ]
   },
@@ -82,7 +83,7 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "Payroll", url: createPageUrl("Payroll"), icon: DollarSign },
-      { title: "Loans", url: createPageUrl("Loans"), icon: DollarSign }, // New item
+      { title: "Loans", url: createPageUrl("Loans"), icon: DollarSign },
       { title: "Expenses", url: createPageUrl("Expenses"), icon: Receipt },
     ]
   },
@@ -91,9 +92,9 @@ const navigationStructure = [
     icon: UserPlus,
     isParent: true,
     children: [
-      { title: "Job Postings", url: createPageUrl("Recruitment"), icon: UserPlus }, // Title changed
-      { title: "Onboarding", url: createPageUrl("Templates"), icon: CheckCircle }, // New item
-      { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle }, // New item
+      { title: "Job Postings", url: createPageUrl("Recruitment"), icon: UserPlus },
+      { title: "Onboarding", url: createPageUrl("Templates"), icon: CheckCircle },
+      { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle },
     ]
   },
   {
@@ -110,23 +111,25 @@ const navigationStructure = [
     icon: ShieldCheck,
     isParent: true,
     children: [
+      { title: "AI Compliance Monitor", url: createPageUrl("ComplianceDashboard"), icon: ShieldCheck }, // Added item
       { title: "HR Letters", url: createPageUrl("HRLetters"), icon: FileText },
       { title: "Surveys", url: createPageUrl("Surveys"), icon: MessageSquare },
       { title: "Templates", url: createPageUrl("Templates"), icon: FileText },
     ]
   },
   {
-    title: "Assets", // New top-level item
+    title: "Assets",
     url: createPageUrl("Assets"),
     icon: Laptop,
   },
   {
-    title: "Analytics", // Now a parent
+    title: "Analytics",
     icon: BarChart3,
     isParent: true,
     children: [
       { title: "Analytics", url: createPageUrl("Analytics"), icon: BarChart3 },
-      { title: "Organogram", url: createPageUrl("Organogram"), icon: Users }, // New item
+      { title: "Advanced Analytics", url: createPageUrl("AdvancedAnalytics"), icon: TrendingUp }, // Added item
+      { title: "Organogram", url: createPageUrl("Organogram"), icon: Users },
     ]
   },
   {
@@ -143,8 +146,8 @@ const navigationStructure = [
 
 const employeeNavigation = [
   {
-    title: "My Dashboard",
-    url: createPageUrl("EmployeePortal"),
+    title: "My Portal", // Changed from "My Dashboard"
+    url: createPageUrl("EmployeeSelfService"), // Changed from "EmployeePortal"
     icon: Briefcase,
   },
   {

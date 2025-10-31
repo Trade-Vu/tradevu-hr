@@ -26,6 +26,8 @@ import AllLeaveRequests from './pages/AllLeaveRequests';
 import Offboarding from './pages/Offboarding';
 import HRAssistant from './pages/HRAssistant';
 import EmployeeSelfService from './pages/EmployeeSelfService';
+import ComplianceDashboard from './pages/ComplianceDashboard';
+import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import Layout from './Layout.jsx';
 
 
@@ -58,6 +60,8 @@ export const PAGES = {
     "Offboarding": Offboarding,
     "HRAssistant": HRAssistant,
     "EmployeeSelfService": EmployeeSelfService,
+    "ComplianceDashboard": ComplianceDashboard,
+    "AdvancedAnalytics": AdvancedAnalytics,
 }
 
 export const pagesConfig = {
