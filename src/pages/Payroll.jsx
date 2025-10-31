@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, TrendingUp, Users, Calendar, Plus, Download, Search } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Calendar, Plus, Download, Search, Edit } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Payroll() {
@@ -16,6 +17,8 @@ export default function Payroll() {
   const [searchTerm, setSearchTerm] = useState("");
   const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingPayroll, setEditingPayroll] = useState(null); // State to hold the payroll being edited
+  const [user, setUser] = useState(null); // State to hold the current user for audit logs
   const [formData, setFormData] = useState({
     employee_id: '',
     month: new Date().toISOString().slice(0, 7),
@@ -24,6 +27,19 @@ export default function Payroll() {
     deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
     overtime_hours: 0,
   });
+
+  // Load current user for audit logging
+  React.useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Failed to load user for audit logging:", error);
+      }
+    };
+    loadUser();
+  }, []);
 
   const { data: payrolls = [] } = useQuery({
     queryKey: ['payroll'],
@@ -37,6 +53,30 @@ export default function Payroll() {
     initialData: [],
   });
 
+  // Utility function for creating audit logs
+  const createAuditLog = async (action, entityId, entityName, changes = {}) => {
+    if (!user) {
+      console.warn("User not loaded, skipping audit log creation.");
+      return;
+    }
+    try {
+      await base44.entities.AuditLog.create({
+        organization_id: user.organization_id,
+        user_email: user.email,
+        user_name: user.full_name,
+        action,
+        entity_type: 'Payroll',
+        entity_id: entityId,
+        entity_name,
+        changes,
+        description: `${action} payroll for ${entityName}`,
+        status: 'success',
+      });
+    } catch (error) {
+      console.error("Error creating audit log:", error);
+    }
+  };
+
   const createPayrollMutation = useMutation({
     mutationFn: async (data) => {
       const employee = employees.find(e => e.id === data.employee_id);
@@ -47,7 +87,7 @@ export default function Payroll() {
       const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
       const netSalary = totalEarnings - totalDeductions;
 
-      return base44.entities.Payroll.create({
+      const payroll = await base44.entities.Payroll.create({
         ...data,
         employee_name: employee.full_name,
         total_earnings: totalEarnings,
@@ -56,6 +96,12 @@ export default function Payroll() {
         net_salary: netSalary,
         status: 'draft',
       });
+
+      await createAuditLog('create', payroll.id, employee.full_name, {
+        after: payroll
+      });
+
+      return payroll;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll'] });
@@ -71,9 +117,64 @@ export default function Payroll() {
     },
   });
 
+  const updatePayrollMutation = useMutation({
+    mutationFn: async ({ id, data, oldData }) => {
+      const employee = employees.find(e => e.id === data.employee_id); // Get employee for updated name if employee_id changed
+
+      const totalAllowances = Object.values(data.allowances).reduce((sum, val) => sum + (val || 0), 0);
+      const totalDeductions = Object.values(data.deductions).reduce((sum, val) => sum + (val || 0), 0);
+      const overtimeAmount = data.overtime_hours * 50;
+      const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
+      const netSalary = totalEarnings - totalDeductions;
+
+      const updatedPayload = {
+        ...data,
+        employee_name: employee?.full_name || oldData.employee_name, // Use updated employee name or fallback
+        total_earnings: totalEarnings,
+        total_deductions: totalDeductions,
+        overtime_amount: overtimeAmount,
+        net_salary: netSalary,
+      };
+
+      const updated = await base44.entities.Payroll.update(id, updatedPayload);
+
+      await createAuditLog('update', id, updatedPayload.employee_name, {
+        before: oldData,
+        after: updated,
+        fields_changed: Object.keys(data) // Note: this tracks changes in formData, not actual diff
+      });
+
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll'] });
+      setEditingPayroll(null);
+      setShowAddDialog(false); // Close dialog after successful update
+    },
+  });
+
+  // Function to handle editing a payroll record
+  const handleEdit = (payroll) => {
+    setEditingPayroll(payroll);
+    setFormData({
+      employee_id: payroll.employee_id,
+      month: payroll.month,
+      basic_salary: payroll.basic_salary || 0,
+      allowances: payroll.allowances ? { housing: 0, transport: 0, food: 0, other: 0, ...payroll.allowances } : { housing: 0, transport: 0, food: 0, other: 0 },
+      deductions: payroll.deductions ? { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0, ...payroll.deductions } : { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
+      overtime_hours: payroll.overtime_hours || 0,
+    });
+    setShowAddDialog(true);
+  };
+
   const currentMonthPayrolls = payrolls.filter(p => p.month === monthFilter);
   const totalPayroll = currentMonthPayrolls.reduce((sum, p) => sum + (p.net_salary || 0), 0);
   const approvedCount = currentMonthPayrolls.filter(p => p.status === 'approved' || p.status === 'paid').length;
+
+  // Filter payrolls by search term as well
+  const filteredPayrolls = currentMonthPayrolls.filter(payroll =>
+    payroll.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 md:p-8">
@@ -97,7 +198,21 @@ export default function Payroll() {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            
+            <Dialog open={showAddDialog} onOpenChange={(open) => {
+              setShowAddDialog(open);
+              if (!open) { // When dialog is closing
+                setEditingPayroll(null); // Clear editing state
+                setFormData({ // Reset form to initial add state
+                  employee_id: '',
+                  month: new Date().toISOString().slice(0, 7),
+                  basic_salary: 0,
+                  allowances: { housing: 0, transport: 0, food: 0, other: 0 },
+                  deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
+                  overtime_hours: 0,
+                });
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-green-600 to-emerald-600">
                   <Plus className="w-4 h-4 mr-2" />
@@ -106,9 +221,16 @@ export default function Payroll() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Add Payroll Record</DialogTitle>
+                  <DialogTitle>{editingPayroll ? 'Edit' : 'Add'} Payroll Record</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={(e) => { e.preventDefault(); createPayrollMutation.mutate(formData); }} className="space-y-4">
+                <form onSubmit={(e) => { 
+                  e.preventDefault(); 
+                  if (editingPayroll) {
+                    updatePayrollMutation.mutate({ id: editingPayroll.id, data: formData, oldData: editingPayroll });
+                  } else {
+                    createPayrollMutation.mutate(formData); 
+                  }
+                }} className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Employee *</Label>
@@ -120,7 +242,7 @@ export default function Payroll() {
                           basic_salary: emp?.payroll_details?.basic_salary || 0,
                           allowances: emp?.payroll_details?.allowances || { housing: 0, transport: 0, food: 0, other: 0 }
                         }));
-                      }}>
+                      }} disabled={!!editingPayroll}> {/* Disable employee selection when editing */}
                         <SelectTrigger>
                           <SelectValue placeholder="Select employee" />
                         </SelectTrigger>
@@ -186,8 +308,8 @@ export default function Payroll() {
                     <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={createPayrollMutation.isPending || !formData.employee_id}>
-                      {createPayrollMutation.isPending ? 'Creating...' : 'Create Payroll'}
+                    <Button type="submit" disabled={createPayrollMutation.isPending || updatePayrollMutation.isPending || !formData.employee_id}>
+                      {(createPayrollMutation.isPending || updatePayrollMutation.isPending) ? 'Saving...' : editingPayroll ? 'Update Payroll' : 'Create Payroll'}
                     </Button>
                   </div>
                 </form>
@@ -284,7 +406,7 @@ export default function Payroll() {
             <CardTitle>Payroll Records</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {currentMonthPayrolls.length === 0 ? (
+            {filteredPayrolls.length === 0 ? (
               <div className="p-12 text-center">
                 <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">No payroll records</h3>
@@ -296,7 +418,7 @@ export default function Payroll() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {currentMonthPayrolls.map((payroll) => (
+                {filteredPayrolls.map((payroll) => (
                   <div key={payroll.id} className="p-6 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -314,7 +436,9 @@ export default function Payroll() {
                         }>
                           {payroll.status}
                         </Badge>
-                        <Button variant="ghost" size="sm">View Details</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payroll)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
