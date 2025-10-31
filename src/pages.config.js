@@ -28,6 +28,7 @@ import HRAssistant from './pages/HRAssistant';
 import EmployeeSelfService from './pages/EmployeeSelfService';
 import ComplianceDashboard from './pages/ComplianceDashboard';
 import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import PayrollAI from './pages/PayrollAI';
 import Layout from './Layout.jsx';
 
 
@@ -62,6 +63,7 @@ export const PAGES = {
     "EmployeeSelfService": EmployeeSelfService,
     "ComplianceDashboard": ComplianceDashboard,
     "AdvancedAnalytics": AdvancedAnalytics,
+    "PayrollAI": PayrollAI,
 }
 
 export const pagesConfig = {
