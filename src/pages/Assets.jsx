@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Laptop, Plus, Monitor, Smartphone, Tablet, MoreVertical } from "lucide-react";
+import { Laptop, Plus, Monitor, Smartphone, Tablet, MoreVertical, Edit } from "lucide-react";
 
 const assetIcons = {
   laptop: Laptop,
@@ -22,6 +22,7 @@ export default function Assets() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
   const [formData, setFormData] = useState({
     asset_name: '',
     asset_type: 'laptop',
@@ -61,13 +62,14 @@ export default function Assets() {
         ...data,
         organization_id: user.organization_id,
         assigned_to_name: employee?.full_name,
-        assigned_date: new Date().toISOString().split('T')[0],
+        assigned_date: data.assigned_to ? new Date().toISOString().split('T')[0] : null,
         assignment_status: data.assigned_to ? 'assigned' : 'available',
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       setShowForm(false);
+      setEditingAsset(null);
       setFormData({
         asset_name: '',
         asset_type: 'laptop',
@@ -76,6 +78,35 @@ export default function Assets() {
       });
     },
   });
+
+  const updateAssetMutation = useMutation({
+    mutationFn: ({ id, data }) => {
+      const employee = employees.find(e => e.email === data.assigned_to);
+      
+      return base44.entities.Asset.update(id, {
+        ...data,
+        assigned_to_name: employee?.full_name || null,
+        assigned_date: data.assigned_to ? new Date().toISOString().split('T')[0] : null,
+        assignment_status: data.assigned_to ? 'assigned' : 'available',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      setShowForm(false);
+      setEditingAsset(null);
+    },
+  });
+
+  const handleEdit = (asset) => {
+    setEditingAsset(asset);
+    setFormData({
+      asset_name: asset.asset_name,
+      asset_type: asset.asset_type,
+      serial_number: asset.serial_number || '',
+      assigned_to: asset.assigned_to || '',
+    });
+    setShowForm(true);
+  };
 
   const statusColors = {
     active: 'bg-green-100 text-green-700',
@@ -97,18 +128,36 @@ export default function Assets() {
             <h1 className="text-4xl font-bold text-slate-900 mb-3">Assets</h1>
             <p className="text-lg text-slate-600">Track and manage company assets</p>
           </div>
-          <Dialog open={showForm} onOpenChange={setShowForm}>
+          <Dialog open={showForm} onOpenChange={(open) => {
+            setShowForm(open);
+            if (!open) {
+              setEditingAsset(null);
+              setFormData({
+                asset_name: '',
+                asset_type: 'laptop',
+                serial_number: '',
+                assigned_to: '',
+              });
+            }
+          }}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-green-600 to-emerald-600">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Asset
+                {editingAsset ? 'Edit Asset' : 'Add Asset'}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Asset</DialogTitle>
+                <DialogTitle>{editingAsset ? 'Edit' : 'Add'} Asset</DialogTitle>
               </DialogHeader>
-              <form onSubmit={(e) => { e.preventDefault(); createAssetMutation.mutate(formData); }} className="space-y-4">
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                if (editingAsset) {
+                  updateAssetMutation.mutate({ id: editingAsset.id, data: formData });
+                } else {
+                  createAssetMutation.mutate(formData); 
+                }
+              }} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Asset Name</Label>
                   <Input placeholder="e.g., Macbook Air 2024" value={formData.asset_name} onChange={(e) => setFormData(prev => ({ ...prev, asset_name: e.target.value }))} required />
@@ -153,8 +202,8 @@ export default function Assets() {
                 </div>
                 <div className="flex justify-end gap-3">
                   <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-                  <Button type="submit" disabled={createAssetMutation.isPending}>
-                    {createAssetMutation.isPending ? 'Adding...' : 'Add Asset'}
+                  <Button type="submit" disabled={createAssetMutation.isPending || updateAssetMutation.isPending}>
+                    {(createAssetMutation.isPending || updateAssetMutation.isPending) ? 'Saving...' : editingAsset ? 'Update' : 'Add Asset'}
                   </Button>
                 </div>
               </form>
@@ -166,14 +215,6 @@ export default function Assets() {
           <CardHeader className="border-b bg-slate-50">
             <div className="flex items-center justify-between">
               <CardTitle>Assets</CardTitle>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost">
-                  <Plus className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="ghost">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -223,8 +264,8 @@ export default function Assets() {
                         <Badge className={statusColors[asset.status || 'active']}>
                           {asset.status || 'Active'}
                         </Badge>
-                        <Button size="sm" variant="ghost">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(asset)}>
+                          <Edit className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>

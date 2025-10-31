@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Send, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { FileText, Plus, Send, CheckCircle, Clock, XCircle, Edit } from "lucide-react";
 import { format } from "date-fns";
 
 export default function HRLetters() {
@@ -17,6 +18,7 @@ export default function HRLetters() {
   const [user, setUser] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [editingRequest, setEditingRequest] = useState(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -50,20 +52,54 @@ export default function HRLetters() {
     purpose: '',
   });
 
+  const createAuditLog = async (action, entityId, entityName) => {
+    try {
+      await base44.entities.AuditLog.create({
+        organization_id: user.organization_id,
+        user_email: user.email,
+        user_name: user.full_name,
+        action,
+        entity_type: 'HRLetterRequest',
+        entity_id: entityId,
+        entity_name,
+        description: `${action} HR letter request: ${entityName}`,
+        status: 'success',
+      });
+    } catch (error) {
+      console.error("Error creating audit log:", error);
+    }
+  };
+
   const createRequestMutation = useMutation({
     mutationFn: async (data) => {
-      return base44.entities.HRLetterRequest.create({
+      const request = await base44.entities.HRLetterRequest.create({
         ...data,
         employee_id: employee.id,
         employee_name: employee.full_name,
         request_date: new Date().toISOString().split('T')[0],
         status: 'pending',
       });
+      await createAuditLog('create', request.id, `${data.letter_type} letter`);
+      return request;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-letter-requests'] });
       setShowRequestForm(false);
+      setEditingRequest(null);
       setFormData({ letter_type: 'employment', purpose: '' });
+    },
+  });
+
+  const updateRequestMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      const updated = await base44.entities.HRLetterRequest.update(id, data);
+      await createAuditLog('update', id, `${data.letter_type || 'letter'}`);
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-letter-requests'] });
+      setShowRequestForm(false);
+      setEditingRequest(null);
     },
   });
 
@@ -81,20 +117,36 @@ Make it formal and suitable for official use.`;
         add_context_from_internet: false,
       });
 
-      return base44.entities.HRLetterRequest.update(requestId, {
+      const updated = await base44.entities.HRLetterRequest.update(requestId, {
         letter_content: result,
         status: 'completed',
         approved_date: new Date().toISOString().split('T')[0],
       });
+
+      await createAuditLog('approve', requestId, `${employeeData.letter_type} letter`);
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-letter-requests'] });
     },
   });
 
+  const handleEdit = (request) => {
+    setEditingRequest(request);
+    setFormData({
+      letter_type: request.letter_type,
+      purpose: request.purpose,
+    });
+    setShowRequestForm(true);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    createRequestMutation.mutate(formData);
+    if (editingRequest) {
+      updateRequestMutation.mutate({ id: editingRequest.id, data: formData });
+    } else {
+      createRequestMutation.mutate(formData);
+    }
   };
 
   const statusConfig = {
@@ -107,7 +159,6 @@ Make it formal and suitable for official use.`;
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
@@ -122,67 +173,67 @@ Make it formal and suitable for official use.`;
             </p>
           </div>
           {employee && (
-            <Button 
-              onClick={() => setShowRequestForm(!showRequestForm)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Request Letter
-            </Button>
+            <Dialog open={showRequestForm} onOpenChange={(open) => {
+              setShowRequestForm(open);
+              if (!open) {
+                setEditingRequest(null);
+                setFormData({ letter_type: 'employment', purpose: '' });
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {editingRequest ? 'Edit Request' : 'Request Letter'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingRequest ? 'Edit' : 'Request'} HR Letter</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="letter_type">Letter Type *</Label>
+                    <Select value={formData.letter_type} onValueChange={(value) => setFormData(prev => ({ ...prev, letter_type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employment">Employment Letter</SelectItem>
+                        <SelectItem value="salary_certificate">Salary Certificate</SelectItem>
+                        <SelectItem value="recommendation">Recommendation Letter</SelectItem>
+                        <SelectItem value="experience">Experience Certificate</SelectItem>
+                        <SelectItem value="resignation_acceptance">Resignation Acceptance</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="purpose">Purpose *</Label>
+                    <Textarea
+                      id="purpose"
+                      value={formData.purpose}
+                      onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}
+                      placeholder="Why do you need this letter? (e.g., visa application, bank loan, etc.)"
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => setShowRequestForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createRequestMutation.isPending || updateRequestMutation.isPending}>
+                      {(createRequestMutation.isPending || updateRequestMutation.isPending) ? "Saving..." : editingRequest ? "Update" : "Submit Request"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
 
-        {/* Request Form */}
-        {showRequestForm && employee && (
-          <Card className="border-slate-200 shadow-xl">
-            <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-              <CardTitle>Request HR Letter</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="letter_type">Letter Type *</Label>
-                  <Select value={formData.letter_type} onValueChange={(value) => setFormData(prev => ({ ...prev, letter_type: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="employment">Employment Letter</SelectItem>
-                      <SelectItem value="salary_certificate">Salary Certificate</SelectItem>
-                      <SelectItem value="recommendation">Recommendation Letter</SelectItem>
-                      <SelectItem value="experience">Experience Certificate</SelectItem>
-                      <SelectItem value="resignation_acceptance">Resignation Acceptance</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="purpose">Purpose *</Label>
-                  <Textarea
-                    id="purpose"
-                    value={formData.purpose}
-                    onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}
-                    placeholder="Why do you need this letter? (e.g., visa application, bank loan, etc.)"
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowRequestForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createRequestMutation.isPending}>
-                    {createRequestMutation.isPending ? "Submitting..." : "Submit Request"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Requests List */}
         <Card className="border-slate-200">
           <CardHeader className="border-b border-slate-200">
             <CardTitle>Letter Requests</CardTitle>
@@ -220,17 +271,24 @@ Make it formal and suitable for official use.`;
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          {isAdmin && request.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              onClick={() => generateLetterMutation.mutate({
-                                requestId: request.id,
-                                employeeData: { ...request, job_title: 'Employee' }
-                              })}
-                              disabled={generateLetterMutation.isPending}
-                            >
-                              Generate with AI
-                            </Button>
+                          {request.status === 'pending' && (
+                            <>
+                              <Button size="sm" variant="ghost" onClick={() => handleEdit(request)}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => generateLetterMutation.mutate({
+                                    requestId: request.id,
+                                    employeeData: { ...request, job_title: 'Employee' }
+                                  })}
+                                  disabled={generateLetterMutation.isPending}
+                                >
+                                  Generate with AI
+                                </Button>
+                              )}
+                            </>
                           )}
                           {request.status === 'completed' && request.letter_content && (
                             <Button size="sm" variant="outline">
