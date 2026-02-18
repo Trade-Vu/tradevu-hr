@@ -106,6 +106,11 @@ const navigationStructure = [
     ]
   },
   {
+    title: "Performance",
+    url: createPageUrl("Performance"),
+    icon: Target,
+  },
+  {
     title: "Compliance",
     icon: ShieldCheck,
     isParent: true,

@@ -79,6 +79,7 @@ import Surveys from './pages/Surveys';
 import TaskManager from './pages/TaskManager';
 import Templates from './pages/Templates';
 import Training from './pages/Training';
+import Performance from './pages/Performance';
 import __Layout from './Layout.jsx';
 
 
@@ -115,6 +116,7 @@ export const PAGES = {
     "TaskManager": TaskManager,
     "Templates": Templates,
     "Training": Training,
+    "Performance": Performance,
 }
 
 export const pagesConfig = {
