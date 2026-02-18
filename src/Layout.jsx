@@ -137,11 +137,6 @@ const navigationStructure = [
     ]
   },
   {
-    title: "Company Wall",
-    url: createPageUrl("CompanyWall"),
-    icon: Home,
-  },
-  {
     title: "AI HR Assistant",
     url: createPageUrl("HRAssistant"),
     icon: Target,
