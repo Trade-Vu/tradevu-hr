@@ -155,11 +155,6 @@ const employeeNavigation = [
     icon: Briefcase,
   },
   {
-    title: "Company Wall",
-    url: createPageUrl("CompanyWall"),
-    icon: Home,
-  },
-  {
     title: "My Tasks",
     url: createPageUrl("TaskManager"),
     icon: CheckSquare,
