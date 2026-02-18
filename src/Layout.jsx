@@ -274,11 +274,6 @@ export default function Layout({ children, currentPageName }) {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
 
-        if (!currentUser.organization_id && currentPageName !== 'OrganizationSetup') {
-          navigate('/OrganizationSetup');
-          return;
-        }
-
         if (currentUser.organization_id) {
           const orgs = await base44.entities.Organization.filter({ id: currentUser.organization_id });
           if (orgs.length > 0) {
@@ -287,8 +282,7 @@ export default function Layout({ children, currentPageName }) {
         }
         
         const employees = await base44.entities.Employee.filter({ 
-          email: currentUser.email,
-          organization_id: currentUser.organization_id 
+          email: currentUser.email
         });
         setIsEmployee(employees.length > 0);
       } catch (error) {
@@ -303,10 +297,6 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationStructure;
-
-  if (currentPageName === 'OrganizationSetup') {
-    return children;
-  }
 
   return (
     <SidebarProvider>
