@@ -208,7 +208,7 @@ function NavMenuItem({ item, location }) {
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton className="hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 text-slate-600">
+          <SidebarMenuButton className="hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 text-slate-600">
             <div className="flex items-center justify-between w-full px-3 py-2.5">
               <div className="flex items-center gap-3">
                 <item.icon className="w-5 h-5" />
@@ -243,8 +243,8 @@ function NavMenuItem({ item, location }) {
     <SidebarMenuItem>
       <SidebarMenuButton 
         asChild 
-        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
-          location.pathname === item.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+        className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 ${
+          location.pathname === item.url ? 'bg-purple-50 text-purple-700 font-medium shadow-sm' : 'text-slate-600'
         }`}
       >
         <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
@@ -295,7 +295,7 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-purple-50 to-pink-50">
         <Sidebar className="border-r border-slate-200 bg-white">
           <SidebarHeader className="border-b border-slate-200 p-6">
             <div className="flex items-center gap-3">
@@ -352,7 +352,7 @@ export default function Layout({ children, currentPageName }) {
                   {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
                   ) : (
-                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                    <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                       <UserCircle className="w-5 h-5 text-white" />
                     </div>
                   )}
