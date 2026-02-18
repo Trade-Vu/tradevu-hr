@@ -223,8 +223,8 @@ function NavMenuItem({ item, location }) {
             <SidebarMenuItem key={child.title}>
               <SidebarMenuButton 
                 asChild 
-                className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg ${
-                  location.pathname === child.url ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+                className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg ${
+                  location.pathname === child.url ? 'bg-purple-50 text-purple-700 font-medium shadow-sm' : 'text-slate-600'
                 }`}
               >
                 <Link to={child.url} className="flex items-center gap-3 px-3 py-2">
@@ -329,8 +329,8 @@ export default function Layout({ children, currentPageName }) {
                     <SidebarMenuItem>
                       <SidebarMenuButton 
                         asChild 
-                        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-lg mb-1 ${
-                          location.pathname === createPageUrl("Settings") ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-slate-600'
+                        className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-lg mb-1 ${
+                          location.pathname === createPageUrl("Settings") ? 'bg-purple-50 text-purple-700 font-medium shadow-sm' : 'text-slate-600'
                         }`}
                       >
                         <Link to={createPageUrl("Settings")} className="flex items-center gap-3 px-3 py-2.5">
