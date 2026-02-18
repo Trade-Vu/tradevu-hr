@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -323,7 +322,7 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-slate-900 text-lg leading-tight">EonHR</h2>
+                <h2 className="font-bold text-slate-900 text-lg leading-tight">Tradevu HR</h2>
                 <p className="text-xs text-slate-500 truncate">{organization?.name || 'HR Management'}</p>
               </div>
             </div>
@@ -405,7 +404,7 @@ export default function Layout({ children, currentPageName }) {
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
               <div>
-                <h1 className="text-base font-bold text-slate-900">EonHR</h1>
+                <h1 className="text-base font-bold text-slate-900">Tradevu HR</h1>
                 <p className="text-xs text-slate-500">{organization?.name}</p>
               </div>
             </div>
