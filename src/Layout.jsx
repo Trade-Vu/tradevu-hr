@@ -303,13 +303,13 @@ export default function Layout({ children, currentPageName }) {
                 <img src={organization.logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
               ) : (
                 <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69951f4d3ce6a608fcf7e916/2a4836689_faviconnew.png" 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69951f4d3ce6a608fcf7e916/273166988_Tradevu-Icon.png" 
                   alt="Logo" 
                   className="w-10 h-10 object-contain" 
                 />
               )}
               <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-slate-900 text-lg leading-tight">Tradevu HR</h2>
+                <h2 className="font-bold text-slate-900 text-lg leading-tight">Tradevu</h2>
                 <p className="text-xs text-slate-500 truncate">{organization?.name || 'HR Management'}</p>
               </div>
             </div>
@@ -391,7 +391,7 @@ export default function Layout({ children, currentPageName }) {
                 <Menu className="w-5 h-5" />
               </SidebarTrigger>
               <div>
-                <h1 className="text-base font-bold text-slate-900">Tradevu HR</h1>
+                <h1 className="text-base font-bold text-slate-900">Tradevu</h1>
                 <p className="text-xs text-slate-500">{organization?.name}</p>
               </div>
             </div>
