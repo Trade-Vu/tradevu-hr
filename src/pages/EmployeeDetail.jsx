@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +6,7 @@ import {
   ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, 
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
   Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, 
-  CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload
+  CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +111,16 @@ export default function EmployeeDetail() {
     queryFn: async () => {
       const allAttendance = await base44.entities.Attendance.list('-date');
       return allAttendance.filter(a => a.employee_id === employeeId);
+    },
+    enabled: !!employeeId,
+    initialData: [],
+  });
+
+  const { data: evaluations = [] } = useQuery({
+    queryKey: ['employee-evaluations', employeeId],
+    queryFn: async () => {
+      const allEvaluations = await base44.entities.Evaluation.list('-created_date');
+      return allEvaluations.filter(e => e.employee_id === employeeId);
     },
     enabled: !!employeeId,
     initialData: [],
@@ -1227,11 +1236,100 @@ export default function EmployeeDetail() {
       case 'performance':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Performance Reviews</h3>
-            <div className="text-center py-12">
-              <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <p className="text-slate-500">Performance reviews coming soon</p>
-            </div>
+            <h3 className="text-lg font-semibold text-slate-900">Performance Evaluations</h3>
+            
+            {evaluations.length === 0 ? (
+              <div className="text-center py-12">
+                <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                <p className="text-slate-500">No performance evaluations yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {evaluations.map(evaluation => (
+                  <div key={evaluation.id} className="p-5 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-slate-900">{evaluation.period}</h4>
+                          <Badge variant="outline" className="capitalize">
+                            {evaluation.evaluation_type.replace('_', ' ')}
+                          </Badge>
+                          <Badge className={
+                            evaluation.status === 'reviewed' ? 'bg-green-100 text-green-700' :
+                            evaluation.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }>
+                            {evaluation.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-500">Evaluated by: {evaluation.evaluator_email}</p>
+                      </div>
+                      {evaluation.overall_rating > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i < evaluation.overall_rating
+                                    ? 'fill-yellow-500 text-yellow-500'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="font-semibold text-slate-900">{evaluation.overall_rating}/5</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {evaluation.competencies && Object.keys(evaluation.competencies).length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-slate-700 mb-2">Competencies:</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {Object.entries(evaluation.competencies).map(([key, value]) => (
+                            value > 0 && (
+                              <div key={key} className="flex items-center justify-between text-sm">
+                                <span className="text-slate-600 capitalize">{key.replace('_', ' ')}:</span>
+                                <span className="font-medium text-slate-900">{value}/5</span>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {evaluation.strengths && (
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-slate-700 mb-1">Strengths:</p>
+                        <p className="text-sm text-slate-600">{evaluation.strengths}</p>
+                      </div>
+                    )}
+
+                    {evaluation.areas_for_improvement && (
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-slate-700 mb-1">Areas for Improvement:</p>
+                        <p className="text-sm text-slate-600">{evaluation.areas_for_improvement}</p>
+                      </div>
+                    )}
+
+                    {evaluation.document_url && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200">
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        <a
+                          href={evaluation.document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:underline"
+                        >
+                          View Supporting Document
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
