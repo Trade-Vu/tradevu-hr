@@ -43,8 +43,8 @@ export default function Dashboard() {
 
   // Calculate stats
   const totalEmployees = employees.length;
-  const activeOnboarding = employees.filter(e => e.status === 'in_progress').length;
-  const completedOnboarding = employees.filter(e => e.status === 'completed').length;
+  const activeOnboarding = employees.filter(e => e.onboarding_status === 'in_progress').length;
+  const completedOnboarding = employees.filter(e => e.onboarding_status === 'completed').length;
   const averageProgress = employees.length > 0 
     ? Math.round(employees.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / employees.length)
     : 0;
@@ -56,7 +56,7 @@ export default function Dashboard() {
     const matchesSearch = employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           employee.job_title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || employee.onboarding_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 

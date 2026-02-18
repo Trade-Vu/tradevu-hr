@@ -74,8 +74,8 @@ export default function EmployeeList({ employees, isLoading }) {
                 <h3 className="font-semibold text-slate-900 truncate">
                   {employee.full_name}
                 </h3>
-                <Badge variant="outline" className={`${statusColors[employee.status]} border`}>
-                  {statusLabels[employee.status]}
+                <Badge variant="outline" className={`${statusColors[employee.onboarding_status]} border`}>
+                  {statusLabels[employee.onboarding_status]}
                 </Badge>
               </div>
               <div className="flex items-center gap-3 text-sm text-slate-500">

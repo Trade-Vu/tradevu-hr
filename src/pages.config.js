@@ -1,73 +1,124 @@
-import Dashboard from './pages/Dashboard';
-import Employees from './pages/Employees';
-import Templates from './pages/Templates';
-import EmployeeDetail from './pages/EmployeeDetail';
+/**
+ * pages.config.js - Page routing configuration
+ * 
+ * This file is AUTO-GENERATED. Do not add imports or modify PAGES manually.
+ * Pages are auto-registered when you create files in the ./pages/ folder.
+ * 
+ * THE ONLY EDITABLE VALUE: mainPage
+ * This controls which page is the landing page (shown when users visit the app).
+ * 
+ * Example file structure:
+ * 
+ *   import HomePage from './pages/HomePage';
+ *   import Dashboard from './pages/Dashboard';
+ *   import Settings from './pages/Settings';
+ *   
+ *   export const PAGES = {
+ *       "HomePage": HomePage,
+ *       "Dashboard": Dashboard,
+ *       "Settings": Settings,
+ *   }
+ *   
+ *   export const pagesConfig = {
+ *       mainPage: "HomePage",
+ *       Pages: PAGES,
+ *   };
+ * 
+ * Example with Layout (wraps all pages):
+ *
+ *   import Home from './pages/Home';
+ *   import Settings from './pages/Settings';
+ *   import __Layout from './Layout.jsx';
+ *
+ *   export const PAGES = {
+ *       "Home": Home,
+ *       "Settings": Settings,
+ *   }
+ *
+ *   export const pagesConfig = {
+ *       mainPage: "Home",
+ *       Pages: PAGES,
+ *       Layout: __Layout,
+ *   };
+ *
+ * To change the main page from HomePage to Dashboard, use find_replace:
+ *   Old: mainPage: "HomePage",
+ *   New: mainPage: "Dashboard",
+ *
+ * The mainPage value must match a key in the PAGES object exactly.
+ */
+import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import AllLeaveRequests from './pages/AllLeaveRequests';
 import Analytics from './pages/Analytics';
-import EmployeePortal from './pages/EmployeePortal';
-import Training from './pages/Training';
-import Evaluations from './pages/Evaluations';
+import Assets from './pages/Assets';
 import Attendance from './pages/Attendance';
-import Payroll from './pages/Payroll';
-import HRLetters from './pages/HRLetters';
-import Recruitment from './pages/Recruitment';
-import Expenses from './pages/Expenses';
-import Surveys from './pages/Surveys';
-import OrganizationSetup from './pages/OrganizationSetup';
-import Settings from './pages/Settings';
-import Profile from './pages/Profile';
-import TaskManager from './pages/TaskManager';
-import LeaveManagement from './pages/LeaveManagement';
 import Chat from './pages/Chat';
 import CompanyWall from './pages/CompanyWall';
-import Loans from './pages/Loans';
-import Assets from './pages/Assets';
-import Organogram from './pages/Organogram';
-import AllLeaveRequests from './pages/AllLeaveRequests';
-import Offboarding from './pages/Offboarding';
-import HRAssistant from './pages/HRAssistant';
-import EmployeeSelfService from './pages/EmployeeSelfService';
 import ComplianceDashboard from './pages/ComplianceDashboard';
-import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import Dashboard from './pages/Dashboard';
+import EmployeeDetail from './pages/EmployeeDetail';
+import EmployeePortal from './pages/EmployeePortal';
+import EmployeeSelfService from './pages/EmployeeSelfService';
+import Employees from './pages/Employees';
+import Evaluations from './pages/Evaluations';
+import Expenses from './pages/Expenses';
+import HRAssistant from './pages/HRAssistant';
+import HRLetters from './pages/HRLetters';
+import Home from './pages/Home';
+import LeaveManagement from './pages/LeaveManagement';
+import Loans from './pages/Loans';
+import Offboarding from './pages/Offboarding';
+import OrganizationSetup from './pages/OrganizationSetup';
+import Organogram from './pages/Organogram';
+import Payroll from './pages/Payroll';
 import PayrollAI from './pages/PayrollAI';
-import Layout from './Layout.jsx';
+import Profile from './pages/Profile';
+import Recruitment from './pages/Recruitment';
+import Settings from './pages/Settings';
+import Surveys from './pages/Surveys';
+import TaskManager from './pages/TaskManager';
+import Templates from './pages/Templates';
+import Training from './pages/Training';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Dashboard": Dashboard,
-    "Employees": Employees,
-    "Templates": Templates,
-    "EmployeeDetail": EmployeeDetail,
+    "AdvancedAnalytics": AdvancedAnalytics,
+    "AllLeaveRequests": AllLeaveRequests,
     "Analytics": Analytics,
-    "EmployeePortal": EmployeePortal,
-    "Training": Training,
-    "Evaluations": Evaluations,
+    "Assets": Assets,
     "Attendance": Attendance,
-    "Payroll": Payroll,
-    "HRLetters": HRLetters,
-    "Recruitment": Recruitment,
-    "Expenses": Expenses,
-    "Surveys": Surveys,
-    "OrganizationSetup": OrganizationSetup,
-    "Settings": Settings,
-    "Profile": Profile,
-    "TaskManager": TaskManager,
-    "LeaveManagement": LeaveManagement,
     "Chat": Chat,
     "CompanyWall": CompanyWall,
-    "Loans": Loans,
-    "Assets": Assets,
-    "Organogram": Organogram,
-    "AllLeaveRequests": AllLeaveRequests,
-    "Offboarding": Offboarding,
-    "HRAssistant": HRAssistant,
-    "EmployeeSelfService": EmployeeSelfService,
     "ComplianceDashboard": ComplianceDashboard,
-    "AdvancedAnalytics": AdvancedAnalytics,
+    "Dashboard": Dashboard,
+    "EmployeeDetail": EmployeeDetail,
+    "EmployeePortal": EmployeePortal,
+    "EmployeeSelfService": EmployeeSelfService,
+    "Employees": Employees,
+    "Evaluations": Evaluations,
+    "Expenses": Expenses,
+    "HRAssistant": HRAssistant,
+    "HRLetters": HRLetters,
+    "Home": Home,
+    "LeaveManagement": LeaveManagement,
+    "Loans": Loans,
+    "Offboarding": Offboarding,
+    "OrganizationSetup": OrganizationSetup,
+    "Organogram": Organogram,
+    "Payroll": Payroll,
     "PayrollAI": PayrollAI,
+    "Profile": Profile,
+    "Recruitment": Recruitment,
+    "Settings": Settings,
+    "Surveys": Surveys,
+    "TaskManager": TaskManager,
+    "Templates": Templates,
+    "Training": Training,
 }
 
 export const pagesConfig = {
     mainPage: "Dashboard",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };
