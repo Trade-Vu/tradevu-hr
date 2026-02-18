@@ -328,7 +328,7 @@ export default function Performance() {
                       type="file"
                       onChange={handleFileUpload}
                       disabled={isUploading}
-                      accept=".pdf,.doc,.docx,.txt"
+                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
                     />
                     {isUploading && (
                       <p className="text-sm text-blue-600 mt-2">Uploading...</p>
