@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -94,6 +93,20 @@ export default function AllLeaveRequests() {
       });
 
       await createAuditLog('create', leave.id, employee.full_name, { after: leave });
+      
+      // Send email notification to line manager
+      if (manager) {
+        try {
+          await base44.integrations.Core.SendEmail({
+            to: manager.email,
+            subject: `New Leave Request - ${employee.full_name}`,
+            body: `Hello ${manager.full_name},\n\n${employee.full_name} has submitted a leave request that requires your approval.\n\nLeave Type: ${data.leave_type.replace('_', ' ')}\nDates: ${format(new Date(data.start_date), 'MMM dd, yyyy')} - ${format(new Date(data.end_date), 'MMM dd, yyyy')}\nTotal Days: ${data.total_days}\nReason: ${data.reason}\n\nPlease log in to review and approve/reject this request.\n\nBest regards,\nHR Team`
+          });
+        } catch (error) {
+          console.error('Failed to send manager notification:', error);
+        }
+      }
+      
       return leave;
     },
     onSuccess: () => {
@@ -172,7 +185,7 @@ export default function AllLeaveRequests() {
     calculateDays();
   }, [formData.start_date, formData.end_date]);
 
-  const handleApprove = (leave) => {
+  const handleApprove = async (leave) => {
     updateLeaveMutation.mutate({
       id: leave.id,
       data: {
@@ -186,9 +199,22 @@ export default function AllLeaveRequests() {
       },
       oldData: leave // Pass the original leave object for audit logging
     });
+    
+    // Send email notification to employee
+    if (leave.employee_email) {
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: leave.employee_email,
+          subject: 'Leave Request Approved',
+          body: `Hello ${leave.employee_name},\n\nGood news! Your leave request has been approved by ${user.full_name}.\n\nLeave Type: ${leave.leave_type.replace('_', ' ')}\nDates: ${format(new Date(leave.start_date), 'MMM dd, yyyy')} - ${format(new Date(leave.end_date), 'MMM dd, yyyy')}\nTotal Days: ${leave.total_days}\n\nEnjoy your time off!\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send approval notification:', error);
+      }
+    }
   };
 
-  const handleReject = (leave) => {
+  const handleReject = async (leave) => {
     updateLeaveMutation.mutate({
       id: leave.id,
       data: {
@@ -202,6 +228,19 @@ export default function AllLeaveRequests() {
       },
       oldData: leave // Pass the original leave object for audit logging
     });
+    
+    // Send email notification to employee
+    if (leave.employee_email) {
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: leave.employee_email,
+          subject: 'Leave Request Update',
+          body: `Hello ${leave.employee_name},\n\nYour leave request has been reviewed by ${user.full_name}.\n\nLeave Type: ${leave.leave_type.replace('_', ' ')}\nDates: ${format(new Date(leave.start_date), 'MMM dd, yyyy')} - ${format(new Date(leave.end_date), 'MMM dd, yyyy')}\n\nStatus: Not Approved\n\nPlease contact your manager for more information.\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send rejection notification:', error);
+      }
+    }
   };
 
   const statusColors = {
