@@ -302,9 +302,11 @@ export default function Layout({ children, currentPageName }) {
               {organization?.logo_url ? (
                 <img src={organization.logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-cover" />
               ) : (
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Briefcase className="w-6 h-6 text-white" />
-                </div>
+                <img 
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69951f4d3ce6a608fcf7e916/2a4836689_faviconnew.png" 
+                  alt="Logo" 
+                  className="w-10 h-10 object-contain" 
+                />
               )}
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-slate-900 text-lg leading-tight">Tradevu HR</h2>
