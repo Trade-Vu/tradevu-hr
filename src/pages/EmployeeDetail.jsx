@@ -134,25 +134,58 @@ export default function EmployeeDetail() {
 
   const updateEmployeeMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Employee.update(id, data),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       setIsEditing(false);
+      
+      // Send email notification to employee
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: employee.email,
+          subject: 'Profile Updated',
+          body: `Hello ${employee.full_name},\n\nYour employee profile has been updated by HR.\n\nPlease log in to review the changes.\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send email:', error);
+      }
     },
   });
 
   const createDocumentMutation = useMutation({
     mutationFn: (data) => base44.entities.Document.create(data),
-    onSuccess: () => {
+    onSuccess: async (newDoc) => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       setShowDocDialog(false);
       setDocForm({ document_name: '', file_url: '', file_name: '' });
+      
+      // Send email notification to employee
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: employee.email,
+          subject: 'New Document Added to Your Profile',
+          body: `Hello ${employee.full_name},\n\nA new document "${newDoc.document_name}" has been added to your profile by HR.\n\nPlease log in to view it.\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send email:', error);
+      }
     },
   });
 
   const deleteDocumentMutation = useMutation({
     mutationFn: (id) => base44.entities.Document.delete(id),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      
+      // Send email notification to employee
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: employee.email,
+          subject: 'Document Removed from Your Profile',
+          body: `Hello ${employee.full_name},\n\nA document has been removed from your profile by HR.\n\nIf you have any questions, please contact HR.\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send email:', error);
+      }
     },
   });
 
@@ -163,9 +196,21 @@ export default function EmployeeDetail() {
       assignment_status: 'available',
       return_date: new Date().toISOString().split('T')[0],
     }),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employee-assets', employeeId] });
-      setAssetToRemove(null); // Clear state after successful unassignment
+      const assetName = assetToRemove?.asset_name || 'Asset';
+      setAssetToRemove(null);
+      
+      // Send email notification to employee
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: employee.email,
+          subject: 'Asset Returned',
+          body: `Hello ${employee.full_name},\n\nThe asset "${assetName}" has been returned and is no longer assigned to you.\n\nIf you have any questions, please contact HR.\n\nBest regards,\nHR Team`
+        });
+      } catch (error) {
+        console.error('Failed to send email:', error);
+      }
     },
   });
 
