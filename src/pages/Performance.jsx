@@ -70,7 +70,10 @@ export default function Performance() {
     strengths: "",
     areas_for_improvement: "",
     overall_rating: 0,
+    document_url: "",
   });
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const createEvaluationMutation = useMutation({
     mutationFn: async (data) => {
@@ -84,6 +87,7 @@ export default function Performance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });
       setIsDialogOpen(false);
+      setUploadedFile(null);
       setNewEvaluation({
         employee_id: "",
         evaluation_type: "manager",
@@ -98,9 +102,26 @@ export default function Performance() {
         strengths: "",
         areas_for_improvement: "",
         overall_rating: 0,
+        document_url: "",
       });
     },
   });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const result = await base44.integrations.Core.UploadFile({ file });
+      setNewEvaluation({ ...newEvaluation, document_url: result.file_url });
+      setUploadedFile(file.name);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Calculate stats
   const totalEvaluations = evaluations.length;
@@ -297,6 +318,24 @@ export default function Performance() {
                         {rating}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Supporting Document (Optional)</Label>
+                  <div className="mt-2">
+                    <Input
+                      type="file"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      accept=".pdf,.doc,.docx,.txt"
+                    />
+                    {isUploading && (
+                      <p className="text-sm text-blue-600 mt-2">Uploading...</p>
+                    )}
+                    {uploadedFile && (
+                      <p className="text-sm text-green-600 mt-2">✓ {uploadedFile}</p>
+                    )}
                   </div>
                 </div>
 
