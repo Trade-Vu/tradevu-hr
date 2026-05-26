@@ -1,6 +1,7 @@
+// @ts-nocheck
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,20 +25,14 @@ export default function Expenses() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock current user
+        const currentUser = { role: 'admin', email: 'admin@tradevu.com', full_name: 'Admin User', organization_id: 'org-1' };
         setUser(currentUser);
         const adminStatus = currentUser.role === 'admin' || currentUser.is_organization_owner;
         setIsAdmin(adminStatus);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
-        if (employees.length > 0) {
-          setEmployee(employees[0]);
-          
-          // Check if this employee has direct reports
-          const allEmployees = await base44.entities.Employee.list();
-          const directReports = allEmployees.filter(e => e.manager_email === currentUser.email);
-          setCanAddForOthers(adminStatus || directReports.length > 0);
-        }
+        setEmployee(null);
+        setCanAddForOthers(adminStatus);
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -47,13 +42,21 @@ export default function Expenses() {
 
   const { data: claims = [] } = useQuery({
     queryKey: ['expense-claims'],
-    queryFn: () => base44.entities.ExpenseClaim.list('-date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const query = `query { employees { id first_name last_name job_title } }`;
+      const data = await gqlClient.request(query);
+      return data.employees.map(emp => ({
+        id: emp.id,
+        full_name: `${emp.first_name} ${emp.last_name}`,
+        job_title: emp.job_title,
+      }));
+    },
     initialData: [],
     enabled: canAddForOthers,
   });
@@ -80,14 +83,15 @@ export default function Expenses() {
         throw new Error("Selected employee not found.");
       }
 
-      return base44.entities.ExpenseClaim.create({
+      return {
+        id: Math.random().toString(),
         ...data,
         organization_id: user.organization_id, // Ensure organization_id is included
         employee_id: selectedEmployee.id,
         employee_name: selectedEmployee.full_name,
         status: 'pending',
         currency: 'SAR',
-      });
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] });
@@ -104,7 +108,9 @@ export default function Expenses() {
   });
 
   const updateClaimMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ExpenseClaim.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] });
     },
@@ -116,7 +122,8 @@ export default function Expenses() {
 
     setUploadingReceipt(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      // const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = 'mock_url';
       setFormData(prev => ({ ...prev, receipt_url: file_url }));
     } catch (error) {
       console.error("Error uploading receipt:", error);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,12 @@ export default function AdvancedAnalytics() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -39,41 +44,45 @@ export default function AdvancedAnalytics() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: attendance = [] } = useQuery({
     queryKey: ['attendance'],
-    queryFn: () => base44.entities.Attendance.list('-date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: payrolls = [] } = useQuery({
     queryKey: ['payroll'],
-    queryFn: () => base44.entities.Payroll.list('-month'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
-    queryFn: () => base44.entities.LeaveRequest.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: scheduledReports = [] } = useQuery({
     queryKey: ['scheduled-reports'],
-    queryFn: () => base44.entities.ScheduledReport.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const createScheduleMutation = useMutation({
-    mutationFn: (data) => base44.entities.ScheduledReport.create({
-      ...data,
-      organization_id: user.organization_id,
-      created_by: user.email,
-      is_active: true,
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create scheduled report", data);
+      return {
+        ...data,
+        id: `report_${Date.now()}`,
+        organization_id: user.organization_id,
+        created_by: user.email,
+        is_active: true,
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduled-reports'] });
       setShowScheduleDialog(false);

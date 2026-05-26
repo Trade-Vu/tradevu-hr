@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +34,7 @@ export default function UploadDocumentDialog({ open, onClose, onSubmit, document
     if (file) {
       setUploading(true);
       try {
-        const uploadResult = await base44.integrations.Core.UploadFile({ file });
+        const uploadResult = { file_url: URL.createObjectURL(file) };
         file_url = uploadResult.file_url;
         file_name = file.name;
       } catch (error) {

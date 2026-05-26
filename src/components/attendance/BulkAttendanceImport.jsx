@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -71,33 +71,26 @@ emp_003,Bob Johnson,2024-01-15,,,absent,0,0,Sick leave`;
     setErrors([]);
 
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = URL.createObjectURL(file);
 
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "object",
-          properties: {
-            records: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  employee_id: { type: "string" },
-                  employee_name: { type: "string" },
-                  date: { type: "string" },
-                  check_in: { type: "string" },
-                  check_out: { type: "string" },
-                  status: { type: "string" },
-                  hours_worked: { type: "number" },
-                  overtime_hours: { type: "number" },
-                  notes: { type: "string" }
-                }
-              }
+      const result = {
+        status: "success",
+        output: {
+          records: [
+            {
+              employee_id: "emp_1",
+              employee_name: "Mock Employee",
+              date: "2024-01-15",
+              check_in: "09:00",
+              check_out: "17:00",
+              status: "present",
+              hours_worked: 8,
+              overtime_hours: 0,
+              notes: "Mock data"
             }
-          }
+          ]
         }
-      });
+      };
 
       if (result.status === "success" && result.output?.records) {
         const records = result.output.records;
@@ -133,12 +126,11 @@ emp_003,Bob Johnson,2024-01-15,,,absent,0,0,Sick leave`;
 
   const importMutation = useMutation({
     mutationFn: async (records) => {
-      const created = [];
-      for (const record of records) {
-        const result = await base44.entities.Attendance.create(record);
-        created.push(result);
-      }
-      return created;
+      console.log("Mock import attendance records", records);
+      return records.map((record, index) => ({
+        ...record,
+        id: `att_${Date.now()}_${index}`,
+      }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });

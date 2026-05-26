@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
+import { gql } from "graphql-request";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Upload, Grid, List, Search } from "lucide-react";
@@ -25,73 +26,73 @@ export default function Employees() {
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list('-created_date'),
+    queryFn: async () => {
+      const query = gql`
+        query GetEmployeesList {
+          employees {
+            id
+            fullName
+            email
+            jobTitle
+            employmentStatus
+            hireDate
+          }
+        }
+      `;
+      const data = await gqlClient.request(query);
+      return (data.employees || []).map(emp => ({
+        ...emp,
+        full_name: emp.fullName,
+        job_title: emp.jobTitle,
+        employment_status: emp.employmentStatus,
+        start_date: emp.hireDate
+      }));
+    },
     initialData: [],
   });
 
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => base44.entities.OnboardingTemplate.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => base44.entities.Department.list(),
+    queryFn: async () => {
+      const query = gql`
+        query GetDepartments {
+          departments { id name }
+        }
+      `;
+      const data = await gqlClient.request(query);
+      return data.departments || [];
+    },
     initialData: [],
   });
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (employeeData) => {
-      const employee = await base44.entities.Employee.create(employeeData);
+      const mutation = gql`
+        mutation CreateEmployee($input: EmployeeInput!) {
+          createEmployee(input: $input) {
+            id
+          }
+        }
+      `;
       
-      // If template is selected, create tasks from template
-      if (employeeData.template_id) {
-        const template = templates.find(t => t.id === employeeData.template_id);
-        if (template?.tasks) {
-          const startDate = new Date(employeeData.start_date);
-          for (const templateTask of template.tasks) {
-            const deadline = new Date(startDate);
-            deadline.setDate(deadline.getDate() + (templateTask.deadline_days || 7));
-            
-            await base44.entities.Task.create({
-              employee_id: employee.id,
-              title: templateTask.title,
-              description: templateTask.description,
-              department: templateTask.department,
-              deadline: deadline.toISOString().split('T')[0],
-              status: 'pending',
-              priority: 'medium',
-            });
-          }
+      const { createEmployee } = await gqlClient.request(mutation, {
+        input: {
+          fullName: employeeData.full_name,
+          email: employeeData.email,
+          jobTitle: employeeData.job_title,
+          departmentId: employeeData.department_id,
+          hireDate: employeeData.start_date,
+          basicSalary: parseFloat(employeeData.basic_salary) || 0
         }
+      });
 
-        // Create document requests from template
-        if (template?.required_documents) {
-          for (const docName of template.required_documents) {
-            await base44.entities.Document.create({
-              employee_id: employee.id,
-              document_name: docName,
-              status: 'pending',
-            });
-          }
-        }
-      }
-
-      // Send welcome email
-      try {
-        await base44.integrations.Core.SendEmail({
-          to: employeeData.email,
-          subject: `Welcome to the Team! 🎉`,
-          body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour employment starts on ${new Date(employeeData.start_date).toLocaleDateString()}. You'll receive more information about your first day soon.\n\nWe've prepared everything to make your start smooth and enjoyable.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
-        });
-        
-        await base44.entities.Employee.update(employee.id, { welcome_sent: true });
-      } catch (error) {
-        console.error("Error sending welcome email:", error);
-      }
-
-      return employee;
+      return createEmployee;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -105,21 +106,23 @@ export default function Employees() {
   const bulkCreateEmployeesMutation = useMutation({
     mutationFn: async (employeesData) => {
       const createdEmployees = [];
-      for (const employeeData of employeesData) {
-        const employee = await base44.entities.Employee.create(employeeData);
-        createdEmployees.push(employee);
-        
-        // Send welcome email
-        try {
-          await base44.integrations.Core.SendEmail({
-            to: employeeData.email,
-            subject: `Welcome to the Team! 🎉`,
-            body: `Hi ${employeeData.full_name},\n\nWelcome to our team! We're excited to have you joining us as ${employeeData.job_title}.\n\nYour employment starts on ${new Date(employeeData.start_date).toLocaleDateString()}.\n\nLooking forward to working with you!\n\nBest regards,\nHR Team`,
-          });
-          await base44.entities.Employee.update(employee.id, { welcome_sent: true });
-        } catch (error) {
-          console.error("Error sending welcome email:", error);
+      const mutation = gql`
+        mutation CreateEmployee($input: EmployeeInput!) {
+          createEmployee(input: $input) { id }
         }
+      `;
+      for (const employeeData of employeesData) {
+        const { createEmployee } = await gqlClient.request(mutation, {
+          input: {
+            fullName: employeeData.full_name,
+            email: employeeData.email,
+            jobTitle: employeeData.job_title,
+            departmentId: employeeData.department_id,
+            hireDate: employeeData.start_date,
+            basicSalary: parseFloat(employeeData.basic_salary) || 0
+          }
+        });
+        createdEmployees.push(createEmployee);
       }
       return createdEmployees;
     },

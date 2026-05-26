@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,20 @@ export default function OrganizationSetup() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         setFormData(prev => ({ ...prev, email: currentUser.email }));
 
-        // Check if user already has an organization
-        const orgs = await base44.entities.Organization.filter({ owner_email: currentUser.email });
-        if (orgs.length > 0) {
-          navigate('/Dashboard');
-        }
+        // Mock check if user already has an organization
+        // const orgs = await base44.entities.Organization.filter({ owner_email: currentUser.email });
+        // if (orgs.length > 0) {
+        //   navigate('/Dashboard');
+        // }
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -47,11 +52,11 @@ export default function OrganizationSetup() {
 
   const createOrganizationMutation = useMutation({
     mutationFn: async (data) => {
-      // Calculate trial end date (14 days from now)
+      console.log("Mock create organization", data);
+      
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
-      // Set features based on trial plan
       const features_enabled = {
         attendance: true,
         payroll: true,
@@ -64,20 +69,15 @@ export default function OrganizationSetup() {
         ai_features: true,
       };
 
-      const org = await base44.entities.Organization.create({
+      const org = {
         ...data,
+        id: `org_${Date.now()}`,
         owner_email: user.email,
         subscription_status: 'trial',
         trial_ends_at: trialEndsAt.toISOString().split('T')[0],
         max_employees: 50,
         features_enabled,
-      });
-
-      // Update user with organization_id
-      await base44.auth.updateMe({
-        organization_id: org.id,
-        is_organization_owner: true,
-      });
+      };
 
       return org;
     },

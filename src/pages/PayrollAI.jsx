@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,48 +14,59 @@ export default function PayrollAI() {
 
   useEffect(() => {
     const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
+      // Mock current user
+      setUser({ role: 'admin', email: 'admin@tradevu.com', full_name: 'Admin User', organization_id: 'org-1' });
     };
     loadUser();
   }, []);
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['payroll-suggestions'],
-    queryFn: () => base44.entities.PayrollSuggestion.list('-created_date'),
+    queryFn: async () => {
+      // Mock suggestions list
+      return [];
+    },
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const query = `query { employees { id first_name last_name job_title } }`;
+      const data = await gqlClient.request(query);
+      return data.employees.map(emp => ({
+        id: emp.id,
+        full_name: `${emp.first_name} ${emp.last_name}`,
+        job_title: emp.job_title,
+        payroll_details: { basic_salary: 5000 }
+      }));
+    },
     initialData: [],
   });
 
   const { data: attendance = [] } = useQuery({
     queryKey: ['attendance'],
-    queryFn: () => base44.entities.Attendance.list('-date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
-    queryFn: () => base44.entities.LeaveRequest.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: overtimeRecords = [] } = useQuery({
     queryKey: ['overtime'],
-    queryFn: () => base44.entities.OvertimeRecord.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const updateSuggestionMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.PayrollSuggestion.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      // Mock update
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-suggestions'] });
     },
@@ -127,7 +138,8 @@ export default function PayrollAI() {
 
     // Create suggestions
     for (const suggestion of newSuggestions) {
-      await base44.entities.PayrollSuggestion.create(suggestion);
+      // await base44.entities.PayrollSuggestion.create(suggestion);
+      console.log('Mock create suggestion', suggestion);
     }
 
     queryClient.invalidateQueries({ queryKey: ['payroll-suggestions'] });

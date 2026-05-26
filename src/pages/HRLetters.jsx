@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,21 @@ export default function HRLetters() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
-        if (employees.length > 0) {
-          setEmployee(employees[0]);
-        }
+        // Mock employee
+        setEmployee({
+          id: 'emp_1',
+          email: currentUser.email,
+          full_name: currentUser.full_name
+        });
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -39,7 +47,9 @@ export default function HRLetters() {
 
   const { data: requests = [] } = useQuery({
     queryKey: ['hr-letter-requests'],
-    queryFn: () => base44.entities.HRLetterRequest.list('-request_date'),
+    queryFn: async () => {
+      return [];
+    },
     initialData: [],
   });
 
@@ -54,17 +64,7 @@ export default function HRLetters() {
 
   const createAuditLog = async (action, entityId, entityName) => {
     try {
-      await base44.entities.AuditLog.create({
-        organization_id: user.organization_id,
-        user_email: user.email,
-        user_name: user.full_name,
-        action,
-        entity_type: 'HRLetterRequest',
-        entity_id: entityId,
-        entity_name,
-        description: `${action} HR letter request: ${entityName}`,
-        status: 'success',
-      });
+      console.log("Mock create audit log", action, entityId, entityName);
     } catch (error) {
       console.error("Error creating audit log:", error);
     }
@@ -72,13 +72,15 @@ export default function HRLetters() {
 
   const createRequestMutation = useMutation({
     mutationFn: async (data) => {
-      const request = await base44.entities.HRLetterRequest.create({
+      console.log("Mock create request", data);
+      const request = {
         ...data,
+        id: `req_${Date.now()}`,
         employee_id: employee.id,
         employee_name: employee.full_name,
         request_date: new Date().toISOString().split('T')[0],
         status: 'pending',
-      });
+      };
       await createAuditLog('create', request.id, `${data.letter_type} letter`);
       return request;
     },
@@ -92,7 +94,8 @@ export default function HRLetters() {
 
   const updateRequestMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const updated = await base44.entities.HRLetterRequest.update(id, data);
+      console.log("Mock update request", id, data);
+      const updated = { id, ...data };
       await createAuditLog('update', id, `${data.letter_type || 'letter'}`);
       return updated;
     },
@@ -105,23 +108,16 @@ export default function HRLetters() {
 
   const generateLetterMutation = useMutation({
     mutationFn: async ({ requestId, employeeData }) => {
-      const prompt = `Generate a professional HR ${employeeData.letter_type} letter for:
-Employee: ${employeeData.employee_name}
-Job Title: ${employeeData.job_title}
-Purpose: ${employeeData.purpose}
-
-Make it formal and suitable for official use.`;
-
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        add_context_from_internet: false,
-      });
-
-      const updated = await base44.entities.HRLetterRequest.update(requestId, {
+      console.log("Mock generate letter", requestId, employeeData);
+      
+      const result = "This is a mock AI generated letter content.";
+      
+      const updated = {
+        id: requestId,
         letter_content: result,
         status: 'completed',
         approved_date: new Date().toISOString().split('T')[0],
-      });
+      };
 
       await createAuditLog('approve', requestId, `${employeeData.letter_type} letter`);
       return updated;

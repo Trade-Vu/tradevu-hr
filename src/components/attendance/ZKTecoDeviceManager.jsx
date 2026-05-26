@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -33,12 +33,15 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
 
   const { data: devices = [] } = useQuery({
     queryKey: ['zkteco-devices'],
-    queryFn: () => base44.entities.ZKTecoDevice.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const createDeviceMutation = useMutation({
-    mutationFn: (data) => base44.entities.ZKTecoDevice.create(data),
+    mutationFn: async (data) => {
+      console.log("Mock create device", data);
+      return { ...data, id: `dev_${Date.now()}` };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['zkteco-devices'] });
       setShowDeviceForm(false);
@@ -58,7 +61,10 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
   });
 
   const updateDeviceMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ZKTecoDevice.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update device", id, data);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['zkteco-devices'] });
       setShowDeviceForm(false);
@@ -67,7 +73,10 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
   });
 
   const deleteDeviceMutation = useMutation({
-    mutationFn: (id) => base44.entities.ZKTecoDevice.delete(id),
+    mutationFn: async (id) => {
+      console.log("Mock delete device", id);
+      return id;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['zkteco-devices'] });
     },

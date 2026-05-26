@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,11 @@ export default function Evaluations() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user load
+        const currentUser = {
+          email: "mock_user@example.com",
+          full_name: "Mock User",
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -29,19 +33,28 @@ export default function Evaluations() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      // Mock employees
+      return [];
+    },
     initialData: [],
   });
 
   const { data: evaluations = [] } = useQuery({
     queryKey: ['evaluations'],
-    queryFn: () => base44.entities.Evaluation.list('-created_date'),
+    queryFn: async () => {
+      // Mock evaluations
+      return [];
+    },
     initialData: [],
   });
 
   const { data: trainingNeeds = [] } = useQuery({
     queryKey: ['training-needs'],
-    queryFn: () => base44.entities.TrainingNeed.list('-created_date'),
+    queryFn: async () => {
+      // Mock training needs
+      return [];
+    },
     initialData: [],
   });
 

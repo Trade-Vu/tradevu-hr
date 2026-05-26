@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,14 +26,20 @@ export default function TaskManager({ tasks, employeeId }) {
   const [showAddDialog, setShowAddDialog] = useState(false);
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ taskId, data }) => base44.entities.Task.update(taskId, data),
+    mutationFn: async ({ taskId, data }) => {
+      console.log("Mock update task", taskId, data);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
     },
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: (taskData) => base44.entities.Task.create({ ...taskData, employee_id: employeeId }),
+    mutationFn: async (taskData) => {
+      console.log("Mock create task", taskData);
+      return { ...taskData, employee_id: employeeId, id: `task_${Date.now()}` };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
       setShowAddDialog(false);

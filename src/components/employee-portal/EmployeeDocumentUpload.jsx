@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,10 @@ export default function EmployeeDocumentUpload({ documents, employeeId }) {
   const [uploadingDoc, setUploadingDoc] = useState(null);
 
   const updateDocumentMutation = useMutation({
-    mutationFn: ({ docId, data }) => base44.entities.Document.update(docId, data),
+    mutationFn: async ({ docId, data }) => {
+      console.log("Mock update document", docId, data);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       setUploadingDoc(null);
@@ -22,7 +25,7 @@ export default function EmployeeDocumentUpload({ documents, employeeId }) {
     setUploadingDoc(document.id);
     
     try {
-      const uploadResult = await base44.integrations.Core.UploadFile({ file });
+      const uploadResult = { file_url: URL.createObjectURL(file) };
       
       await updateDocumentMutation.mutateAsync({
         docId: document.id,

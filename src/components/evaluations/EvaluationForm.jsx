@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,10 @@ export default function EvaluationForm({ employees, currentUser, onCancel, onSuc
   const [newGoal, setNewGoal] = useState("");
 
   const createEvaluationMutation = useMutation({
-    mutationFn: (data) => base44.entities.Evaluation.create(data),
+    mutationFn: async (data) => {
+      console.log("Mock create evaluation", data);
+      return { ...data, id: `eval_${Date.now()}` };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evaluations'] });
       onSuccess();

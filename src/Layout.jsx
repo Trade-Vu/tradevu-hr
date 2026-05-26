@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -44,7 +45,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
+import { gql } from "graphql-request";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -249,36 +252,36 @@ function NavMenuItem({ item, location }) {
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [organization, setOrganization] = useState(null);
-  const [isEmployee, setIsEmployee] = useState(false);
+  
+  // A user is an employee if they have an employeeId
+  const isEmployee = !!user?.employeeId;
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-
-        if (currentUser.organization_id) {
-          const orgs = await base44.entities.Organization.filter({ id: currentUser.organization_id });
-          if (orgs.length > 0) {
-            setOrganization(orgs[0]);
-          }
+    if (user?.organizationId) {
+      const loadOrg = async () => {
+        try {
+          const ORG_QUERY = gql`
+            query GetOrg($id: ID!) {
+              organization(id: $id) {
+                id
+                name
+              }
+            }
+          `;
+          const data = await gqlClient.request(ORG_QUERY, { id: user.organizationId });
+          setOrganization(data.organization);
+        } catch (error) {
+          console.error("Error loading organization:", error);
         }
-        
-        const employees = await base44.entities.Employee.filter({ 
-          email: currentUser.email
-        });
-        setIsEmployee(employees.length > 0);
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
-    };
-    loadUser();
-  }, [currentPageName, navigate]);
+      };
+      loadOrg();
+    }
+  }, [user]);
 
   const handleLogout = () => {
-    base44.auth.logout();
+    logout();
   };
 
   const navItems = isEmployee && user?.role !== 'admin' ? employeeNavigation : navigationStructure;
@@ -315,7 +318,7 @@ export default function Layout({ children, currentPageName }) {
                   {navItems.map((item) => (
                     <NavMenuItem key={item.title} item={item} location={location} />
                   ))}
-                  {(user?.role === 'admin' || user?.is_organization_owner) && (
+                  {(user?.role === 'admin' || user?.isOrgOwner) && (
                     <SidebarMenuItem>
                       <SidebarMenuButton 
                         asChild 
@@ -359,7 +362,7 @@ export default function Layout({ children, currentPageName }) {
                   <UserCircle className="w-4 h-4 mr-2" />
                   My Profile
                 </DropdownMenuItem>
-                {(user?.role === 'admin' || user?.is_organization_owner) && (
+                {(user?.role === 'admin' || user?.isOrgOwner) && (
                   <DropdownMenuItem onClick={() => navigate('/Settings')}>
                     <Settings className="w-4 h-4 mr-2" />
                     Settings

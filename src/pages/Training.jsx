@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,13 +27,18 @@ export default function Training() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin"
+        };
         setUser(currentUser);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
-        if (employees.length > 0) {
-          setEmployee(employees[0]);
-        }
+        // Mock employee
+        setEmployee({
+          id: 'emp_1',
+          email: currentUser.email
+        });
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -43,19 +48,25 @@ export default function Training() {
 
   const { data: platforms = [], isLoading: loadingPlatforms } = useQuery({
     queryKey: ['training-platforms'],
-    queryFn: () => base44.entities.TrainingPlatform.list(),
+    queryFn: async () => {
+      return [];
+    },
     initialData: [],
   });
 
   const { data: videos = [], isLoading: loadingVideos } = useQuery({
     queryKey: ['training-videos'],
-    queryFn: () => base44.entities.TrainingVideo.list('order'),
+    queryFn: async () => {
+      return [];
+    },
     initialData: [],
   });
 
   const { data: progress = [], isLoading: loadingProgress } = useQuery({
     queryKey: ['video-progress', employee?.id],
-    queryFn: () => base44.entities.VideoProgress.filter({ employee_id: employee.id }),
+    queryFn: async () => {
+      return [];
+    },
     enabled: !!employee,
     initialData: [],
   });

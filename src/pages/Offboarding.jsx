@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,10 @@ export default function Offboarding() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user load
+        const currentUser = {
+          organization_id: "org_1",
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -37,19 +40,25 @@ export default function Offboarding() {
 
   const { data: offboardings = [] } = useQuery({
     queryKey: ['offboardings'],
-    queryFn: () => base44.entities.Offboarding.list('-created_date'),
+    queryFn: async () => {
+      // Mock offboardings
+      return [];
+    },
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      // Mock employees
+      return [];
+    },
     initialData: [],
   });
 
   const createOffboardingMutation = useMutation({
-    mutationFn: (data) => {
-      const employee = employees.find(e => e.id === data.employee_id);
+    mutationFn: async (data) => {
+      const employee = employees.find(e => e.id === data.employee_id) || { full_name: "Mock Employee" };
       
       const defaultChecklist = [
         { task: 'Complete offboarding', completed: false },
@@ -60,14 +69,15 @@ export default function Offboarding() {
         { task: 'Certificate issuance', completed: false },
       ];
 
-      return base44.entities.Offboarding.create({
+      return {
         ...data,
-        organization_id: user.organization_id,
+        id: `offboarding_${Date.now()}`,
+        organization_id: user?.organization_id,
         employee_name: employee.full_name,
         checklist: defaultChecklist,
         status: 'in_progress',
         completion_percentage: 0,
-      });
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offboardings'] });

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,14 +34,16 @@ export default function VideoPlayer({ video, platform, employeeId, currentProgre
 
   const updateProgressMutation = useMutation({
     mutationFn: async (data) => {
+      console.log("Mock update video progress", data);
       if (currentProgress) {
-        return base44.entities.VideoProgress.update(currentProgress.id, data);
+        return { ...currentProgress, ...data };
       } else {
-        return base44.entities.VideoProgress.create({
+        return {
+          id: `prog_${Date.now()}`,
           employee_id: employeeId,
           video_id: video.id,
           ...data,
-        });
+        };
       }
     },
     onSuccess: () => {

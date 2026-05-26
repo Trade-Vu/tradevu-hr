@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,12 @@ export default function Chat() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -36,32 +41,33 @@ export default function Chat() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations', user?.email],
-    queryFn: async () => {
-      const allConvos = await base44.entities.Conversation.list('-last_message_time');
-      return allConvos.filter(c => c.participants.includes(user.email));
-    },
+    queryFn: async () => [],
     enabled: !!user,
     initialData: [],
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', selectedConversation?.id],
-    queryFn: async () => {
-      const allMessages = await base44.entities.ChatMessage.list('created_date');
-      return allMessages.filter(m => m.conversation_id === selectedConversation.id);
-    },
+    queryFn: async () => [],
     enabled: !!selectedConversation,
     initialData: [],
   });
 
   const createConversationMutation = useMutation({
-    mutationFn: (data) => base44.entities.Conversation.create(data),
+    mutationFn: async (data) => {
+      console.log("Mock create conversation", data);
+      return {
+        ...data,
+        id: `conv_${Date.now()}`,
+        created_date: new Date().toISOString()
+      };
+    },
     onSuccess: (newConversation) => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       setShowNewChatDialog(false);
@@ -73,14 +79,11 @@ export default function Chat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data) => {
-      const message = await base44.entities.ChatMessage.create(data);
-      
-      await base44.entities.Conversation.update(selectedConversation.id, {
-        last_message: data.message,
-        last_message_time: new Date().toISOString(),
-      });
-      
-      return message;
+      console.log("Mock send message", data);
+      return {
+        ...data,
+        id: `msg_${Date.now()}`,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });

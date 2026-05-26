@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -15,13 +15,23 @@ export default function EmployeePortal() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
-        if (employees.length > 0) {
-          setEmployee(employees[0]);
-        }
+        const mockEmployee = {
+          id: 'emp_1',
+          full_name: "Mock User",
+          email: "mock_user@example.com",
+          job_title: "Mock Employee",
+          progress_percentage: 50,
+          start_date: new Date().toISOString()
+        };
+        setEmployee(mockEmployee);
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -31,14 +41,14 @@ export default function EmployeePortal() {
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['employee-tasks', employee?.id],
-    queryFn: () => base44.entities.Task.filter({ employee_id: employee.id }),
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: documents = [] } = useQuery({
     queryKey: ['employee-documents', employee?.id],
-    queryFn: () => base44.entities.Document.filter({ employee_id: employee.id }),
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });

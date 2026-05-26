@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,10 @@ export default function TrainingNeedForm({ employees, onCancel, onSuccess }) {
   });
 
   const createNeedMutation = useMutation({
-    mutationFn: (data) => base44.entities.TrainingNeed.create(data),
+    mutationFn: async (data) => {
+      console.log("Mock create training need", data);
+      return { ...data, id: `need_${Date.now()}` };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['training-needs'] });
       onSuccess();

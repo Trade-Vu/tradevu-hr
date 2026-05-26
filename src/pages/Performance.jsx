@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,17 +43,28 @@ export default function Performance() {
 
   const { data: evaluations = [], isLoading } = useQuery({
     queryKey: ["evaluations"],
-    queryFn: () => base44.entities.Evaluation.list("-created_date"),
+    queryFn: async () => {
+      // Mock evaluations
+      return [];
+    },
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      // Mock employees
+      return [
+        { id: 'emp_1', full_name: 'John Doe', job_title: 'Engineer' }
+      ];
+    },
   });
 
   const { data: trainingNeeds = [] } = useQuery({
     queryKey: ["trainingNeeds"],
-    queryFn: () => base44.entities.TrainingNeed.list(),
+    queryFn: async () => {
+      // Mock training needs
+      return [];
+    },
   });
 
   const [newEvaluation, setNewEvaluation] = useState({
@@ -77,12 +88,15 @@ export default function Performance() {
 
   const createEvaluationMutation = useMutation({
     mutationFn: async (data) => {
-      const user = await base44.auth.me();
-      return base44.entities.Evaluation.create({
+      // Mock user and create evaluation
+      const user = { email: "mock_evaluator@example.com" };
+      console.log("Mock create evaluation", data);
+      return {
         ...data,
+        id: `eval_${Date.now()}`,
         evaluator_email: user.email,
         status: "draft",
-      });
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });
@@ -113,8 +127,8 @@ export default function Performance() {
 
     setIsUploading(true);
     try {
-      const result = await base44.integrations.Core.UploadFile({ file });
-      setNewEvaluation({ ...newEvaluation, document_url: result.file_url });
+      const file_url = URL.createObjectURL(file);
+      setNewEvaluation({ ...newEvaluation, document_url: file_url });
       setUploadedFile(file.name);
     } catch (error) {
       console.error("Error uploading file:", error);

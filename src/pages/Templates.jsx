@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Plus, FileText, ArrowLeft } from "lucide-react";
@@ -16,12 +16,15 @@ export default function Templates() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
-    queryFn: () => base44.entities.OnboardingTemplate.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const createTemplateMutation = useMutation({
-    mutationFn: (templateData) => base44.entities.OnboardingTemplate.create(templateData),
+    mutationFn: async (templateData) => {
+      console.log("Mock create template", templateData);
+      return templateData;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       setShowForm(false);

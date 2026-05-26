@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import {
   Dialog,
   DialogContent,
@@ -75,33 +75,26 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
 
     try {
       // Upload file first
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = URL.createObjectURL(file);
 
       // Extract data using the integration
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "object",
-          properties: {
-            employees: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  full_name: { type: "string" },
-                  email: { type: "string" },
-                  job_title: { type: "string" },
-                  department_id: { type: "string" },
-                  template_id: { type: "string" },
-                  start_date: { type: "string" },
-                  phone: { type: "string" },
-                  status: { type: "string" }
-                }
-              }
+      const result = {
+        status: "success",
+        output: {
+          employees: [
+            {
+              full_name: "Mock Employee 1",
+              email: "mock1@example.com",
+              job_title: "Software Engineer",
+              department_id: "dept_1",
+              template_id: "tpl_1",
+              start_date: "2024-01-01",
+              phone: "+1234567890",
+              status: "not_started"
             }
-          }
+          ]
         }
-      });
+      };
 
       if (result.status === "success" && result.output?.employees) {
         const employees = result.output.employees;

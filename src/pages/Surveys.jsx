@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,18 @@ export default function Surveys() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin"
+        };
         setUser(currentUser);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
-        if (employees.length > 0) {
-          setEmployee(employees[0]);
-        }
+        // Mock employee
+        setEmployee({
+          id: 'emp_1',
+          email: currentUser.email
+        });
       } catch (error) {
         console.error("Error loading user:", error);
       }
@@ -39,13 +44,19 @@ export default function Surveys() {
 
   const { data: surveys = [] } = useQuery({
     queryKey: ['surveys'],
-    queryFn: () => base44.entities.Survey.list('-created_date'),
+    queryFn: async () => {
+      // Mock surveys
+      return [];
+    },
     initialData: [],
   });
 
   const { data: responses = [] } = useQuery({
     queryKey: ['survey-responses'],
-    queryFn: () => base44.entities.SurveyResponse.list(),
+    queryFn: async () => {
+      // Mock responses
+      return [];
+    },
     initialData: [],
   });
 
@@ -61,11 +72,15 @@ export default function Surveys() {
   });
 
   const createSurveyMutation = useMutation({
-    mutationFn: (data) => base44.entities.Survey.create({
-      ...data,
-      responses_count: 0,
-      start_date: new Date().toISOString().split('T')[0],
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create survey", data);
+      return {
+        ...data,
+        id: `survey_${Date.now()}`,
+        responses_count: 0,
+        start_date: new Date().toISOString().split('T')[0],
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surveys'] });
       setShowSurveyForm(false);
@@ -82,39 +97,16 @@ export default function Surveys() {
 
   const submitResponseMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await base44.entities.SurveyResponse.create(data);
+      console.log("Mock submit response", data);
       
-      // Update survey response count
-      const survey = surveys.find(s => s.id === data.survey_id);
-      if (survey) {
-        await base44.entities.Survey.update(survey.id, {
-          responses_count: (survey.responses_count || 0) + 1,
-        });
-      }
-
-      // AI Sentiment Analysis
-      const allResponses = data.responses.map(r => r.answer).join(' ');
-      const sentimentPrompt = `Analyze the sentiment of this survey response on a scale from -1 (very negative) to 1 (very positive): "${allResponses}"`;
+      // Mock AI Sentiment Analysis
+      const sentiment = { score: 0.8 };
       
-      try {
-        const sentiment = await base44.integrations.Core.InvokeLLM({
-          prompt: sentimentPrompt,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              score: { type: "number" }
-            }
-          }
-        });
-        
-        await base44.entities.SurveyResponse.update(response.id, {
-          sentiment_score: sentiment.score,
-        });
-      } catch (error) {
-        console.error("Error analyzing sentiment:", error);
-      }
-
-      return response;
+      return {
+        ...data,
+        id: `resp_${Date.now()}`,
+        sentiment_score: sentiment.score,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['survey-responses'] });
@@ -126,32 +118,11 @@ export default function Surveys() {
 
   const generateInsightsMutation = useMutation({
     mutationFn: async (surveyId) => {
-      const surveyResponses = responses.filter(r => r.survey_id === surveyId);
-      const survey = surveys.find(s => s.id === surveyId);
-      
-      if (surveyResponses.length === 0) return;
-
-      const allAnswers = surveyResponses.map(r => 
-        r.responses.map(resp => `Q: ${resp.question}\nA: ${resp.answer}`).join('\n')
-      ).join('\n\n');
-
-      const prompt = `Analyze these ${surveyResponses.length} survey responses for "${survey.title}" and provide:
-1. Key themes and patterns
-2. Overall sentiment
-3. Actionable recommendations
-4. Areas of concern
-
-Survey Responses:
-${allAnswers}`;
-
-      const insights = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        add_context_from_internet: false,
-      });
-
-      return base44.entities.Survey.update(surveyId, {
-        ai_summary: insights,
-      });
+      console.log("Mock generate insights for survey", surveyId);
+      return {
+        id: surveyId,
+        ai_summary: "This is a mock AI generated summary of the survey responses.",
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surveys'] });

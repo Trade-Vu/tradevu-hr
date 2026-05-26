@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,22 @@ export default function EmployeeSelfService() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         
-        const employees = await base44.entities.Employee.filter({ email: currentUser.email });
+        const employees = [{
+          id: 'emp_1',
+          email: currentUser.email,
+          full_name: currentUser.full_name,
+          job_title: "Mock Employee",
+          department_id: "Engineering",
+          start_date: new Date().toISOString()
+        }];
         if (employees.length > 0) {
           setEmployee(employees[0]);
           setEditData(employees[0]);
@@ -41,66 +53,51 @@ export default function EmployeeSelfService() {
 
   const { data: payrolls = [] } = useQuery({
     queryKey: ['my-payrolls', employee?.id],
-    queryFn: async () => {
-      const allPayrolls = await base44.entities.Payroll.list('-month');
-      return allPayrolls.filter(p => p.employee_id === employee.id);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['my-leaves', employee?.id],
-    queryFn: async () => {
-      const allLeaves = await base44.entities.LeaveRequest.list('-created_date');
-      return allLeaves.filter(l => l.employee_id === employee.id);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: attendance = [] } = useQuery({
     queryKey: ['my-attendance', employee?.id],
-    queryFn: async () => {
-      const allAttendance = await base44.entities.Attendance.list('-date');
-      return allAttendance.filter(a => a.employee_id === employee.id);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: assets = [] } = useQuery({
     queryKey: ['my-assets', employee?.email],
-    queryFn: async () => {
-      const allAssets = await base44.entities.Asset.list();
-      return allAssets.filter(a => a.assigned_to === employee.email);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: expenses = [] } = useQuery({
     queryKey: ['my-expenses', employee?.id],
-    queryFn: async () => {
-      const allExpenses = await base44.entities.ExpenseClaim.list('-date');
-      return allExpenses.filter(e => e.employee_id === employee.id);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const { data: documents = [] } = useQuery({
     queryKey: ['my-documents', employee?.id],
-    queryFn: async () => {
-      const allDocs = await base44.entities.Document.list();
-      return allDocs.filter(d => d.employee_id === employee.id);
-    },
+    queryFn: async () => [],
     enabled: !!employee,
     initialData: [],
   });
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Employee.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update employee", id, data);
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries();
       setIsEditing(false);

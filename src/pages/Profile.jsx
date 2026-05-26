@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,15 @@ export default function Profile() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User",
+          phone: "1234567890",
+          job_title: "Mock Employee",
+          department: "Engineering",
+        };
         setUser(currentUser);
         setProfileData({
           full_name: currentUser.full_name || '',
@@ -81,7 +89,10 @@ export default function Profile() {
   }, []);
 
   const updateProfileMutation = useMutation({
-    mutationFn: (data) => base44.auth.updateMe(data),
+    mutationFn: async (data) => {
+      console.log("Mock update me", data);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries();
     },
@@ -93,8 +104,8 @@ export default function Profile() {
 
     setUploadingAvatar(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await base44.auth.updateMe({ avatar_url: file_url });
+      const file_url = URL.createObjectURL(file);
+      console.log("Mock update avatar_url", file_url);
       queryClient.invalidateQueries();
       setUser(prev => ({ ...prev, avatar_url: file_url }));
     } catch (error) {

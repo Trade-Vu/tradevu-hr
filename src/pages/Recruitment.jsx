@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,13 @@ export default function Recruitment() {
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['job-postings'],
-    queryFn: () => base44.entities.JobPosting.list('-posted_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: applicants = [] } = useQuery({
     queryKey: ['applicants'],
-    queryFn: () => base44.entities.Applicant.list('-application_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
@@ -44,11 +44,15 @@ export default function Recruitment() {
   });
 
   const createJobMutation = useMutation({
-    mutationFn: (data) => base44.entities.JobPosting.create({
-      ...data,
-      posted_date: new Date().toISOString().split('T')[0],
-      applicants_count: 0,
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create job", data);
+      return {
+        ...data,
+        id: `job_${Date.now()}`,
+        posted_date: new Date().toISOString().split('T')[0],
+        applicants_count: 0,
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });
       setShowJobForm(false);
@@ -70,51 +74,30 @@ export default function Recruitment() {
   const handleCVUpload = async (jobId, file) => {
     setUploadingCV(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = URL.createObjectURL(file);
       
-      // AI-powered CV parsing
-      const cvData = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "object",
-          properties: {
-            full_name: { type: "string" },
-            email: { type: "string" },
-            phone: { type: "string" },
-            experience_years: { type: "number" },
-            skills: { type: "array", items: { type: "string" } },
-            education: { type: "string" },
-          }
+      const cvData = {
+        status: "success",
+        output: {
+          full_name: "Mock Applicant",
+          email: "mock@example.com",
+          phone: "1234567890",
+          experience_years: 5,
+          skills: ["React", "JavaScript"],
+          education: "BSc Computer Science",
         }
-      });
+      };
 
       if (cvData.status === "success") {
-        const job = jobs.find(j => j.id === jobId);
+        const job = jobs.find(j => j.id === jobId) || { job_title: "Mock Job" };
         
-        // AI scoring
-        const scorePrompt = `Analyze this candidate for the position of ${job.job_title}:
-Name: ${cvData.output.full_name}
-Experience: ${cvData.output.experience_years} years
-Skills: ${cvData.output.skills?.join(', ')}
-Education: ${cvData.output.education}
+        const aiAnalysis = {
+          score: 85,
+          summary: "Strong candidate with relevant experience."
+        };
 
-Job Requirements:
-${job.requirements}
-
-Rate this candidate from 0-100 and provide a brief summary of their suitability.`;
-
-        const aiAnalysis = await base44.integrations.Core.InvokeLLM({
-          prompt: scorePrompt,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              score: { type: "number" },
-              summary: { type: "string" }
-            }
-          }
-        });
-
-        await base44.entities.Applicant.create({
+        // Mock create applicant
+        console.log("Mock create applicant", {
           job_posting_id: jobId,
           full_name: cvData.output.full_name,
           email: cvData.output.email,
@@ -137,7 +120,10 @@ Rate this candidate from 0-100 and provide a brief summary of their suitability.
   };
 
   const updateApplicantStatus = useMutation({
-    mutationFn: ({ id, status }) => base44.entities.Applicant.update(id, { status }),
+    mutationFn: async ({ id, status }) => {
+      console.log("Mock update applicant status", id, status);
+      return { id, status };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applicants'] });
     },

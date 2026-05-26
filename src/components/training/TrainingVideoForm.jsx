@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,11 +39,12 @@ export default function TrainingVideoForm({ video, platforms, platformId, onCanc
   }, [video, platformId]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: async (data) => {
+      console.log("Mock save training video", data);
       if (video?.id) {
-        return base44.entities.TrainingVideo.update(video.id, data);
+        return { ...video, ...data };
       } else {
-        return base44.entities.TrainingVideo.create(data);
+        return { ...data, id: `video_${Date.now()}` };
       }
     },
     onSuccess: () => {
@@ -61,7 +62,7 @@ export default function TrainingVideoForm({ video, platforms, platformId, onCanc
 
     for (const file of files) {
       try {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const file_url = URL.createObjectURL(file);
         uploadedFiles.push({ name: file.name, url: file_url });
       } catch (error) {
         console.error("Error uploading file:", error);

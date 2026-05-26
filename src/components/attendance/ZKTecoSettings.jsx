@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -40,11 +40,8 @@ export default function ZKTecoSettings({ open, onClose, currentSettings }) {
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
-      if (currentSettings?.id) {
-        return base44.entities.AttendanceSettings.update(currentSettings.id, data);
-      } else {
-        return base44.entities.AttendanceSettings.create(data);
-      }
+      console.log("Mock save attendance settings", data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-settings'] });

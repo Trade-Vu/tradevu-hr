@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,15 @@ export default function CompanyWall() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user load
+        const currentUser = {
+          email: "mock_user@example.com",
+          full_name: "Mock User",
+          role: "admin",
+          is_organization_owner: true,
+          organization_id: "org_1",
+          avatar_url: null,
+        };
         setUser(currentUser);
         setIsAdmin(currentUser.role === 'admin' || currentUser.is_organization_owner);
       } catch (error) {
@@ -38,24 +46,53 @@ export default function CompanyWall() {
 
   const { data: posts = [] } = useQuery({
     queryKey: ['company-posts'],
-    queryFn: () => base44.entities.CompanyPost.list('-created_date'),
+    queryFn: async () => {
+      // Mock posts data
+      return [
+        {
+          id: 'post_1',
+          created_date: new Date().toISOString(),
+          posted_by_name: 'Mock Admin',
+          posted_by: 'mock_admin@example.com',
+          content: 'Welcome to the new Company Wall!',
+          visibility: 'all',
+          likes: [],
+          likes_count: 0,
+          comments_count: 0,
+          media: []
+        }
+      ];
+    },
     initialData: [],
   });
 
   const { data: comments = [] } = useQuery({
     queryKey: ['post-comments'],
-    queryFn: () => base44.entities.PostComment.list('-created_date'),
+    queryFn: async () => {
+      // Mock comments data
+      return [];
+    },
     initialData: [],
   });
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => base44.entities.Department.list(),
+    queryFn: async () => {
+      // Mock departments data
+      return [
+        { id: 'dept_1', name: 'Engineering' },
+        { id: 'dept_2', name: 'HR' }
+      ];
+    },
     initialData: [],
   });
 
   const createPostMutation = useMutation({
-    mutationFn: (data) => base44.entities.CompanyPost.create(data),
+    mutationFn: async (data) => {
+      // Mock create post
+      console.log("Mock create post", data);
+      return { id: `post_${Date.now()}`, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-posts'] });
       setPostText('');
@@ -67,14 +104,9 @@ export default function CompanyWall() {
 
   const createCommentMutation = useMutation({
     mutationFn: async (data) => {
-      await base44.entities.PostComment.create(data);
-      
-      const post = posts.find(p => p.id === data.post_id);
-      if (post) {
-        await base44.entities.CompanyPost.update(post.id, {
-          comments_count: (post.comments_count || 0) + 1
-        });
-      }
+      // Mock create comment
+      console.log("Mock create comment", data);
+      return { id: `comment_${Date.now()}`, ...data };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['post-comments'] });
@@ -85,15 +117,13 @@ export default function CompanyWall() {
 
   const toggleLikeMutation = useMutation({
     mutationFn: async ({ postId, likes }) => {
+      // Mock toggle like
       const hasLiked = likes.includes(user.email);
       const newLikes = hasLiked 
         ? likes.filter(email => email !== user.email)
         : [...likes, user.email];
-      
-      return base44.entities.CompanyPost.update(postId, {
-        likes: newLikes,
-        likes_count: newLikes.length
-      });
+      console.log("Mock toggle like", postId, newLikes);
+      return { id: postId, likes: newLikes, likes_count: newLikes.length };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-posts'] });
@@ -106,7 +136,7 @@ export default function CompanyWall() {
     
     for (const file of files) {
       try {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const file_url = URL.createObjectURL(file);
         const type = file.type.startsWith('image/') ? 'image' : 
                     file.type.startsWith('video/') ? 'video' : 'document';
         uploadedMedia.push({ type, url: file_url });

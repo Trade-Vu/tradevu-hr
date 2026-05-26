@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,20 @@ export default function Settings() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         
-        if (currentUser.organization_id) {
-          const orgs = await base44.entities.Organization.filter({ id: currentUser.organization_id });
-          if (orgs.length > 0) {
-            setOrganization(orgs[0]);
-          }
-        }
+        // Mock org
+        setOrganization({
+          id: "org_1",
+          name: "Mock Organization"
+        });
       } catch (error) {
         console.error("Error loading data:", error);
       }
@@ -42,31 +47,31 @@ export default function Settings() {
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => base44.entities.Department.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts'],
-    queryFn: () => base44.entities.Shift.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: workflows = [] } = useQuery({
     queryKey: ['workflows'],
-    queryFn: () => base44.entities.ApprovalWorkflow.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: auditLogs = [] } = useQuery({
     queryKey: ['audit-logs'],
-    queryFn: () => base44.entities.AuditLog.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
@@ -86,7 +91,10 @@ export default function Settings() {
   });
 
   const updateShiftMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Shift.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update shift", id, data);
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
       setShowShiftDialog(false);
@@ -95,11 +103,15 @@ export default function Settings() {
   });
 
   const createShiftMutation = useMutation({
-    mutationFn: (data) => base44.entities.Shift.create({
-      ...data,
-      organization_id: user.organization_id,
-      total_hours: calculateHours(data.start_time, data.end_time, data.break_duration_minutes),
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create shift", data);
+      return {
+        ...data,
+        id: `shift_${Date.now()}`,
+        organization_id: user?.organization_id,
+        total_hours: calculateHours(data.start_time, data.end_time, data.break_duration_minutes),
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
       setShowShiftDialog(false);
@@ -115,11 +127,15 @@ export default function Settings() {
   });
 
   const createWorkflowMutation = useMutation({
-    mutationFn: (data) => base44.entities.ApprovalWorkflow.create({
-      ...data,
-      organization_id: user.organization_id,
-      is_active: true,
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create workflow", data);
+      return {
+        ...data,
+        id: `workflow_${Date.now()}`,
+        organization_id: user?.organization_id,
+        is_active: true,
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       setShowWorkflowDialog(false);
@@ -132,7 +148,10 @@ export default function Settings() {
   });
 
   const updateWorkflowMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ApprovalWorkflow.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update workflow", id, data);
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       setShowWorkflowDialog(false);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,26 +15,26 @@ export default function HRAssistant() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         
-        // Create or load conversation
-        const conversations = await base44.agents.listConversations({ agent_name: 'hr_assistant' });
-        if (conversations.length > 0) {
-          const conv = await base44.agents.getConversation(conversations[0].id);
-          setConversation(conv);
-          setMessages(conv.messages || []);
-        } else {
-          const newConv = await base44.agents.createConversation({
-            agent_name: 'hr_assistant',
-            metadata: {
-              name: 'HR Assistant Chat',
-              description: `Chat with ${currentUser.full_name}`,
-            }
-          });
-          setConversation(newConv);
-          setMessages([]);
-        }
+        // Mock conversation
+        const newConv = {
+          id: 'conv_1',
+          agent_name: 'hr_assistant',
+          metadata: {
+            name: 'HR Assistant Chat',
+            description: `Chat with ${currentUser.full_name}`,
+          },
+          messages: []
+        };
+        setConversation(newConv);
+        setMessages([]);
       } catch (error) {
         console.error("Error loading:", error);
       }
@@ -45,11 +45,12 @@ export default function HRAssistant() {
   useEffect(() => {
     if (!conversation) return;
     
-    const unsubscribe = base44.agents.subscribeToConversation(conversation.id, (data) => {
-      setMessages(data.messages);
-    });
+    // Mock subscription
+    // const unsubscribe = base44.agents.subscribeToConversation(conversation.id, (data) => {
+    //   setMessages(data.messages);
+    // });
 
-    return () => unsubscribe();
+    // return () => unsubscribe();
   }, [conversation]);
 
   const handleSend = async () => {
@@ -57,10 +58,21 @@ export default function HRAssistant() {
     
     setSending(true);
     try {
-      await base44.agents.addMessage(conversation, {
+      const newMessage = {
         role: 'user',
         content: input,
-      });
+      };
+      setMessages(prev => [...prev, newMessage]);
+      console.log("Mock add message", newMessage);
+      
+      // Mock bot reply
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'This is a mock response from the HR assistant.'
+        }]);
+      }, 1000);
+
       setInput('');
     } catch (error) {
       console.error("Error sending:", error);

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
+import { gql } from "graphql-request";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,7 @@ import { format } from "date-fns";
 
 export default function AllLeaveRequests() {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -28,85 +30,58 @@ export default function AllLeaveRequests() {
     attachment_url: '',
   });
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
-    };
-    loadUser();
-  }, []);
-
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests'],
-    queryFn: () => base44.entities.LeaveRequest.list('-created_date'),
+    queryFn: async () => {
+      const LEAVE_QUERY = gql`
+        query { leaveRequests { id employeeId startDate endDate totalDays status reason createdAt } }
+      `;
+      const data = await gqlClient.request(LEAVE_QUERY);
+      return (data.leaveRequests || []).map(l => ({
+        ...l,
+        employee_name: l.employeeId,
+        employee_email: l.employeeId,
+        leave_type: 'annual',
+        start_date: l.startDate,
+        end_date: l.endDate,
+        total_days: l.totalDays,
+        approvers: []
+      }));
+    },
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
+      const data = await gqlClient.request(EMP_QUERY);
+      return (data.employees || []).map(e => ({ ...e, full_name: e.fullName }));
+    },
     initialData: [],
   });
 
   const createAuditLog = async (action, entityId, entityName, changes = {}) => {
-    if (!user || !user.organization_id) {
-      console.warn("User or organization_id not available for audit log creation.");
-      return;
-    }
-    try {
-      await base44.entities.AuditLog.create({
-        organization_id: user.organization_id,
-        user_email: user.email,
-        user_name: user.full_name,
-        action,
-        entity_type: 'LeaveRequest',
-        entity_id: entityId,
-        entity_name,
-        changes,
-        description: `${action} leave request for ${entityName}`,
-        status: 'success',
-      });
-    } catch (error) {
-      console.error("Error creating audit log:", error);
-    }
+    // Mocked for now
+    console.log("Mocked createAuditLog:", { action, entityId, entityName, changes });
   };
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      const employee = employees.find(e => e.id === data.employee_id);
-      if (!employee) throw new Error("Employee not found for the selected ID.");
-
-      const manager = employees.find(e => e.email === employee.manager_email);
-      
-      const leave = await base44.entities.LeaveRequest.create({
-        ...data,
-        organization_id: user.organization_id,
-        employee_name: employee.full_name,
-        employee_email: employee.email,
-        reporting_managers: manager ? [manager.email] : [],
-        applied_by: user.email,
-        is_paid: data.leave_type === 'annual' || data.leave_type === 'sick',
+      const CREATE_LEAVE = gql`
+        mutation CreateLeave($employeeId: ID!, $startDate: String!, $endDate: String!, $totalDays: Int!, $reason: String) {
+          createLeaveRequest(employeeId: $employeeId, startDate: $startDate, endDate: $endDate, totalDays: $totalDays, reason: $reason) { id }
+        }
+      `;
+      const leave = await gqlClient.request(CREATE_LEAVE, {
+        employeeId: data.employee_id,
+        startDate: new Date(data.start_date).toISOString(),
+        endDate: new Date(data.end_date).toISOString(),
+        totalDays: parseInt(data.total_days),
+        reason: data.reason
       });
 
-      await createAuditLog('create', leave.id, employee.full_name, { after: leave });
-      
-      // Send email notification to line manager
-      if (manager) {
-        try {
-          await base44.integrations.Core.SendEmail({
-            to: manager.email,
-            subject: `New Leave Request - ${employee.full_name}`,
-            body: `Hello ${manager.full_name},\n\n${employee.full_name} has submitted a leave request that requires your approval.\n\nLeave Type: ${data.leave_type.replace('_', ' ')}\nDates: ${format(new Date(data.start_date), 'MMM dd, yyyy')} - ${format(new Date(data.end_date), 'MMM dd, yyyy')}\nTotal Days: ${data.total_days}\nReason: ${data.reason}\n\nPlease log in to review and approve/reject this request.\n\nBest regards,\nHR Team`
-          });
-        } catch (error) {
-          console.error('Failed to send manager notification:', error);
-        }
-      }
-      
+      await createAuditLog('create', leave.id, data.employee_id, { after: leave });
       return leave;
     },
     onSuccess: () => {
@@ -127,8 +102,13 @@ export default function AllLeaveRequests() {
 
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.LeaveRequest.update(id, data);
-      await createAuditLog('update', id, oldData.employee_name, {
+      const UPDATE_LEAVE = gql`
+        mutation UpdateLeave($id: ID!, $status: String!) {
+          updateLeaveRequest(id: $id, status: $status) { id status }
+        }
+      `;
+      const updated = await gqlClient.request(UPDATE_LEAVE, { id, status: data.status });
+      await createAuditLog('update', id, oldData?.employee_name, {
         before: oldData,
         after: updated,
         fields_changed: Object.keys(data)
@@ -162,8 +142,8 @@ export default function AllLeaveRequests() {
 
     setUploadingDoc(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setFormData(prev => ({ ...prev, attachment_url: file_url }));
+      // Mocked file upload
+      setFormData(prev => ({ ...prev, attachment_url: 'https://example.com/mock.pdf' }));
     } catch (error) {
       console.error("Error uploading:", error);
     }
@@ -188,59 +168,17 @@ export default function AllLeaveRequests() {
   const handleApprove = async (leave) => {
     updateLeaveMutation.mutate({
       id: leave.id,
-      data: {
-        status: 'approved',
-        approvers: [...(leave.approvers || []), {
-          email: user.email,
-          name: user.full_name,
-          status: 'approved',
-          approved_date: new Date().toISOString(),
-        }]
-      },
-      oldData: leave // Pass the original leave object for audit logging
+      data: { status: 'approved' },
+      oldData: leave
     });
-    
-    // Send email notification to employee
-    if (leave.employee_email) {
-      try {
-        await base44.integrations.Core.SendEmail({
-          to: leave.employee_email,
-          subject: 'Leave Request Approved',
-          body: `Hello ${leave.employee_name},\n\nGood news! Your leave request has been approved by ${user.full_name}.\n\nLeave Type: ${leave.leave_type.replace('_', ' ')}\nDates: ${format(new Date(leave.start_date), 'MMM dd, yyyy')} - ${format(new Date(leave.end_date), 'MMM dd, yyyy')}\nTotal Days: ${leave.total_days}\n\nEnjoy your time off!\n\nBest regards,\nHR Team`
-        });
-      } catch (error) {
-        console.error('Failed to send approval notification:', error);
-      }
-    }
   };
 
   const handleReject = async (leave) => {
     updateLeaveMutation.mutate({
       id: leave.id,
-      data: {
-        status: 'rejected',
-        approvers: [...(leave.approvers || []), {
-          email: user.email,
-          name: user.full_name,
-          status: 'rejected',
-          approved_date: new Date().toISOString(),
-        }]
-      },
-      oldData: leave // Pass the original leave object for audit logging
+      data: { status: 'rejected' },
+      oldData: leave
     });
-    
-    // Send email notification to employee
-    if (leave.employee_email) {
-      try {
-        await base44.integrations.Core.SendEmail({
-          to: leave.employee_email,
-          subject: 'Leave Request Update',
-          body: `Hello ${leave.employee_name},\n\nYour leave request has been reviewed by ${user.full_name}.\n\nLeave Type: ${leave.leave_type.replace('_', ' ')}\nDates: ${format(new Date(leave.start_date), 'MMM dd, yyyy')} - ${format(new Date(leave.end_date), 'MMM dd, yyyy')}\n\nStatus: Not Approved\n\nPlease contact your manager for more information.\n\nBest regards,\nHR Team`
-        });
-      } catch (error) {
-        console.error('Failed to send rejection notification:', error);
-      }
-    }
   };
 
   const statusColors = {

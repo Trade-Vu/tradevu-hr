@@ -1,29 +1,37 @@
 
-import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import React from "react";
+import { gqlClient } from "@/api/graphqlClient";
+import { gql } from "graphql-request";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge"; // Added import for Badge component
 import { Users } from "lucide-react";
 
 export default function Organogram() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
-    };
-    loadUser();
-  }, []);
+  const { user } = useAuth();
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const query = gql`
+        query GetOrganogramEmployees {
+          employees {
+            id
+            fullName
+            email
+            jobTitle
+          }
+        }
+      `;
+      const data = await gqlClient.request(query);
+      return (data.employees || []).map(emp => ({
+        ...emp,
+        full_name: emp.fullName,
+        job_title: emp.jobTitle,
+        manager_email: null, // Mocked for now, as manager_email is not in schema
+      }));
+    },
     initialData: [],
   });
 

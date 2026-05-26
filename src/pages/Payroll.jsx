@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,25 +31,33 @@ export default function Payroll() {
   // Load current user for audit logging
   React.useEffect(() => {
     const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Failed to load user for audit logging:", error);
-      }
+      // Mock current user
+      setUser({ role: 'admin', email: 'admin@tradevu.com', full_name: 'Admin User', organization_id: 'org-1' });
     };
     loadUser();
   }, []);
 
   const { data: payrolls = [] } = useQuery({
     queryKey: ['payroll'],
-    queryFn: () => base44.entities.Payroll.list('-month'),
+    queryFn: async () => {
+      // Mocked payroll list
+      return [];
+    },
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const query = `query { employees { id first_name last_name job_title } }`;
+      const data = await gqlClient.request(query);
+      return data.employees.map(emp => ({
+        id: emp.id,
+        full_name: `${emp.first_name} ${emp.last_name}`,
+        job_title: emp.job_title,
+        payroll_details: { basic_salary: 5000, allowances: { housing: 0, transport: 0, food: 0, other: 0 } }
+      }));
+    },
     initialData: [],
   });
 
@@ -60,18 +68,8 @@ export default function Payroll() {
       return;
     }
     try {
-      await base44.entities.AuditLog.create({
-        organization_id: user.organization_id,
-        user_email: user.email,
-        user_name: user.full_name,
-        action,
-        entity_type: 'Payroll',
-        entity_id: entityId,
-        entity_name,
-        changes,
-        description: `${action} payroll for ${entityName}`,
-        status: 'success',
-      });
+      // Mocked audit log creation
+      console.log('Audit log created:', { action, entityId, entityName, changes });
     } catch (error) {
       console.error("Error creating audit log:", error);
     }
@@ -87,7 +85,8 @@ export default function Payroll() {
       const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
       const netSalary = totalEarnings - totalDeductions;
 
-      const payroll = await base44.entities.Payroll.create({
+      const payroll = {
+        id: Math.random().toString(),
         ...data,
         employee_name: employee.full_name,
         total_earnings: totalEarnings,
@@ -95,7 +94,7 @@ export default function Payroll() {
         overtime_amount: overtimeAmount,
         net_salary: netSalary,
         status: 'draft',
-      });
+      };
 
       await createAuditLog('create', payroll.id, employee.full_name, {
         after: payroll
@@ -136,7 +135,7 @@ export default function Payroll() {
         net_salary: netSalary,
       };
 
-      const updated = await base44.entities.Payroll.update(id, updatedPayload);
+      const updated = { id, ...updatedPayload };
 
       await createAuditLog('update', id, updatedPayload.employee_name, {
         before: oldData,

@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
+import { gql } from "graphql-request";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -25,19 +26,35 @@ export default function Attendance() {
 
   const { data: attendanceRecords = [] } = useQuery({
     queryKey: ['attendance'],
-    queryFn: () => base44.entities.Attendance.list('-date'),
+    queryFn: async () => {
+      const ATT_QUERY = gql`
+        query { attendanceRecords { id employeeId date clockIn clockOut status } }
+      `;
+      const data = await gqlClient.request(ATT_QUERY);
+      return (data.attendanceRecords || []).map(a => ({
+        ...a,
+        employee_id: a.employeeId,
+        check_in: a.clockIn,
+        check_out: a.clockOut,
+        employee_name: a.employeeId // mocked name
+      }));
+    },
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => {
+      const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
+      const data = await gqlClient.request(EMP_QUERY);
+      return (data.employees || []).map(e => ({ ...e, full_name: e.fullName }));
+    },
     initialData: [],
   });
 
   const { data: settings = [] } = useQuery({
     queryKey: ['attendance-settings'],
-    queryFn: () => base44.entities.AttendanceSettings.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,13 @@ export default function ComplianceDashboard() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -26,24 +32,27 @@ export default function ComplianceDashboard() {
 
   const { data: alerts = [] } = useQuery({
     queryKey: ['compliance-alerts'],
-    queryFn: () => base44.entities.ComplianceAlert.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['task-items'],
-    queryFn: () => base44.entities.TaskItem.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const updateAlertMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ComplianceAlert.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update alert", id, data);
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['compliance-alerts'] });
     },
@@ -165,7 +174,7 @@ export default function ComplianceDashboard() {
 
     // Create alerts
     for (const alert of newAlerts) {
-      await base44.entities.ComplianceAlert.create(alert);
+      console.log("Mock create alert", alert);
     }
 
     queryClient.invalidateQueries({ queryKey: ['compliance-alerts'] });

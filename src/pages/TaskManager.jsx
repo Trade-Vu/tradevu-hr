@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,13 @@ export default function TaskManager() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
         // Set initial form values based on the logged-in user
         setProjectForm(prev => ({ ...prev, project_manager: currentUser.email }));
@@ -50,28 +56,32 @@ export default function TaskManager() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => base44.entities.Project.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: allTasks = [] } = useQuery({
     queryKey: ['task-items'],
-    queryFn: () => base44.entities.TaskItem.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: (data) => base44.entities.Project.create({
-      ...data,
-      organization_id: user.organization_id, // Ensure organization_id is passed
-      status: 'planning', // Default status for new projects
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create project", data);
+      return {
+        ...data,
+        id: `project_${Date.now()}`,
+        organization_id: user.organization_id, // Ensure organization_id is passed
+        status: 'planning', // Default status for new projects
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setShowProjectDialog(false);
@@ -84,13 +94,17 @@ export default function TaskManager() {
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: (data) => base44.entities.TaskItem.create({
-      ...data,
-      organization_id: user.organization_id, // Ensure organization_id is passed
-      assigned_by: user.email,
-      project_id: selectedProject?.id, // Assign to current selected project if any
-      status: 'todo', // Default status for new tasks
-    }),
+    mutationFn: async (data) => {
+      console.log("Mock create task", data);
+      return {
+        ...data,
+        id: `task_${Date.now()}`,
+        organization_id: user.organization_id, // Ensure organization_id is passed
+        assigned_by: user.email,
+        project_id: selectedProject?.id, // Assign to current selected project if any
+        status: 'todo', // Default status for new tasks
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-items'] });
       setShowTaskDialog(false);
@@ -109,7 +123,10 @@ export default function TaskManager() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.TaskItem.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      console.log("Mock update task", id, data);
+      return { id, ...data };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-items'] });
     },

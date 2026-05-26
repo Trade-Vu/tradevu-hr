@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,11 +37,12 @@ export default function TrainingPlatformForm({ platform, onCancel, onSuccess }) 
   }, [platform]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: async (data) => {
+      console.log("Mock save training platform", data);
       if (platform?.id) {
-        return base44.entities.TrainingPlatform.update(platform.id, data);
+        return { ...platform, ...data };
       } else {
-        return base44.entities.TrainingPlatform.create(data);
+        return { ...data, id: `plat_${Date.now()}` };
       }
     },
     onSuccess: () => {
@@ -56,7 +57,7 @@ export default function TrainingPlatformForm({ platform, onCancel, onSuccess }) 
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = URL.createObjectURL(file);
       setFormData(prev => ({ ...prev, thumbnail_url: file_url }));
     } catch (error) {
       console.error("Error uploading file:", error);

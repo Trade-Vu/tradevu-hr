@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,13 @@ export default function Assets() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const currentUser = await base44.auth.me();
+        // Mock user
+        const currentUser = {
+          email: "mock_user@example.com",
+          role: "admin",
+          organization_id: "org_1",
+          full_name: "Mock User"
+        };
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
@@ -44,27 +50,29 @@ export default function Assets() {
 
   const { data: assets = [] } = useQuery({
     queryKey: ['assets'],
-    queryFn: () => base44.entities.Asset.list('-created_date'),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => base44.entities.Employee.list(),
+    queryFn: async () => [],
     initialData: [],
   });
 
   const createAssetMutation = useMutation({
-    mutationFn: (data) => {
+    mutationFn: async (data) => {
       const employee = employees.find(e => e.email === data.assigned_to);
+      console.log("Mock create asset", data);
       
-      return base44.entities.Asset.create({
+      return {
         ...data,
-        organization_id: user.organization_id,
+        id: `asset_${Date.now()}`,
+        organization_id: user?.organization_id,
         assigned_to_name: employee?.full_name,
         assigned_date: data.assigned_to ? new Date().toISOString().split('T')[0] : null,
         assignment_status: data.assigned_to ? 'assigned' : 'available',
-      });
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
@@ -80,15 +88,17 @@ export default function Assets() {
   });
 
   const updateAssetMutation = useMutation({
-    mutationFn: ({ id, data }) => {
+    mutationFn: async ({ id, data }) => {
       const employee = employees.find(e => e.email === data.assigned_to);
+      console.log("Mock update asset", id, data);
       
-      return base44.entities.Asset.update(id, {
+      return {
+        id,
         ...data,
         assigned_to_name: employee?.full_name || null,
         assigned_date: data.assigned_to ? new Date().toISOString().split('T')[0] : null,
         assignment_status: data.assigned_to ? 'assigned' : 'available',
-      });
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
