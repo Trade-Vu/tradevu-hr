@@ -1,5 +1,3 @@
-// cypress/fixtures/users.json
-// Test user data for all roles
 {
   "superAdmin": {
     "email": "superadmin@tradevu.com",
