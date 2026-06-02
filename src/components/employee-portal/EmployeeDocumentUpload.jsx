@@ -5,15 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Upload, Loader2, CheckCircle, ExternalLink } from "lucide-react";
+import { gql } from "graphql-request";
+import { uploadToCloudinary } from "@/utils/cloudinary";
 
 export default function EmployeeDocumentUpload({ documents, employeeId }) {
   const queryClient = useQueryClient();
   const [uploadingDoc, setUploadingDoc] = useState(null);
 
   const updateDocumentMutation = useMutation({
-    mutationFn: async ({ docId, data }) => {
-      console.log("Mock update document", docId, data);
-      return data;
+    mutationFn: async ({ docId, fileUrl, fileType, fileSize }) => {
+      const REPLACE_DOC = gql`
+        mutation ReplaceDoc($id: ID!, $url: String!, $type: String!, $size: Int) {
+          replaceDocumentVersion(id: $id, fileUrl: $url, fileType: $type, fileSize: $size) { id currentVersion status }
+        }
+      `;
+      return gqlClient.request(REPLACE_DOC, { id: docId, url: fileUrl, type: fileType, size: fileSize });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
@@ -25,30 +31,29 @@ export default function EmployeeDocumentUpload({ documents, employeeId }) {
     setUploadingDoc(document.id);
     
     try {
-      const uploadResult = { file_url: URL.createObjectURL(file) };
+      const uploadResult = await uploadToCloudinary(file);
       
       await updateDocumentMutation.mutateAsync({
         docId: document.id,
-        data: {
-          file_url: uploadResult.file_url,
-          file_name: file.name,
-          status: 'uploaded',
-        },
+        fileUrl: uploadResult.secure_url,
+        fileType: uploadResult.format || 'PDF',
+        fileSize: uploadResult.bytes || 0
       });
     } catch (error) {
       console.error("Error uploading file:", error);
+      alert("Failed to upload file");
       setUploadingDoc(null);
     }
   };
 
-  const pendingDocs = documents.filter(d => d.status === 'pending');
-  const uploadedDocs = documents.filter(d => d.status !== 'pending');
+  const pendingDocs = documents.filter(d => d.status === 'PENDING');
+  const uploadedDocs = documents.filter(d => d.status !== 'PENDING');
 
   const statusColors = {
-    pending: "bg-orange-100 text-orange-700 border-orange-200",
-    uploaded: "bg-blue-100 text-blue-700 border-blue-200",
-    approved: "bg-green-100 text-green-700 border-green-200",
-    rejected: "bg-red-100 text-red-700 border-red-200",
+    PENDING: "bg-orange-100 text-orange-700 border-orange-200",
+    ACTIVE: "bg-green-100 text-green-700 border-green-200",
+    ARCHIVED: "bg-slate-100 text-slate-700 border-slate-200",
+    DELETED: "bg-red-100 text-red-700 border-red-200",
   };
 
   return (

@@ -1,450 +1,293 @@
-
 import React, { useState } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, TrendingUp, Users, Calendar, Plus, Download, Search, Edit } from "lucide-react";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { DollarSign, TrendingUp, Users, Calendar, Plus, Download, ArrowLeft, CheckCircle, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Payroll() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7));
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingPayroll, setEditingPayroll] = useState(null); // State to hold the payroll being edited
-  const [user, setUser] = useState(null); // State to hold the current user for audit logs
-  const [formData, setFormData] = useState({
-    employee_id: '',
+  const { user } = useAuth();
+  
+  const [selectedRunId, setSelectedRunId] = useState(null);
+  const [showRunDialog, setShowRunDialog] = useState(false);
+  const [runForm, setRunForm] = useState({
     month: new Date().toISOString().slice(0, 7),
-    basic_salary: 0,
-    allowances: { housing: 0, transport: 0, food: 0, other: 0 },
-    deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
-    overtime_hours: 0,
+    periodStart: '',
+    periodEnd: ''
   });
 
-  // Load current user for audit logging
-  React.useEffect(() => {
-    const loadUser = async () => {
-      // Mock current user
-      setUser({ role: 'admin', email: 'admin@tradevu.com', full_name: 'Admin User', organization_id: 'org-1' });
-    };
-    loadUser();
-  }, []);
-
-  const { data: payrolls = [] } = useQuery({
-    queryKey: ['payroll'],
+  const { data: payrollRuns = [], isLoading: runsLoading } = useQuery({
+    queryKey: ['payroll-runs'],
     queryFn: async () => {
-      // Mocked payroll list
-      return [];
-    },
-    initialData: [],
+      const RUNS_QUERY = `
+        query {
+          payrollRuns { id month periodStart periodEnd status totalGross totalNet approvedBy createdAt }
+        }
+      `;
+      const data = await gqlClient.request(RUNS_QUERY);
+      return data.payrollRuns || [];
+    }
   });
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
+  const { data: currentRecords = [], isLoading: recordsLoading } = useQuery({
+    queryKey: ['payroll-records', selectedRunId],
     queryFn: async () => {
-      const query = `query { employees { id first_name last_name job_title } }`;
-      const data = await gqlClient.request(query);
-      return data.employees.map(emp => ({
-        id: emp.id,
-        full_name: `${emp.first_name} ${emp.last_name}`,
-        job_title: emp.job_title,
-        payroll_details: { basic_salary: 5000, allowances: { housing: 0, transport: 0, food: 0, other: 0 } }
-      }));
+      if (!selectedRunId) return [];
+      const RECORDS_QUERY = `
+        query GetRecords($runId: ID!) {
+          payrollRecords(payrollRunId: $runId) {
+            id employeeId employee { fullName }
+            basicSalary allowances deductions
+            grossPay taxAmount netPay
+          }
+        }
+      `;
+      const data = await gqlClient.request(RECORDS_QUERY, { runId: selectedRunId });
+      return data.payrollRecords || [];
     },
-    initialData: [],
+    enabled: !!selectedRunId
   });
 
-  // Utility function for creating audit logs
-  const createAuditLog = async (action, entityId, entityName, changes = {}) => {
-    if (!user) {
-      console.warn("User not loaded, skipping audit log creation.");
-      return;
-    }
-    try {
-      // Mocked audit log creation
-      console.log('Audit log created:', { action, entityId, entityName, changes });
-    } catch (error) {
-      console.error("Error creating audit log:", error);
-    }
-  };
-
-  const createPayrollMutation = useMutation({
-    mutationFn: async (data) => {
-      const employee = employees.find(e => e.id === data.employee_id);
-      
-      const totalAllowances = Object.values(data.allowances).reduce((sum, val) => sum + (val || 0), 0);
-      const totalDeductions = Object.values(data.deductions).reduce((sum, val) => sum + (val || 0), 0);
-      const overtimeAmount = data.overtime_hours * 50; // SAR 50 per hour
-      const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
-      const netSalary = totalEarnings - totalDeductions;
-
-      const payroll = {
-        id: Math.random().toString(),
-        ...data,
-        employee_name: employee.full_name,
-        total_earnings: totalEarnings,
-        total_deductions: totalDeductions,
-        overtime_amount: overtimeAmount,
-        net_salary: netSalary,
-        status: 'draft',
-      };
-
-      await createAuditLog('create', payroll.id, employee.full_name, {
-        after: payroll
-      });
-
-      return payroll;
+  const createRunMutation = useMutation({
+    mutationFn: async (input) => {
+      const MUTATION = `
+        mutation CreateRun($month: String!, $start: String!, $end: String!) {
+          createPayrollRun(month: $month, periodStart: $start, periodEnd: $end) { id status }
+        }
+      `;
+      await gqlClient.request(MUTATION, { month: input.month, start: input.periodStart, end: input.periodEnd });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payroll'] });
-      setShowAddDialog(false);
-      setFormData({
-        employee_id: '',
-        month: new Date().toISOString().slice(0, 7),
-        basic_salary: 0,
-        allowances: { housing: 0, transport: 0, food: 0, other: 0 },
-        deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
-        overtime_hours: 0,
-      });
+      queryClient.invalidateQueries(['payroll-runs']);
+      setShowRunDialog(false);
+      setRunForm({ month: '', periodStart: '', periodEnd: '' });
+      toast.success("Payroll run generated successfully");
     },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Failed to generate payroll run");
+    }
   });
 
-  const updatePayrollMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const employee = employees.find(e => e.id === data.employee_id); // Get employee for updated name if employee_id changed
-
-      const totalAllowances = Object.values(data.allowances).reduce((sum, val) => sum + (val || 0), 0);
-      const totalDeductions = Object.values(data.deductions).reduce((sum, val) => sum + (val || 0), 0);
-      const overtimeAmount = data.overtime_hours * 50;
-      const totalEarnings = data.basic_salary + totalAllowances + overtimeAmount;
-      const netSalary = totalEarnings - totalDeductions;
-
-      const updatedPayload = {
-        ...data,
-        employee_name: employee?.full_name || oldData.employee_name, // Use updated employee name or fallback
-        total_earnings: totalEarnings,
-        total_deductions: totalDeductions,
-        overtime_amount: overtimeAmount,
-        net_salary: netSalary,
-      };
-
-      const updated = { id, ...updatedPayload };
-
-      await createAuditLog('update', id, updatedPayload.employee_name, {
-        before: oldData,
-        after: updated,
-        fields_changed: Object.keys(data) // Note: this tracks changes in formData, not actual diff
-      });
-
-      return updated;
+  const approveRunMutation = useMutation({
+    mutationFn: async (id) => {
+      const MUTATION = `mutation ApproveRun($id: ID!) { approvePayrollRun(id: $id) { id status } }`;
+      await gqlClient.request(MUTATION, { id });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payroll'] });
-      setEditingPayroll(null);
-      setShowAddDialog(false); // Close dialog after successful update
+      queryClient.invalidateQueries(['payroll-runs']);
+      toast.success("Payroll run approved");
     },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Failed to approve payroll run");
+    }
   });
 
-  // Function to handle editing a payroll record
-  const handleEdit = (payroll) => {
-    setEditingPayroll(payroll);
-    setFormData({
-      employee_id: payroll.employee_id,
-      month: payroll.month,
-      basic_salary: payroll.basic_salary || 0,
-      allowances: payroll.allowances ? { housing: 0, transport: 0, food: 0, other: 0, ...payroll.allowances } : { housing: 0, transport: 0, food: 0, other: 0 },
-      deductions: payroll.deductions ? { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0, ...payroll.deductions } : { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
-      overtime_hours: payroll.overtime_hours || 0,
-    });
-    setShowAddDialog(true);
-  };
+  const generatePayslipMutation = useMutation({
+    mutationFn: async (recordId) => {
+      const MUTATION = `mutation GenPayslip($id: ID!) { generatePayslip(recordId: $id) }`;
+      const data = await gqlClient.request(MUTATION, { id: recordId });
+      return data.generatePayslip;
+    },
+    onSuccess: (msg) => toast.success(msg),
+    onError: (err) => {
+      console.error(err);
+      toast.error("Failed to trigger payslip generation");
+    }
+  });
 
-  const currentMonthPayrolls = payrolls.filter(p => p.month === monthFilter);
-  const totalPayroll = currentMonthPayrolls.reduce((sum, p) => sum + (p.net_salary || 0), 0);
-  const approvedCount = currentMonthPayrolls.filter(p => p.status === 'approved' || p.status === 'paid').length;
+  const canApprove = ['SUPER_ADMIN', 'FINANCE_ADMIN'].includes(user?.role);
 
-  // Filter payrolls by search term as well
-  const filteredPayrolls = currentMonthPayrolls.filter(payroll =>
-    payroll.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  if (selectedRunId) {
+    const run = payrollRuns.find(r => r.id === selectedRunId);
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" onClick={() => setSelectedRunId(null)}>
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Runs
+              </Button>
+              <h1 className="text-3xl font-bold text-slate-900">Payroll Records for {run?.month}</h1>
+              <Badge variant="outline" className={run?.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
+                {run?.status}
+              </Badge>
+            </div>
+            {run?.status === 'DRAFT' && canApprove && (
+              <Button 
+                onClick={() => approveRunMutation.mutate(run.id)}
+                disabled={approveRunMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                {approveRunMutation.isPending ? 'Approving...' : 'Approve Run'}
+              </Button>
+            )}
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-600 mb-1">Total Gross</p>
+                <p className="text-2xl font-bold">{run?.totalGross.toLocaleString()} NGN</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-600 mb-1">Total Net</p>
+                <p className="text-2xl font-bold text-green-600">{run?.totalNet.toLocaleString()} NGN</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-600 mb-1">Employees Processed</p>
+                <p className="text-2xl font-bold text-blue-600">{currentRecords.length}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Gross Pay</TableHead>
+                  <TableHead>Deductions (incl. Tax)</TableHead>
+                  <TableHead>Net Pay</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recordsLoading ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">Loading records...</TableCell></TableRow>
+                ) : (
+                  currentRecords.map(record => {
+                    const parsedAllowances = record.allowances ? JSON.parse(record.allowances) : {};
+                    const parsedDeductions = record.deductions ? JSON.parse(record.deductions) : {};
+                    const totalDeductions = Object.values(parsedDeductions).reduce((sum, v) => sum + (parseFloat(v)||0), 0);
+
+                    return (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{record.employee.fullName}</TableCell>
+                        <TableCell>{record.grossPay.toLocaleString()} NGN</TableCell>
+                        <TableCell className="text-red-600">{(totalDeductions + record.taxAmount).toLocaleString()} NGN</TableCell>
+                        <TableCell className="text-green-600 font-bold">{record.netPay.toLocaleString()} NGN</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => generatePayslipMutation.mutate(record.id)}
+                            disabled={generatePayslipMutation.isPending}
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Payslip
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-              <DollarSign className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-slate-700">Payroll Management</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
-              Payroll
-            </h1>
-            <p className="text-lg text-slate-600">
-              Automated salary processing and management
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Payroll Administration</h1>
+            <p className="text-slate-600">Generate and manage monthly payroll runs.</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            
-            <Dialog open={showAddDialog} onOpenChange={(open) => {
-              setShowAddDialog(open);
-              if (!open) { // When dialog is closing
-                setEditingPayroll(null); // Clear editing state
-                setFormData({ // Reset form to initial add state
-                  employee_id: '',
-                  month: new Date().toISOString().slice(0, 7),
-                  basic_salary: 0,
-                  allowances: { housing: 0, transport: 0, food: 0, other: 0 },
-                  deductions: { late_days: 0, absent_days: 0, unpaid_leave_days: 0, loans: 0, insurance: 0, other: 0 },
-                  overtime_hours: 0,
-                });
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-green-600 to-emerald-600">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Payroll
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingPayroll ? 'Edit' : 'Add'} Payroll Record</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={(e) => { 
-                  e.preventDefault(); 
-                  if (editingPayroll) {
-                    updatePayrollMutation.mutate({ id: editingPayroll.id, data: formData, oldData: editingPayroll });
-                  } else {
-                    createPayrollMutation.mutate(formData); 
-                  }
-                }} className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Employee *</Label>
-                      <Select value={formData.employee_id} onValueChange={(value) => {
-                        const emp = employees.find(e => e.id === value);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          employee_id: value,
-                          basic_salary: emp?.payroll_details?.basic_salary || 0,
-                          allowances: emp?.payroll_details?.allowances || { housing: 0, transport: 0, food: 0, other: 0 }
-                        }));
-                      }} disabled={!!editingPayroll}> {/* Disable employee selection when editing */}
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select employee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map(emp => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.full_name} - {emp.job_title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Month *</Label>
-                      <Input 
-                        type="month" 
-                        value={formData.month}
-                        onChange={(e) => setFormData(prev => ({ ...prev, month: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Basic Salary</Label>
-                      <Input 
-                        type="number" 
-                        value={formData.basic_salary}
-                        onChange={(e) => setFormData(prev => ({ ...prev, basic_salary: parseFloat(e.target.value) || 0 }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Overtime Hours</Label>
-                      <Input 
-                        type="number" 
-                        value={formData.overtime_hours}
-                        onChange={(e) => setFormData(prev => ({ ...prev, overtime_hours: parseFloat(e.target.value) || 0 }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Allowances</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="Housing" type="number" value={formData.allowances.housing} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, housing: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Transport" type="number" value={formData.allowances.transport} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, transport: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Food" type="number" value={formData.allowances.food} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, food: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Other" type="number" value={formData.allowances.other} onChange={(e) => setFormData(prev => ({ ...prev, allowances: { ...prev.allowances, other: parseFloat(e.target.value) || 0 }}))} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Deductions</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="Late Days" type="number" value={formData.deductions.late_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, late_days: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Absent Days" type="number" value={formData.deductions.absent_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, absent_days: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Unpaid Leave" type="number" value={formData.deductions.unpaid_leave_days} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, unpaid_leave_days: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Loans" type="number" value={formData.deductions.loans} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, loans: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Insurance" type="number" value={formData.deductions.insurance} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, insurance: parseFloat(e.target.value) || 0 }}))} />
-                      <Input placeholder="Other" type="number" value={formData.deductions.other} onChange={(e) => setFormData(prev => ({ ...prev, deductions: { ...prev.deductions, other: parseFloat(e.target.value) || 0 }}))} />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={createPayrollMutation.isPending || updatePayrollMutation.isPending || !formData.employee_id}>
-                      {(createPayrollMutation.isPending || updatePayrollMutation.isPending) ? 'Saving...' : editingPayroll ? 'Update Payroll' : 'Create Payroll'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-6">
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-green-100 p-3 rounded-xl">
-                  <DollarSign className="w-6 h-6 text-green-600" />
+          
+          <Dialog open={showRunDialog} onOpenChange={setShowRunDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-slate-900 text-white">
+                <Plus className="w-4 h-4 mr-2" /> Generate Payroll Run
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Generate Payroll Run</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label>Month (YYYY-MM)</Label>
+                  <Input type="month" value={runForm.month} onChange={e => setRunForm({...runForm, month: e.target.value})} />
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
-                {totalPayroll.toLocaleString()} SAR
-              </div>
-              <div className="text-sm text-slate-600">Total This Month</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-blue-100 p-3 rounded-xl">
-                  <Users className="w-6 h-6 text-blue-600" />
+                <div className="space-y-2">
+                  <Label>Period Start Date</Label>
+                  <Input type="date" value={runForm.periodStart} onChange={e => setRunForm({...runForm, periodStart: e.target.value})} />
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
-                {currentMonthPayrolls.length}
-              </div>
-              <div className="text-sm text-slate-600">Employees</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-purple-100 p-3 rounded-xl">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                <div className="space-y-2">
+                  <Label>Period End Date</Label>
+                  <Input type="date" value={runForm.periodEnd} onChange={e => setRunForm({...runForm, periodEnd: e.target.value})} />
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
-                {approvedCount}
-              </div>
-              <div className="text-sm text-slate-600">Approved</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-orange-100 p-3 rounded-xl">
-                  <Calendar className="w-6 h-6 text-orange-600" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
-                {monthFilter}
-              </div>
-              <div className="text-sm text-slate-600">Current Period</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="border-slate-200">
-          <CardContent className="p-6">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search employee..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Input
-                type="month"
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-48"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payroll List */}
-        <Card className="border-slate-200">
-          <CardHeader className="border-b border-slate-200">
-            <CardTitle>Payroll Records</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {filteredPayrolls.length === 0 ? (
-              <div className="p-12 text-center">
-                <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No payroll records</h3>
-                <p className="text-slate-500 mb-4">Add payroll for this month to get started</p>
-                <Button onClick={() => setShowAddDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Payroll
+                <Button 
+                  onClick={() => createRunMutation.mutate(runForm)}
+                  disabled={createRunMutation.isPending || !runForm.month || !runForm.periodStart || !runForm.periodEnd}
+                  className="w-full bg-slate-900"
+                >
+                  {createRunMutation.isPending ? 'Generating...' : 'Generate'}
                 </Button>
               </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {filteredPayrolls.map((payroll) => (
-                  <div key={payroll.id} className="p-6 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 mb-1">{payroll.employee_name}</h3>
-                        <div className="flex items-center gap-4 text-sm text-slate-600">
-                          <span>Basic: {payroll.basic_salary.toLocaleString()} SAR</span>
-                          <span>Net: {payroll.net_salary.toLocaleString()} SAR</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className={
-                          payroll.status === 'paid' ? 'bg-green-100 text-green-700 border-green-200' :
-                          payroll.status === 'approved' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                          'bg-slate-100 text-slate-700 border-slate-200'
-                        }>
-                          {payroll.status}
-                        </Badge>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payroll)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Month</TableHead>
+                <TableHead>Period</TableHead>
+                <TableHead>Total Gross</TableHead>
+                <TableHead>Total Net</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runsLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8">Loading runs...</TableCell></TableRow>
+              ) : payrollRuns.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8">No payroll runs generated yet.</TableCell></TableRow>
+              ) : (
+                payrollRuns.map(run => (
+                  <TableRow key={run.id}>
+                    <TableCell className="font-semibold">{run.month}</TableCell>
+                    <TableCell>{format(new Date(run.periodStart), 'MMM d, yyyy')} - {format(new Date(run.periodEnd), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>{run.totalGross.toLocaleString()} NGN</TableCell>
+                    <TableCell className="text-green-600 font-medium">{run.totalNet.toLocaleString()} NGN</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={run.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
+                        {run.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedRunId(run.id)}>
+                        View Records
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </Card>
       </div>
     </div>

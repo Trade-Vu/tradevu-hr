@@ -128,6 +128,18 @@ export const typeDefs = `#graphql
     payslipUrl: String
   }
 
+  type SalaryHistory {
+    id: ID!
+    employeeId: String!
+    basicSalary: Float!
+    allowances: String
+    effectiveDate: String!
+    reason: String!
+    status: String!
+    approvedBy: String
+    createdAt: String!
+  }
+
   type Policy {
     id: ID!
     title: String!
@@ -180,6 +192,7 @@ export const typeDefs = `#graphql
     payrollRuns: [PayrollRun]
     payrollRecords(payrollRunId: ID!): [PayrollRecord]
     myPayrollRecords: [PayrollRecord]
+    salaryHistory(employeeId: ID!): [SalaryHistory]
 
     # Phase 4 Queries
     policies: [Policy]
@@ -268,6 +281,7 @@ export const typeDefs = `#graphql
     createPayrollRun(month: String!, periodStart: String!, periodEnd: String!): PayrollRun!
     approvePayrollRun(id: ID!): PayrollRun!
     generatePayslip(recordId: ID!): String!
+    requestCompensationUpdate(employeeId: ID!, basicSalary: Float!, allowances: String, reason: String!): SalaryHistory!
 
     # Phase 4 Mutations
     createPolicy(title: String!, category: String!, content: String, requiresAck: Boolean): Policy!

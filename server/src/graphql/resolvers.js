@@ -129,6 +129,14 @@ export const resolvers = {
       return prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } });
     },
     
+    salaryHistory: async (_, { employeeId }, { prisma, requireAuth }) => {
+      requireAuth();
+      return prisma.salaryHistory.findMany({
+        where: { employeeId },
+        orderBy: { createdAt: 'desc' }
+      });
+    },
+
     // Phase 3 Queries
     payrollRuns: async (_, __, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'FINANCE_ADMIN']);
@@ -428,6 +436,26 @@ export const resolvers = {
             publishedAt: action === 'APPROVED' ? new Date() : request.publishedAt
           }
         });
+      } else if (entityType === 'SalaryHistory') {
+        const request = await prisma.salaryHistory.findUnique({ where: { id: entityId } });
+        if (!request) throw new Error("Salary update request not found");
+        previousStatus = request.status;
+        
+        await prisma.salaryHistory.update({
+          where: { id: entityId },
+          data: { status: action, approvedBy: user.id }
+        });
+
+        // If approved, dynamically update the employee record
+        if (action === 'APPROVED') {
+          await prisma.employee.update({
+            where: { id: request.employeeId },
+            data: {
+              basicSalary: request.basicSalary,
+              allowances: request.allowances
+            }
+          });
+        }
       } else if (entityType === 'Goal') {
         const request = await prisma.goal.findUnique({ where: { id: entityId }, include: { employee: true } });
         if (!request) throw new Error("Goal not found");
@@ -665,6 +693,24 @@ export const resolvers = {
     },
 
     // Phase 3 Mutations
+    requestCompensationUpdate: async (_, { employeeId, basicSalary, allowances, reason }, { prisma, user, requireRole }) => {
+      requireRole(['HR_ADMIN', 'SUPER_ADMIN']);
+      
+      const record = await prisma.salaryHistory.create({
+        data: {
+          employeeId,
+          basicSalary,
+          allowances: allowances ? JSON.parse(allowances) : null,
+          effectiveDate: new Date(),
+          reason,
+          status: 'PENDING'
+        }
+      });
+      
+      await createAuditLog({ actorId: user.id, entityType: 'SalaryHistory', entityId: record.id, action: 'CREATED' });
+      return record;
+    },
+
     createPayrollRun: async (_, { month, periodStart, periodEnd }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'FINANCE_ADMIN']);
       
@@ -689,21 +735,79 @@ export const resolvers = {
 
       const records = employees.map(emp => {
         const basicSalary = emp.basicSalary || 0;
-        // Simplified Tax Engine (Flat 10% for example purposes)
-        const tax = basicSalary * 0.10;
-        const netPay = basicSalary - tax;
+        
+        // Sum Allowances
+        let totalAllowances = 0;
+        const employeeAllowances = emp.allowances || {};
+        Object.values(employeeAllowances).forEach(val => {
+          totalAllowances += (parseFloat(val) || 0);
+        });
+        
+        const grossPay = basicSalary + totalAllowances;
+        
+        // Nigerian PAYE Calculation
+        // 1. Annualize
+        const annualGross = grossPay * 12;
+        
+        // 2. Compute Pension (8% of gross)
+        const annualPension = annualGross * 0.08;
+        
+        // 3. Consolidated Relief Allowance (CRA)
+        const cra = Math.max(200000, annualGross * 0.01) + (annualGross * 0.20);
+        
+        // 4. Taxable Income
+        let taxableIncome = annualGross - annualPension - cra;
+        if (taxableIncome < 0) taxableIncome = 0;
+        
+        // 5. Apply Tax Brackets
+        let annualTax = 0;
+        
+        if (taxableIncome > 0) {
+          const b1 = Math.min(taxableIncome, 300000);
+          annualTax += b1 * 0.07;
+          taxableIncome -= b1;
+        }
+        if (taxableIncome > 0) {
+          const b2 = Math.min(taxableIncome, 300000);
+          annualTax += b2 * 0.11;
+          taxableIncome -= b2;
+        }
+        if (taxableIncome > 0) {
+          const b3 = Math.min(taxableIncome, 500000);
+          annualTax += b3 * 0.15;
+          taxableIncome -= b3;
+        }
+        if (taxableIncome > 0) {
+          const b4 = Math.min(taxableIncome, 500000);
+          annualTax += b4 * 0.19;
+          taxableIncome -= b4;
+        }
+        if (taxableIncome > 0) {
+          const b5 = Math.min(taxableIncome, 1600000);
+          annualTax += b5 * 0.21;
+          taxableIncome -= b5;
+        }
+        if (taxableIncome > 0) {
+          annualTax += taxableIncome * 0.24;
+        }
+        
+        // Convert to monthly
+        const monthlyTax = annualTax / 12;
+        const monthlyPension = annualPension / 12;
+        const totalDeductions = monthlyTax + monthlyPension;
+        const netPay = grossPay - totalDeductions;
 
-        totalGross += basicSalary;
+        totalGross += grossPay;
         totalNet += netPay;
 
         return {
           payrollRunId: payrollRun.id,
           employeeId: emp.id,
           basicSalary,
-          allowances: {},
-          grossPay: basicSalary,
-          deductions: { tax },
-          totalDeductions: tax,
+          allowances: employeeAllowances,
+          grossPay,
+          deductions: { tax: monthlyTax, pension: monthlyPension },
+          totalDeductions,
           netPay,
         };
       });
@@ -728,8 +832,14 @@ export const resolvers = {
 
     generatePayslip: async (_, { recordId }, { prisma, user, requireAuth }) => {
       requireAuth();
-      // Placeholder for PDF Generation Logic (PDFKit, Puppeteer, etc.)
-      const mockPdfUrl = `https://tradevu-hris.s3.amazonaws.com/payslips/${recordId}.pdf`;
+      // To implement a real PDF generation async worker:
+      // 1. Push a job to BullMQ queue: `pdfQueue.add('generatePayslip', { recordId })`.
+      // 2. The worker would fetch the PayrollRecord and render a Handlebars HTML template.
+      // 3. The worker would launch Puppeteer, call `page.pdf()`, and upload the buffer to AWS S3.
+      // 4. Update the PayrollRecord.payslipUrl with the S3 link.
+      
+      // For this MVP, we simulate it by returning a mock URL pointing to an HTML view or mock PDF.
+      const mockPdfUrl = `/api/payslip/preview/${recordId}`;
       await prisma.payrollRecord.update({
         where: { id: recordId },
         data: { payslipUrl: mockPdfUrl }

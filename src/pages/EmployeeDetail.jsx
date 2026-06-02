@@ -19,7 +19,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { uploadToCloudinary } from "@/utils/cloudinary";
 
 const menuItems = [
   { id: 'personal', label: 'Personal', icon: User },
@@ -46,7 +49,14 @@ export default function EmployeeDetail() {
   const [showDocDialog, setShowDocDialog] = useState(false);
   const [showAssetDialog, setShowAssetDialog] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [docForm, setDocForm] = useState({ document_name: '', file_url: '', file_name: '' });
+  const [docForm, setDocForm] = useState({ document_name: '', file_url: '', file_name: '', file_type: 'PDF', file_size: 0, category: 'Employment Contract', visibility_level: 'hr_only' });
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [docToReplace, setDocToReplace] = useState(null);
+  const [replaceForm, setReplaceForm] = useState({ file_url: '', file_name: '', file_type: 'PDF', file_size: 0 });
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [selectedDocHistory, setSelectedDocHistory] = useState(null);
+  const [docCategoryFilter, setDocCategoryFilter] = useState('All');
+  const [docSearchQuery, setDocSearchQuery] = useState('');
   const [assetToRemove, setAssetToRemove] = useState(null);
 
   const { data: employee, isLoading } = useQuery({
@@ -55,7 +65,7 @@ export default function EmployeeDetail() {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
           employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId employmentStatus employmentType hireDate
+            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId employmentStatus employmentType hireDate basicSalary allowances
           }
         }
       `;
@@ -82,6 +92,10 @@ export default function EmployeeDetail() {
         },
         contract_details: {}, // Mocked
         leave_balances: {}, // Mocked
+        payroll_details: {
+          basic_salary: emp.basicSalary,
+          allowances: emp.allowances ? (typeof emp.allowances === 'string' ? JSON.parse(emp.allowances) : emp.allowances) : {}
+        }
       };
     },
     enabled: !!employeeId,
@@ -110,7 +124,7 @@ export default function EmployeeDetail() {
     queryKey: ['employee-documents', employeeId],
     queryFn: async () => {
       const DOC_QUERY = gql`
-        query GetDocs($empId: ID!) { documents(employeeId: $empId) { id name category fileUrl fileType visibilityLevel status } }
+        query GetDocs($empId: ID!) { documents(employeeId: $empId) { id name category fileUrl fileType fileSize visibilityLevel status currentVersion createdAt } }
       `;
       const data = await gqlClient.request(DOC_QUERY, { empId: employeeId });
       return (data.documents || []).map(d => ({
@@ -121,6 +135,19 @@ export default function EmployeeDetail() {
       }));
     },
     enabled: !!employeeId,
+    initialData: [],
+  });
+
+  const { data: documentHistory = [] } = useQuery({
+    queryKey: ['document-history', selectedDocHistory?.id],
+    queryFn: async () => {
+      const HIST_QUERY = gql`
+        query GetHistory($docId: ID!) { documentHistory(documentId: $docId) { id version fileUrl fileType fileSize uploadedBy createdAt } }
+      `;
+      const data = await gqlClient.request(HIST_QUERY, { docId: selectedDocHistory.id });
+      return data.documentHistory || [];
+    },
+    enabled: !!selectedDocHistory,
     initialData: [],
   });
 
@@ -163,6 +190,54 @@ export default function EmployeeDetail() {
     }
   }, [employee, isEditing]);
 
+  const { data: salaryHistory = [] } = useQuery({
+    queryKey: ['salary-history', employeeId],
+    queryFn: async () => {
+      const SALARY_HIST_QUERY = gql`
+        query GetSalaryHistory($empId: ID!) { salaryHistory(employeeId: $empId) { id basicSalary allowances effectiveDate reason status approvedBy createdAt } }
+      `;
+      const data = await gqlClient.request(SALARY_HIST_QUERY, { empId: employeeId });
+      return data.salaryHistory || [];
+    },
+    enabled: !!employeeId,
+    initialData: [],
+  });
+
+  const [compForm, setCompForm] = useState({ basicSalary: '', housing: '', transport: '', food: '', other: '', reason: '' });
+  const [showCompDialog, setShowCompDialog] = useState(false);
+
+  const requestCompensationUpdateMutation = useMutation({
+    mutationFn: async (input) => {
+      const COMP_MUTATION = gql`
+        mutation RequestCompUpdate($empId: ID!, $basic: Float!, $allowances: String, $reason: String!) {
+          requestCompensationUpdate(employeeId: $empId, basicSalary: $basic, allowances: $allowances, reason: $reason) { id status }
+        }
+      `;
+      const allowancesObj = {
+        housing: parseFloat(input.housing) || 0,
+        transport: parseFloat(input.transport) || 0,
+        food: parseFloat(input.food) || 0,
+        other: parseFloat(input.other) || 0
+      };
+      await gqlClient.request(COMP_MUTATION, {
+        empId: employeeId,
+        basic: parseFloat(input.basicSalary) || 0,
+        allowances: JSON.stringify(allowancesObj),
+        reason: input.reason
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['salary-history']);
+      setShowCompDialog(false);
+      setCompForm({ basicSalary: '', housing: '', transport: '', food: '', other: '', reason: '' });
+      toast.success("Compensation update requested successfully.");
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Failed to request compensation update.");
+    }
+  });
+
   const updateEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const UPDATE_EMP = gql`
@@ -201,8 +276,8 @@ export default function EmployeeDetail() {
   const createDocumentMutation = useMutation({
     mutationFn: async (data) => {
       const UPLOAD_DOC = gql`
-        mutation UploadDoc($empId: ID!, $name: String!, $cat: String!, $url: String!, $type: String!, $vis: String!) {
-          uploadDocument(employeeId: $empId, name: $name, category: $cat, fileUrl: $url, fileType: $type, visibilityLevel: $vis) { id }
+        mutation UploadDoc($empId: ID!, $name: String!, $cat: String!, $url: String!, $type: String!, $size: Int, $vis: String!) {
+          uploadDocument(employeeId: $empId, name: $name, category: $cat, fileUrl: $url, fileType: $type, fileSize: $size, visibilityLevel: $vis) { id }
         }
       `;
       return gqlClient.request(UPLOAD_DOC, {
@@ -211,14 +286,32 @@ export default function EmployeeDetail() {
         cat: data.category || 'General',
         url: data.file_url || '',
         type: data.file_type || 'PDF',
-        vis: data.visibility_level || 'Employee'
+        size: data.file_size || 0,
+        vis: data.visibility_level || 'employee'
       });
     },
     onSuccess: async (newDoc) => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       setShowDocDialog(false);
-      setDocForm({ document_name: '', file_url: '', file_name: '' });
+      setDocForm({ document_name: '', file_url: '', file_name: '', file_type: 'PDF', file_size: 0, category: 'Employment Contract', visibility_level: 'hr_only' });
     },
+  });
+
+  const replaceDocumentVersionMutation = useMutation({
+    mutationFn: async ({ id, fileUrl, fileType, fileSize }) => {
+      const REPLACE_DOC = gql`
+        mutation ReplaceDoc($id: ID!, $url: String!, $type: String!, $size: Int) {
+          replaceDocumentVersion(id: $id, fileUrl: $url, fileType: $type, fileSize: $size) { id currentVersion }
+        }
+      `;
+      return gqlClient.request(REPLACE_DOC, { id, url: fileUrl, type: fileType, size: fileSize });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      setShowReplaceDialog(false);
+      setDocToReplace(null);
+      setReplaceForm({ file_url: '', file_name: '', file_type: 'PDF', file_size: 0 });
+    }
   });
 
   const deleteDocumentMutation = useMutation({
@@ -302,14 +395,38 @@ export default function EmployeeDetail() {
 
     setUploadingFile(true);
     try {
-      // Mocked file upload since there is no GraphQL mutation for it yet
+      const result = await uploadToCloudinary(file);
       setDocForm(prev => ({ 
         ...prev, 
-        file_url: 'https://example.com/mock-doc.pdf', 
-        file_name: file.name 
+        file_url: result.secure_url, 
+        file_name: file.name,
+        file_type: result.format || 'PDF',
+        file_size: result.bytes || 0
       }));
     } catch (error) {
-      console.error("Error uploading:", error);
+      console.error("Error uploading to Cloudinary:", error);
+      alert("Failed to upload file");
+    }
+    setUploadingFile(false);
+  };
+
+  const handleReplaceDocUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const result = await uploadToCloudinary(file);
+      setReplaceForm(prev => ({ 
+        ...prev, 
+        file_url: result.secure_url, 
+        file_name: file.name,
+        file_type: result.format || 'PDF',
+        file_size: result.bytes || 0
+      }));
+    } catch (error) {
+      console.error("Error uploading to Cloudinary:", error);
+      alert("Failed to upload file");
     }
     setUploadingFile(false);
   };
@@ -855,21 +972,60 @@ export default function EmployeeDetail() {
       case 'financial':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Financial Details</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-900">Financial & Banking Details</h3>
+              {!isEditing && ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
+                <Button onClick={() => setShowCompDialog(true)} className="bg-slate-900 text-white hover:bg-slate-800">
+                  Request Compensation Update
+                </Button>
+              )}
+            </div>
+
+            <Dialog open={showCompDialog} onOpenChange={setShowCompDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Request Compensation Update</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label>New Basic Salary (NGN)</Label>
+                    <Input 
+                      type="number" 
+                      value={compForm.basicSalary} 
+                      onChange={(e) => setCompForm({...compForm, basicSalary: e.target.value})}
+                      placeholder="e.g. 500000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Housing Allowance</Label>
+                    <Input type="number" value={compForm.housing} onChange={(e) => setCompForm({...compForm, housing: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Transport Allowance</Label>
+                    <Input type="number" value={compForm.transport} onChange={(e) => setCompForm({...compForm, transport: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reason for Update</Label>
+                    <Input 
+                      value={compForm.reason} 
+                      onChange={(e) => setCompForm({...compForm, reason: e.target.value})} 
+                      placeholder="e.g. Annual Review, Promotion"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => requestCompensationUpdateMutation.mutate(compForm)} 
+                    disabled={requestCompensationUpdateMutation.isPending || !compForm.basicSalary || !compForm.reason}
+                    className="w-full bg-slate-900 text-white"
+                  >
+                    {requestCompensationUpdateMutation.isPending ? 'Submitting...' : 'Submit Request'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {isEditing ? (
               <>
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Basic Salary (SAR)</Label>
-                    <Input
-                      type="number"
-                      value={editData.payroll_details?.basic_salary || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        payroll_details: { ...prev.payroll_details, basic_salary: parseFloat(e.target.value) }
-                      }))}
-                    />
-                  </div>
                   <div className="space-y-2">
                     <Label>Bank Name</Label>
                     <Input
@@ -881,7 +1037,7 @@ export default function EmployeeDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>IBAN</Label>
+                    <Label>IBAN / Account Number</Label>
                     <Input
                       value={editData.payroll_details?.iban || ''}
                       onChange={(e) => setEditData(prev => ({
@@ -891,65 +1047,12 @@ export default function EmployeeDetail() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>GOSI Number</Label>
+                    <Label>GOSI / Pension Number</Label>
                     <Input
                       value={editData.payroll_details?.gosi_number || ''}
                       onChange={(e) => setEditData(prev => ({
                         ...prev,
                         payroll_details: { ...prev.payroll_details, gosi_number: e.target.value }
-                      }))}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="mb-3">Allowances (SAR)</Label>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <Input
-                      type="number"
-                      placeholder="Housing"
-                      value={editData.payroll_details?.allowances?.housing || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        payroll_details: {
-                          ...prev.payroll_details,
-                          allowances: { ...prev.payroll_details?.allowances, housing: parseFloat(e.target.value) || 0 }
-                        }
-                      }))}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Transport"
-                      value={editData.payroll_details?.allowances?.transport || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        payroll_details: {
-                          ...prev.payroll_details,
-                          allowances: { ...prev.payroll_details?.allowances, transport: parseFloat(e.target.value) || 0 }
-                        }
-                      }))}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Food"
-                      value={editData.payroll_details?.allowances?.food || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        payroll_details: {
-                          ...prev.payroll_details,
-                          allowances: { ...prev.payroll_details?.allowances, food: parseFloat(e.target.value) || 0 }
-                        }
-                      }))}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Other"
-                      value={editData.payroll_details?.allowances?.other || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        payroll_details: {
-                          ...prev.payroll_details,
-                          allowances: { ...prev.payroll_details?.allowances, other: parseFloat(e.target.value) || 0 }
-                        }
                       }))}
                     />
                   </div>
@@ -961,7 +1064,7 @@ export default function EmployeeDetail() {
                   <div className="p-4 bg-green-50 rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">Basic Salary</p>
                     <p className="text-2xl font-bold text-green-700">
-                      {employee.payroll_details?.basic_salary?.toLocaleString() || 0} SAR
+                      {employee.payroll_details?.basic_salary?.toLocaleString() || 0} NGN
                     </p>
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg">
@@ -969,7 +1072,7 @@ export default function EmployeeDetail() {
                     <p className="text-2xl font-bold text-blue-700">
                       {((employee.payroll_details?.basic_salary || 0) + 
                         Object.values(employee.payroll_details?.allowances || {}).reduce((sum, val) => sum + (val || 0), 0)
-                      ).toLocaleString()} SAR
+                      ).toLocaleString()} NGN
                     </p>
                   </div>
                 </div>
@@ -980,10 +1083,13 @@ export default function EmployeeDetail() {
                       value > 0 && (
                         <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
                           <span className="text-slate-600 capitalize">{key}</span>
-                          <span className="font-medium">{value} SAR</span>
+                          <span className="font-medium">{value.toLocaleString()} NGN</span>
                         </div>
                       )
                     ))}
+                    {Object.values(employee.payroll_details?.allowances || {}).every(val => !val) && (
+                      <p className="text-slate-500 text-sm">No allowances currently set.</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -994,13 +1100,58 @@ export default function EmployeeDetail() {
                       <span className="font-medium">{employee.payroll_details?.bank_name || 'Not set'}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                      <span className="text-slate-600">IBAN</span>
+                      <span className="text-slate-600">Account Number</span>
                       <span className="font-medium font-mono">{employee.payroll_details?.iban || 'Not set'}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                      <span className="text-slate-600">GOSI Number</span>
+                      <span className="text-slate-600">Pension / Tax ID</span>
                       <span className="font-medium">{employee.payroll_details?.gosi_number || 'Not set'}</span>
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <h4 className="font-semibold text-slate-900 mb-3">Salary History</h4>
+                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Effective Date</TableHead>
+                          <TableHead>Basic Salary</TableHead>
+                          <TableHead>Allowances</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salaryHistory.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-4 text-slate-500">No salary history recorded.</TableCell>
+                          </TableRow>
+                        ) : (
+                          salaryHistory.map(history => {
+                            const parsedAllowances = history.allowances ? JSON.parse(history.allowances) : {};
+                            const allowanceTotal = Object.values(parsedAllowances).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+                            return (
+                              <TableRow key={history.id}>
+                                <TableCell>{format(new Date(history.effectiveDate), 'MMM d, yyyy')}</TableCell>
+                                <TableCell>{history.basicSalary.toLocaleString()} NGN</TableCell>
+                                <TableCell>{allowanceTotal > 0 ? `${allowanceTotal.toLocaleString()} NGN` : '-'}</TableCell>
+                                <TableCell>{history.reason}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={
+                                    history.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                                    history.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                  }>
+                                    {history.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </>
@@ -1086,6 +1237,12 @@ export default function EmployeeDetail() {
         );
 
       case 'documents':
+        const filteredDocs = documents.filter(doc => {
+          const matchesSearch = doc.document_name.toLowerCase().includes(docSearchQuery.toLowerCase());
+          const matchesCategory = docCategoryFilter === 'All' || doc.category === docCategoryFilter;
+          return matchesSearch && matchesCategory;
+        });
+
         return (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -1103,15 +1260,35 @@ export default function EmployeeDetail() {
                   </DialogHeader>
                   <form onSubmit={(e) => {
                     e.preventDefault();
-                    createDocumentMutation.mutate({
-                      employee_id: employeeId,
-                      ...docForm,
-                      status: 'uploaded',
-                    });
+                    createDocumentMutation.mutate(docForm);
                   }} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="document_name">Document Name</Label>
                       <Input id="document_name" value={docForm.document_name} onChange={(e) => setDocForm(prev => ({ ...prev, document_name: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category</Label>
+                      <select id="category" value={docForm.category} onChange={(e) => setDocForm(prev => ({ ...prev, category: e.target.value }))} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                        <option value="Employment Contract">Employment Contract</option>
+                        <option value="Offer Letter">Offer Letter</option>
+                        <option value="Government ID">Government ID</option>
+                        <option value="Passport Photograph">Passport Photograph</option>
+                        <option value="Certificates & Qualifications">Certificates & Qualifications</option>
+                        <option value="Compliance Forms">Compliance Forms</option>
+                        <option value="Guarantor Documents">Guarantor Documents</option>
+                        <option value="Promotion Letters">Promotion Letters</option>
+                        <option value="Payroll Support Documents">Payroll Support Documents</option>
+                        <option value="Exit Documents">Exit Documents</option>
+                        <option value="Miscellaneous HR Documents">Miscellaneous HR Documents</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="visibility_level">Visibility Level</Label>
+                      <select id="visibility_level" value={docForm.visibility_level} onChange={(e) => setDocForm(prev => ({ ...prev, visibility_level: e.target.value }))} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                        <option value="hr_only">HR Admin / Super Admin (Private)</option>
+                        <option value="employee">Employee & HR</option>
+                        <option value="manager">Manager, Employee & HR</option>
+                      </select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="doc-upload">File</Label>
@@ -1133,14 +1310,32 @@ export default function EmployeeDetail() {
               </Dialog>
             </div>
             
-            {documents.length === 0 ? (
+            <div className="flex gap-4 mb-6">
+              <Input placeholder="Search documents..." value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} className="max-w-xs" />
+              <select value={docCategoryFilter} onChange={(e) => setDocCategoryFilter(e.target.value)} className="flex h-10 items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm w-64">
+                <option value="All">All Categories</option>
+                <option value="Employment Contract">Employment Contract</option>
+                <option value="Offer Letter">Offer Letter</option>
+                <option value="Government ID">Government ID</option>
+                <option value="Passport Photograph">Passport Photograph</option>
+                <option value="Certificates & Qualifications">Certificates & Qualifications</option>
+                <option value="Compliance Forms">Compliance Forms</option>
+                <option value="Guarantor Documents">Guarantor Documents</option>
+                <option value="Promotion Letters">Promotion Letters</option>
+                <option value="Payroll Support Documents">Payroll Support Documents</option>
+                <option value="Exit Documents">Exit Documents</option>
+                <option value="Miscellaneous HR Documents">Miscellaneous HR Documents</option>
+              </select>
+            </div>
+
+            {filteredDocs.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <p className="text-slate-500">No documents</p>
+                <p className="text-slate-500">No documents match.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {documents.map(doc => (
+                {filteredDocs.map(doc => (
                   <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -1148,11 +1343,20 @@ export default function EmployeeDetail() {
                       </div>
                       <div>
                         <p className="font-medium text-slate-900">{doc.document_name}</p>
-                        <p className="text-sm text-slate-500">{doc.file_name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline">{doc.category}</Badge>
+                          <Badge variant="secondary" className="bg-slate-200 text-slate-700">{doc.visibilityLevel === 'hr_only' ? 'HR Only' : doc.visibilityLevel === 'manager' ? 'Manager+' : 'Employee+'}</Badge>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700">v{doc.currentVersion || 1}</Badge>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge>{doc.status}</Badge>
+                      <Button size="sm" variant="ghost" onClick={() => { setSelectedDocHistory(doc); setShowHistoryDialog(true); }}>
+                        History
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setDocToReplace(doc); setShowReplaceDialog(true); }}>
+                        Replace
+                      </Button>
                       {doc.file_url && (
                         <Button size="sm" variant="ghost" asChild>
                           <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
@@ -1168,6 +1372,71 @@ export default function EmployeeDetail() {
                 ))}
               </div>
             )}
+            
+            {/* Replace Document Dialog */}
+            <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Replace Document Version</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (docToReplace) {
+                    replaceDocumentVersionMutation.mutate({
+                      id: docToReplace.id,
+                      fileUrl: replaceForm.file_url,
+                      fileType: replaceForm.file_type,
+                      fileSize: replaceForm.file_size
+                    });
+                  }
+                }} className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-slate-600 mb-2">Replacing: <strong>{docToReplace?.document_name}</strong> (Current v{docToReplace?.currentVersion || 1})</p>
+                    <Label htmlFor="replace-upload">New File</Label>
+                    <input type="file" onChange={handleReplaceDocUpload} className="hidden" id="replace-upload" />
+                    <Button type="button" variant="outline" className="w-full" onClick={() => document.getElementById('replace-upload').click()} disabled={uploadingFile}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadingFile ? 'Uploading...' : replaceForm.file_url ? 'Change File' : 'Upload New Version'}
+                    </Button>
+                    {replaceForm.file_name && <p className="text-sm text-slate-500">Selected file: {replaceForm.file_name}</p>}
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={() => { setShowReplaceDialog(false); setReplaceForm({ file_url: '', file_name: '', file_type: 'PDF', file_size: 0 }); }}>Cancel</Button>
+                    <Button type="submit" disabled={replaceDocumentVersionMutation.isPending || !replaceForm.file_url}>
+                      {replaceDocumentVersionMutation.isPending ? 'Replacing...' : 'Upload New Version'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Document History Dialog */}
+            <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Version History: {selectedDocHistory?.document_name}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  {documentHistory.length === 0 ? (
+                    <p className="text-sm text-slate-500 text-center py-4">No previous versions.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {documentHistory.map(hist => (
+                        <div key={hist.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
+                          <div>
+                            <p className="font-medium">Version {hist.version}</p>
+                            <p className="text-xs text-slate-500">Uploaded {format(new Date(parseInt(hist.createdAt)), 'PPpp')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={hist.fileUrl} target="_blank" rel="noopener noreferrer">View</a>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         );
 
