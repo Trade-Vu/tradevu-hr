@@ -5,10 +5,18 @@
 
 describe('Employees', () => {
   beforeEach(() => {
-    cy.fixture('users').then(({ superAdmin }) => {
-      cy.loginByApi(superAdmin.email, superAdmin.password)
-      cy.visit('/Employees')
-    })
+    cy.interceptGQL('GetEmployees', {
+      data: {
+        employees: [
+          { id: '1', fullName: 'Alice Smith', email: 'alice@example.com', jobTitle: 'Developer', department: 'Engineering', status: 'ACTIVE' },
+          { id: '2', fullName: 'Bob Jones', email: 'bob@example.com', jobTitle: 'Designer', department: 'Design', status: 'ACTIVE' }
+        ]
+      }
+    }).as('GetEmployees')
+    
+    cy.loginByApi()
+    cy.visit('/Employees')
+    cy.wait('@GetEmployees')
   })
 
   context('Page Rendering', () => {

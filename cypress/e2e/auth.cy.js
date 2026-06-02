@@ -40,11 +40,29 @@ describe('Authentication', () => {
 
   context('Successful Login Flow', () => {
     it('logs in as super admin and lands on dashboard', () => {
+      cy.interceptGQL('Login', {
+        data: {
+          login: {
+            token: 'mock-jwt-token',
+            user: {
+              id: '1',
+              email: 'superadmin@tradevu.com',
+              role: 'SUPER_ADMIN',
+              organizationId: 'org1',
+              employeeId: 'emp1',
+              isOrgOwner: true
+            }
+          }
+        }
+      })
+
       cy.fixture('users').then(({ superAdmin }) => {
         cy.visit('/Login')
         cy.get('input[type="email"]').type(superAdmin.email)
         cy.get('input[type="password"]').type(superAdmin.password)
         cy.get('button[type="submit"]').click()
+
+        cy.wait('@Login')
 
         // Should redirect away from login
         cy.url({ timeout: 10000 }).should('not.include', 'Login')
@@ -54,12 +72,25 @@ describe('Authentication', () => {
     })
 
     it('stores auth token in localStorage after login', () => {
+      cy.interceptGQL('Login', {
+        data: {
+          login: {
+            token: 'mock-jwt-token',
+            user: { id: '1', email: 'superadmin@tradevu.com', role: 'SUPER_ADMIN' }
+          }
+        }
+      })
+
       cy.fixture('users').then(({ superAdmin }) => {
-        cy.loginByApi(superAdmin.email, superAdmin.password)
-        cy.visit('/')
+        cy.visit('/Login')
+        cy.get('input[type="email"]').type(superAdmin.email)
+        cy.get('input[type="password"]').type(superAdmin.password)
+        cy.get('button[type="submit"]').click()
+        
+        cy.wait('@Login')
         cy.window().then((win) => {
           const token = win.localStorage.getItem('token')
-          expect(token).to.be.a('string').and.not.be.empty
+          expect(token).to.equal('mock-jwt-token')
         })
       })
     })

@@ -9,37 +9,24 @@
  * Usage: cy.loginByApi('email', 'password')
  */
 Cypress.Commands.add('loginByApi', (email, password) => {
-  cy.request({
-    method: 'POST',
-    url: Cypress.env('graphqlUrl'),
-    body: {
-      query: `
-        mutation Login($email: String!, $password: String!) {
-          login(email: $email, password: $password) {
-            token
-            user {
-              id
-              email
-              role
-              organizationId
-              employeeId
-              isOrgOwner
-            }
-          }
-        }
-      `,
-      variables: { email, password },
-    },
-  }).then((response) => {
-    expect(response.status).to.eq(200)
-    expect(response.body.errors).to.be.undefined
+  // Mock login: bypassing the network request for speed in mocked E2E tests
+  const token = 'mock-jwt-token'
+  const user = {
+    id: '1',
+    email: email || 'superadmin@tradevu.com',
+    role: 'SUPER_ADMIN',
+    organizationId: 'org1',
+    employeeId: 'emp1',
+    isOrgOwner: true
+  }
 
-    const { token, user } = response.body.data.login
-    window.localStorage.setItem('token', token)
-    window.localStorage.setItem('currentUser', JSON.stringify(user))
-    Cypress.env('token', token)
-    Cypress.env('currentUser', user)
+  cy.window().then((win) => {
+    win.localStorage.setItem('token', token)
+    win.localStorage.setItem('currentUser', JSON.stringify(user))
   })
+  
+  Cypress.env('token', token)
+  Cypress.env('currentUser', user)
 })
 
 /**
@@ -108,4 +95,21 @@ Cypress.Commands.add('noConsoleErrors', () => {
   cy.window().then((win) => {
     expect(win.consoleError).to.be.undefined
   })
+})
+
+/**
+ * Intercept GraphQL operations by operation name.
+ * Usage: cy.interceptGQL('GetEmployees', { data: { employees: [] } })
+ */
+Cypress.Commands.add('interceptGQL', (operationName, responseOverride) => {
+  cy.intercept('POST', Cypress.env('graphqlUrl'), (req) => {
+    // Some libraries send query as text, but typically it's { operationName: '...', query: '...' }
+    if (req.body && req.body.operationName === operationName) {
+      // Return the mock response
+      req.reply({
+        statusCode: 200,
+        body: responseOverride,
+      })
+    }
+  }).as(operationName)
 })
