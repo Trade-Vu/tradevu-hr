@@ -236,7 +236,7 @@ const oldDocUI = `      case 'documents':
           </div>
         );`;
 
-const newDocUI = \`      case 'documents':
+const newDocUI = `      case 'documents':
         const filteredDocs = documents.filter(doc => {
           const matchesSearch = doc.document_name.toLowerCase().includes(docSearchQuery.toLowerCase());
           const matchesCategory = docCategoryFilter === 'All' || doc.category === docCategoryFilter;
@@ -440,7 +440,7 @@ const newDocUI = \`      case 'documents':
               </DialogContent>
             </Dialog>
           </div>
-        );\`;
+        );`;
 
 content = content.replace(oldDocUI, newDocUI);
 
