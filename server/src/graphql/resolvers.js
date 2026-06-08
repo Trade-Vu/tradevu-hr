@@ -265,8 +265,8 @@ export const resolvers = {
           employeeCode,
           organizationId: user.organizationId,
           hireDate: new Date(employeeData.hireDate),
-          employmentStatus: 'PENDING_ONBOARDING',
-          onboardingStatus: 'in_progress',
+          employmentStatus: 'DRAFT',
+          onboardingStatus: 'not_started',
         }
       });
       await createAuditLog({ actorId: user.id, entityType: 'Employee', entityId: emp.id, action: 'CREATE' });
