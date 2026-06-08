@@ -346,6 +346,7 @@ export const typeDefs = `#graphql
     
     createEmployee(input: EmployeeInput!): Employee!
     updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
+    updateEmployeeSelf(input: UpdateEmployeeInput!): Employee!
     deleteEmployee(id: ID!): Boolean
     startOnboarding(employeeId: ID!): Employee
     approveEmployeeData(employeeId: ID!): Employee!

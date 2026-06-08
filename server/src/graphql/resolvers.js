@@ -418,6 +418,34 @@ export const resolvers = {
       await checkAndPromoteEmployee(id, prisma);
       return updated;
     },
+    updateEmployeeSelf: async (_, { input }, { prisma, user }) => {
+      if (!user) throw new Error("Not authenticated");
+      const id = user.id;
+      
+      const existing = await prisma.employee.findFirst({
+        where: { id, organizationId: user.organizationId }
+      });
+      if (!existing) throw new Error("Employee not found");
+      
+      const updateData = {};
+      if (input.phone !== undefined) updateData.phone = input.phone;
+      if (input.privateEmail !== undefined) updateData.privateEmail = input.privateEmail;
+      if (input.dateOfBirth !== undefined) updateData.dateOfBirth = input.dateOfBirth ? new Date(input.dateOfBirth) : null;
+      if (input.gender !== undefined) updateData.gender = input.gender;
+      if (input.maritalStatus !== undefined) updateData.maritalStatus = input.maritalStatus;
+      if (input.nationality !== undefined) updateData.nationality = input.nationality;
+      if (input.nationalId !== undefined) updateData.nationalId = input.nationalId;
+      if (input.passportNumber !== undefined) updateData.passportNumber = input.passportNumber;
+      
+      const updated = await prisma.employee.update({
+        where: { id },
+        data: updateData
+      });
+      
+      await createAuditLog({ actorId: user.id, entityType: 'Employee', entityId: id, action: 'UPDATE_SELF' });
+      await checkAndPromoteEmployee(id, prisma);
+      return updated;
+    },
     deleteEmployee: async (_, { id }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
       await prisma.employee.delete({ where: { id, organizationId: user.organizationId } });

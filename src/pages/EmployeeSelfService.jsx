@@ -101,8 +101,8 @@ export default function EmployeeSelfService() {
   const updateEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const mutation = gql`
-        mutation UpdateEmployeeSelf($id: ID!, $input: UpdateEmployeeInput!) {
-          updateEmployee(id: $id, input: $input) {
+        mutation UpdateEmployeeSelf($input: UpdateEmployeeInput!) {
+          updateEmployeeSelf(input: $input) {
             id
           }
         }
@@ -117,7 +117,7 @@ export default function EmployeeSelfService() {
         nationalId: data.nationalId,
         passportNumber: data.passportNumber
       };
-      return gqlClient.request(mutation, { id, input });
+      return gqlClient.request(mutation, { input });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
