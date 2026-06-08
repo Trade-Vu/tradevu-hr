@@ -201,6 +201,18 @@ NET SALARY: ${payroll.net_salary} SAR
           </div>
         )}
 
+        {employee.employment_status === 'PENDING_APPROVAL' && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+              Awaiting HR Approval
+            </h3>
+            <p className="mt-1 text-sm">
+              Your profile is complete and is currently awaiting review by an HR administrator. You will be notified once your profile data is approved and your onboarding officially begins.
+            </p>
+          </div>
+        )}
+
         {/* Quick Stats */}
         <div className="grid md:grid-cols-4 gap-6">
           <Card className="border-slate-200">

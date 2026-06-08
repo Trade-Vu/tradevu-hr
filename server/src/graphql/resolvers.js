@@ -8,13 +8,13 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
 
   const isComplete = 
     emp.phone && 
+    emp.privateEmail && 
     emp.dateOfBirth && 
-    emp.residentialAddress && 
-    emp.emergencyContact && 
-    emp.emergencyPhone && 
+    emp.gender && 
+    emp.maritalStatus && 
+    emp.nationality && 
     emp.nationalId && 
-    emp.bankName && 
-    emp.bankAccountNumber &&
+    emp.passportNumber &&
     emp.managerId;
 
   if (isComplete) {
@@ -22,7 +22,7 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
     if (docCount > 0) {
       await prisma.employee.update({
         where: { id: employeeId },
-        data: { employmentStatus: 'PENDING_ONBOARDING', onboardingStatus: 'in_progress' }
+        data: { employmentStatus: 'PENDING_APPROVAL' }
       });
     }
   }
@@ -312,6 +312,39 @@ export const resolvers = {
       
       return emp;
     },
+    approveEmployeeData: async (_, { employeeId }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      
+      const emp = await prisma.employee.findFirst({
+        where: { id: employeeId, organizationId: user.organizationId }
+      });
+      
+      if (!emp) throw new Error("Employee not found");
+      if (emp.employmentStatus !== 'PENDING_APPROVAL') {
+        throw new Error("Employee is not in PENDING_APPROVAL state");
+      }
+      
+      // Update employee status to PENDING_ONBOARDING
+      const updatedEmp = await prisma.employee.update({
+        where: { id: employeeId },
+        data: {
+          employmentStatus: 'PENDING_ONBOARDING',
+        }
+      });
+      
+      await createAuditLog({
+        prisma,
+        userId: user.id,
+        organizationId: user.organizationId,
+        action: 'APPROVE_EMPLOYEE_DATA',
+        entityType: 'Employee',
+        entityId: emp.id,
+        details: { previousStatus: 'PENDING_APPROVAL', newStatus: 'PENDING_ONBOARDING' }
+      });
+      
+      return updatedEmp;
+    },
+
     startOnboarding: async (_, { employeeId }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
       

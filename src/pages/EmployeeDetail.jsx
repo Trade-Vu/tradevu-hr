@@ -1841,13 +1841,49 @@ export default function EmployeeDetail() {
                 </Button>
               </div>
 
+              {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_APPROVAL' && (
+                <div className="mb-6">
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-blue-900">Employee Actions</h3>
+                        <p className="text-sm text-blue-700">This employee has completed their Draft profile and is awaiting HR approval.</p>
+                      </div>
+                      <Button 
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={async () => {
+                          try {
+                            const APPROVE_EMPLOYEE = gql`
+                              mutation ApproveEmployeeData($employeeId: ID!) {
+                                approveEmployeeData(employeeId: $employeeId) {
+                                  id
+                                  employmentStatus
+                                }
+                              }
+                            `;
+                            await gqlClient.request(APPROVE_EMPLOYEE, { employeeId });
+                            toast.success("Employee data approved!");
+                            queryClient.invalidateQueries(['employee', employeeId]);
+                          } catch (err) {
+                            toast.error("Failed to approve employee data.");
+                            console.error(err);
+                          }
+                        }}
+                      >
+                        Approve Profile Data
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_ONBOARDING' && (
                 <div className="mb-6">
                   <Card className="border-green-200 bg-green-50">
                     <CardContent className="p-4 flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-green-900">Employee Actions</h3>
-                        <p className="text-sm text-green-700">This employee has completed their Draft profile and is ready for onboarding.</p>
+                        <p className="text-sm text-green-700">This employee has been approved and is ready for onboarding.</p>
                       </div>
                       <Button 
                         className="bg-green-600 hover:bg-green-700 text-white"

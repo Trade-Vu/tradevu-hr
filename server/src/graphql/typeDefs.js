@@ -348,6 +348,7 @@ export const typeDefs = `#graphql
     updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
     deleteEmployee(id: ID!): Boolean
     startOnboarding(employeeId: ID!): Employee
+    approveEmployeeData(employeeId: ID!): Employee!
     
     createDepartment(name: String!, code: String, headEmployeeId: String): Department!
     updateDepartment(id: ID!, name: String, code: String, headEmployeeId: String): Department!
