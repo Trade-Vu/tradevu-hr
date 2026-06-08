@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/AuthContext";
+import { toast } from "sonner";
 
 export default function EmployeeSelfService() {
   const queryClient = useQueryClient();
@@ -121,7 +122,12 @@ export default function EmployeeSelfService() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       setIsEditing(false);
+      toast.success("Profile updated successfully");
     },
+    onError: (error) => {
+      toast.error("Failed to update profile: " + error.message);
+      console.error(error);
+    }
   });
 
   const handleSave = () => {
@@ -311,6 +317,7 @@ NET SALARY: ${payroll.net_salary} SAR
                   <CardTitle>Personal Information</CardTitle>
                   <Button
                     variant="outline"
+                    disabled={updateEmployeeMutation.isPending}
                     onClick={() => {
                       if (isEditing) {
                         handleSave();
@@ -322,7 +329,7 @@ NET SALARY: ${payroll.net_salary} SAR
                     {isEditing ? (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Save Changes
+                        {updateEmployeeMutation.isPending ? "Saving..." : "Save Changes"}
                       </>
                     ) : (
                       <>
@@ -363,6 +370,38 @@ NET SALARY: ${payroll.net_salary} SAR
                     <Label>Start Date</Label>
                     <Input value={employee.start_date ? format(isNaN(Number(employee.start_date)) ? new Date(employee.start_date) : new Date(Number(employee.start_date)), 'MMM dd, yyyy') : ''} disabled />
                   </div>
+                  {!isEditing && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Private Email</Label>
+                        <Input value={employee.privateEmail || 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Date of Birth</Label>
+                        <Input value={employee.dateOfBirth ? format(isNaN(Number(employee.dateOfBirth)) ? new Date(employee.dateOfBirth) : new Date(Number(employee.dateOfBirth)), 'MMM dd, yyyy') : 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Gender</Label>
+                        <Input value={employee.gender || 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Marital Status</Label>
+                        <Input value={employee.maritalStatus || 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nationality</Label>
+                        <Input value={employee.nationality || 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>National ID</Label>
+                        <Input value={employee.nationalId || 'Not provided'} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Passport Number</Label>
+                        <Input value={employee.passportNumber || 'Not provided'} disabled />
+                      </div>
+                    </>
+                  )}
                   {isEditing && (
                     <>
                       <div className="space-y-2">
