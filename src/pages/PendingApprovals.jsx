@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
-import { gql } from '@apollo/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { gql } from 'graphql-request';
+import { gqlClient } from '@/api/graphqlClient';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -114,15 +115,48 @@ const REJECT_PROFILE = gql`
 `;
 
 export default function PendingApprovals() {
-  const { data, loading, error, refetch } = useQuery(GET_PENDING_APPROVALS);
+  const queryClient = useQueryClient();
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: ['pendingApprovals'],
+    queryFn: () => gqlClient.request(GET_PENDING_APPROVALS)
+  });
 
-  const [approveEmployee] = useMutation(APPROVE_EMPLOYEE, { onCompleted: refetch });
-  const [approveDocument] = useMutation(APPROVE_DOCUMENT, { onCompleted: refetch });
-  const [rejectDocument] = useMutation(REJECT_DOCUMENT, { onCompleted: refetch });
-  const [approveLeave] = useMutation(APPROVE_LEAVE, { onCompleted: refetch });
-  const [rejectLeave] = useMutation(REJECT_LEAVE, { onCompleted: refetch });
-  const [approveProfile] = useMutation(APPROVE_PROFILE, { onCompleted: refetch });
-  const [rejectProfile] = useMutation(REJECT_PROFILE, { onCompleted: refetch });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+
+  const { mutate: approveEmployee } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_EMPLOYEE, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: approveDocument } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_DOCUMENT, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: rejectDocument } = useMutation({
+    mutationFn: (variables) => gqlClient.request(REJECT_DOCUMENT, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: approveLeave } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_LEAVE, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: rejectLeave } = useMutation({
+    mutationFn: (variables) => gqlClient.request(REJECT_LEAVE, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: approveProfile } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_PROFILE, variables),
+    onSuccess: invalidate
+  });
+  
+  const { mutate: rejectProfile } = useMutation({
+    mutationFn: (variables) => gqlClient.request(REJECT_PROFILE, variables),
+    onSuccess: invalidate
+  });
 
   if (loading) return <div className="p-8 text-slate-500">Loading approvals...</div>;
   if (error) return <div className="p-8 text-red-500">Error loading approvals: {error.message}</div>;
