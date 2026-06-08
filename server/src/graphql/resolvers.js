@@ -913,6 +913,61 @@ export const resolvers = {
       await createAuditLog({ actorId: user.id, entityType: 'Document', entityId: id, action: 'DELETE' });
       return document;
     },
+    approveDocument: async (_, { id }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      const document = await prisma.document.update({
+        where: { id },
+        data: { status: 'ACTIVE' }
+      });
+      await createAuditLog({ actorId: user.id, entityType: 'Document', entityId: id, action: 'APPROVE' });
+      return document;
+    },
+    rejectDocument: async (_, { id, reason }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      const document = await prisma.document.update({
+        where: { id },
+        data: { status: 'REJECTED' }
+      });
+      await createAuditLog({ actorId: user.id, entityType: 'Document', entityId: id, action: 'REJECT' });
+      
+      // We could also notify the employee here using the reason
+      if (reason) {
+        await prisma.notification.create({
+          data: {
+            userId: document.employeeId,
+            title: 'Document Rejected',
+            message: `Your document "${document.name}" was rejected. Reason: ${reason}`,
+            category: 'ONBOARDING'
+          }
+        });
+      }
+      return document;
+    },
+    approveProfileUpdateRequest: async (_, { id }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      const request = await prisma.profileUpdateRequest.update({
+        where: { id },
+        data: { status: 'APPROVED', reviewedBy: user.id }
+      });
+      // We also need to apply the update to the employee record
+      const updateData = {};
+      updateData[request.fieldName] = request.requestedValue;
+      await prisma.employee.update({
+        where: { id: request.employeeId },
+        data: updateData
+      });
+      await createAuditLog({ actorId: user.id, entityType: 'ProfileUpdateRequest', entityId: id, action: 'APPROVE' });
+      return request;
+    },
+    rejectProfileUpdateRequest: async (_, { id, reason }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      const request = await prisma.profileUpdateRequest.update({
+        where: { id },
+        data: { status: 'REJECTED', reviewedBy: user.id }
+      });
+      await createAuditLog({ actorId: user.id, entityType: 'ProfileUpdateRequest', entityId: id, action: 'REJECT' });
+      return request;
+    },
     markNotificationRead: async (_, { id }, { prisma, user, requireAuth }) => {
       requireAuth();
       return prisma.notification.update({

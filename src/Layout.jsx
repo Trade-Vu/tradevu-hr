@@ -69,6 +69,11 @@ const navigationStructure = [
     icon: LayoutDashboard,
   },
   {
+    title: "Approvals",
+    url: createPageUrl("PendingApprovals"),
+    icon: CheckCircle,
+  },
+  {
     title: "Employees",
     icon: Users,
     isParent: true,

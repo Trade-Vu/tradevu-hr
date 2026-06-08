@@ -82,6 +82,7 @@ import Training from './pages/Training';
 import Performance from './pages/Performance';
 import KnowledgeBank from './pages/KnowledgeBank';
 import Login from './pages/Login';
+import PendingApprovals from './pages/PendingApprovals';
 import __Layout from './Layout.jsx';
 
 
@@ -121,6 +122,7 @@ export const PAGES = {
     "Performance": Performance,
     "KnowledgeBank": KnowledgeBank,
     "Login": Login,
+    "PendingApprovals": PendingApprovals,
 }
 
 export const pagesConfig = {

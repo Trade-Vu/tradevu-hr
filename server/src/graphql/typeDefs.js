@@ -371,6 +371,10 @@ export const typeDefs = `#graphql
     replaceDocumentVersion(id: ID!, fileUrl: String!, fileType: String!, fileSize: Int): Document!
     archiveDocument(id: ID!): Document!
     deleteDocument(id: ID!): Document!
+    approveDocument(id: ID!): Document!
+    rejectDocument(id: ID!, reason: String): Document!
+    approveProfileUpdateRequest(id: ID!): ProfileUpdateRequest!
+    rejectProfileUpdateRequest(id: ID!, reason: String): ProfileUpdateRequest!
     
     markNotificationRead(id: ID!): Notification!
 
