@@ -1004,6 +1004,27 @@ export const resolvers = {
     department: async (parent, _, { prisma }) => {
       if (!parent.departmentId) return null;
       return prisma.department.findUnique({ where: { id: parent.departmentId } });
+    },
+    basicSalary: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.basicSalary : null;
+    },
+    allowances: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.allowances : null;
+    },
+    bankName: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.bankName : null;
+    },
+    bankAccountNumber: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.bankAccountNumber : null;
+    },
+    pensionId: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.pensionId : null;
+    },
+    nationalId: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.nationalId : null;
+    },
+    passportNumber: (parent, _, { user }) => {
+      return (user.role === 'SUPER_ADMIN' || user.role === 'HR_ADMIN' || user.employeeId === parent.id) ? parent.passportNumber : null;
     }
   },
   Department: {
