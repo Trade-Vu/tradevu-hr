@@ -250,7 +250,7 @@ NET SALARY: ${payroll.net_salary} SAR
               Draft Status
             </h3>
             <p className="mt-1 text-sm">
-              Your profile is currently in <strong>DRAFT</strong> status. To proceed to Pending Onboarding, please ensure you have provided your personal details (Phone, Private Email, Date of Birth, Gender, Marital Status, Nationality, National ID, Passport Number) below, uploaded at least one required document in the Documents tab, and your HR administrator has assigned you a manager.
+              Your profile is currently in <strong>DRAFT</strong> status. To proceed to Pending Onboarding, please ensure you have provided your personal details (Phone, Private Email, Date of Birth, Gender, Marital Status, Nationality, National ID, Passport Number) below, and uploaded at least one required document in the Documents tab.
             </p>
           </div>
         )}

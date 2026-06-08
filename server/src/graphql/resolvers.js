@@ -14,8 +14,7 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
     emp.maritalStatus && 
     emp.nationality && 
     emp.nationalId && 
-    emp.passportNumber &&
-    emp.managerId;
+    emp.passportNumber;
 
   if (isComplete) {
     const docCount = await prisma.document.count({ where: { employeeId } });
