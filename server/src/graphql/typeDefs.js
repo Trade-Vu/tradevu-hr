@@ -33,6 +33,8 @@ export const typeDefs = `#graphql
     department: Department
     employmentStatus: String!
     hireDate: String!
+    onboardingStatus: String
+    onboardingProgress: Int
   }
 
   type Department {
