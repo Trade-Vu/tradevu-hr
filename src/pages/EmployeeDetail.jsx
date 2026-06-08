@@ -159,7 +159,13 @@ export default function EmployeeDetail() {
         query GetLeaves($empId: ID!) { leaveRequests(employeeId: $empId) { id startDate endDate totalDays status reason createdAt } }
       `;
       const data = await gqlClient.request(LEAVE_QUERY, { empId: employeeId });
-      return data.leaveRequests || [];
+      return (data.leaveRequests || []).map(l => ({
+        ...l,
+        start_date: l.startDate,
+        end_date: l.endDate,
+        total_days: l.totalDays,
+        leave_type: l.leaveTypeId || 'Annual Leave'
+      }));
     },
     enabled: !!employeeId,
     initialData: [],
@@ -172,7 +178,11 @@ export default function EmployeeDetail() {
         query GetAtt($empId: ID!) { attendanceRecords(employeeId: $empId) { id date clockIn clockOut status } }
       `;
       const data = await gqlClient.request(ATT_QUERY, { empId: employeeId });
-      return data.attendanceRecords || [];
+      return (data.attendanceRecords || []).map(a => ({
+        ...a,
+        check_in: a.clockIn,
+        check_out: a.clockOut
+      }));
     },
     enabled: !!employeeId,
     initialData: [],
