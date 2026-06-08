@@ -271,6 +271,19 @@ export const resolvers = {
       });
       await createAuditLog({ actorId: user.id, entityType: 'Employee', entityId: emp.id, action: 'CREATE' });
       
+      // Auto-generate User account for the new employee
+      const passwordHash = await hashPassword('Welcome123!');
+      await prisma.user.create({
+        data: {
+          email: employeeData.email,
+          passwordHash,
+          role: 'EMPLOYEE',
+          organizationId: user.organizationId,
+          employeeId: emp.id,
+          isActive: true
+        }
+      });
+      
       // Auto-generate onboarding tasks as per PRD 06
       const tasks = [
         { title: 'IT setup', category: 'it_setup' },
