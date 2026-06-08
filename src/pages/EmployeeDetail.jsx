@@ -78,7 +78,7 @@ export default function EmployeeDetail() {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
           employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId employmentStatus employmentType hireDate basicSalary allowances
+            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } employmentStatus employmentType hireDate basicSalary allowances
           }
         }
       `;
@@ -90,6 +90,7 @@ export default function EmployeeDetail() {
         full_name: emp.fullName,
         job_title: emp.jobTitle,
         department_id: emp.departmentId,
+        department_name: emp.department?.name,
         employment_status: emp.employmentStatus,
         employment_type: emp.employmentType,
         start_date: emp.hireDate,
@@ -499,6 +500,7 @@ export default function EmployeeDetail() {
       case 'personal':
         return (
           <div className="space-y-6">
+            <OnboardingProgressWidget employeeId={employeeId} />
             <div>
               <h3 className="text-lg font-semibold text-slate-900 mb-4">About</h3>
               <div className="grid md:grid-cols-2 gap-6">
@@ -780,7 +782,7 @@ export default function EmployeeDetail() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Department</p>
-                  <p className="font-medium text-slate-900">{employee.department_id || 'Not assigned'}</p>
+                  <p className="font-medium text-slate-900">{employee.department_name || employee.department_id || 'Not assigned'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Employment Type</p>
@@ -1823,8 +1825,6 @@ export default function EmployeeDetail() {
                   )}
                 </Button>
               </div>
-
-              <OnboardingProgressWidget employeeId={employeeId} />
 
               {renderContent()}
             </div>
