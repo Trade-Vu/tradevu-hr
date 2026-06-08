@@ -89,19 +89,26 @@ export default function EmployeeDetail() {
         ...e,
         full_name: e.fullName,
         private_email: e.privateEmail,
-        date_of_birth: e.dateOfBirth ? new Date(Number(e.dateOfBirth)).toISOString().split('T')[0] : '',
-        marital_status: e.maritalStatus,
-        national_id: e.nationalId,
-        passport_number: e.passportNumber,
         job_title: e.jobTitle,
         department_name: e.department?.name || 'N/A',
         status: e.employmentStatus,
         employment_type: e.employmentType,
-        hire_date: e.hireDate ? new Date(Number(e.hireDate)).toISOString().split('T')[0] : '',
-        basic_salary: e.basicSalary,
-        bank_name: e.bankName,
-        bank_account_number: e.bankAccountNumber,
-        pension_id: e.pensionId
+        start_date: e.hireDate ? new Date(Number(e.hireDate)).toISOString().split('T')[0] : '',
+        personal_info: {
+          date_of_birth: e.dateOfBirth ? new Date(Number(e.dateOfBirth)).toISOString().split('T')[0] : '',
+          gender: e.gender,
+          marital_status: e.maritalStatus,
+          nationality: e.nationality,
+          national_id: e.nationalId,
+          iqama_number: e.passportNumber
+        },
+        payroll_details: {
+          basic_salary: e.basicSalary,
+          bank_name: e.bankName,
+          iban: e.bankAccountNumber,
+          gosi_number: e.pensionId
+        },
+        contract_details: {}
       };
     },
     enabled: !!employeeId
