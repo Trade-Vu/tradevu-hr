@@ -3,8 +3,33 @@ import { v2 as cloudinary } from 'cloudinary';
 import { createAuditLog } from '../utils/audit.js';
 
 const checkAndPromoteEmployee = async (employeeId, prisma) => {
-  const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+  const emp = await prisma.employee.findUnique({ 
+    where: { id: employeeId },
+    include: { department: true }
+  });
   if (!emp || emp.employmentStatus !== 'DRAFT') return;
+
+  // Auto-assign manager if missing
+  let currentManagerId = emp.managerId;
+  if (!currentManagerId) {
+    if (emp.department?.headEmployeeId) {
+      currentManagerId = emp.department.headEmployeeId;
+    } else {
+      const hrAdmin = await prisma.user.findFirst({
+        where: { organizationId: emp.organizationId, role: 'HR_ADMIN', employeeId: { not: null } }
+      });
+      if (hrAdmin) {
+        currentManagerId = hrAdmin.employeeId;
+      }
+    }
+    
+    if (currentManagerId) {
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: { managerId: currentManagerId }
+      });
+    }
+  }
 
   const isComplete = 
     emp.phone && 
@@ -14,7 +39,8 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
     emp.maritalStatus && 
     emp.nationality && 
     emp.nationalId && 
-    emp.passportNumber;
+    emp.passportNumber &&
+    currentManagerId;
 
   if (isComplete) {
     const docCount = await prisma.document.count({ where: { employeeId } });
