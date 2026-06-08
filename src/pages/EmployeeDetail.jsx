@@ -740,10 +740,11 @@ export default function EmployeeDetail() {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full_time">Full Time</SelectItem>
-                      <SelectItem value="part_time">Part Time</SelectItem>
+                      <SelectItem value="full_time">Full-time</SelectItem>
                       <SelectItem value="contract">Contract</SelectItem>
                       <SelectItem value="intern">Intern</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                      <SelectItem value="temporary">Temporary Staff</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

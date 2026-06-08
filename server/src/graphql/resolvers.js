@@ -307,12 +307,13 @@ export const resolvers = {
     },
     createEmployee: async (_, { input }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
-      const { templateId, ...employeeData } = input;
+      const { templateId, employmentType, ...employeeData } = input;
       const count = await prisma.employee.count({ where: { organizationId: user.organizationId } });
       const employeeCode = `EMP-${(count + 1).toString().padStart(6, '0')}`;
       const emp = await prisma.employee.create({
         data: {
           ...employeeData,
+          employmentType: employmentType ? employmentType.toUpperCase() : 'FULL_TIME',
           employeeCode,
           organizationId: user.organizationId,
           hireDate: new Date(employeeData.hireDate),

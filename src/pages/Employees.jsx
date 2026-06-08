@@ -100,6 +100,7 @@ export default function Employees() {
           email: employeeData.email,
           jobTitle: employeeData.job_title,
           departmentId: employeeData.department_id,
+          employmentType: employeeData.employment_type,
           hireDate: employeeData.start_date,
           basicSalary: parseFloat(employeeData.basic_salary) || 0,
           templateId: employeeData.template_id

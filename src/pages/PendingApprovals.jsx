@@ -6,7 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye } from 'lucide-react';
 
 const GET_PENDING_APPROVALS = gql`
   query GetPendingApprovals {
@@ -26,6 +27,8 @@ const GET_PENDING_APPROVALS = gql`
       category
       status
       employeeId
+      fileUrl
+      fileType
       createdAt
     }
     leaveRequests {
@@ -255,6 +258,26 @@ export default function PendingApprovals() {
                         <p className="text-sm text-slate-500">Category: {doc.category} • Uploaded by: {getEmployeeName(doc.employeeId)}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                              <Eye className="w-4 h-4" />
+                              View
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>{doc.name}</DialogTitle>
+                            </DialogHeader>
+                            <div className="w-full h-[70vh] flex items-center justify-center bg-slate-100 rounded-lg overflow-hidden">
+                              {doc.fileType?.startsWith('image/') ? (
+                                <img src={doc.fileUrl} alt={doc.name} className="max-w-full max-h-full object-contain" />
+                              ) : (
+                                <iframe src={doc.fileUrl} className="w-full h-full border-0" title={doc.name} />
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Button 
                           variant="outline" 
                           className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2"

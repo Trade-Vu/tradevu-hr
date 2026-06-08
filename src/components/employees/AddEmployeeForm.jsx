@@ -17,6 +17,7 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
     phone: "",
     status: "not_started",
     progress_percentage: 0,
+    employment_type: "full_time",
   });
 
   const handleSubmit = (e) => {
@@ -128,6 +129,21 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
                         {dept.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="employment_type">Employment Type</Label>
+                <Select value={formData.employment_type} onValueChange={(value) => handleChange("employment_type", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full_time">Full-time</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="intern">Intern</SelectItem>
+                    <SelectItem value="consultant">Consultant</SelectItem>
+                    <SelectItem value="temporary">Temporary Staff</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

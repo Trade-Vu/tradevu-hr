@@ -308,6 +308,7 @@ export const typeDefs = `#graphql
     email: String!
     jobTitle: String!
     departmentId: String
+    employmentType: String
     hireDate: String!
     basicSalary: Float
     templateId: String
