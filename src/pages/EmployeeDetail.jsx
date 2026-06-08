@@ -72,7 +72,7 @@ export default function EmployeeDetail() {
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [assetToRemove, setAssetToRemove] = useState(null);
 
-  const { data: employee, isLoading } = useQuery({
+  const { data: employee, isLoading, isError, error } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: async () => {
       const EMP_QUERY = gql`
@@ -83,39 +83,28 @@ export default function EmployeeDetail() {
         }
       `;
       const data = await gqlClient.request(EMP_QUERY, { id: employeeId });
-      if (!data.employee) return null;
-      const emp = data.employee;
+      if (!data.employee) throw new Error("Employee not found");
+      const e = data.employee;
       return {
-        ...emp,
-        full_name: emp.fullName,
-        job_title: emp.jobTitle,
-        department_id: emp.departmentId,
-        department_name: emp.department?.name,
-        employment_status: emp.employmentStatus,
-        employment_type: emp.employmentType,
-        start_date: emp.hireDate,
-        private_email: emp.privateEmail,
-        phone: emp.phone,
-        personal_info: {
-          date_of_birth: emp.dateOfBirth ? new Date(emp.dateOfBirth).toISOString().split('T')[0] : '',
-          gender: emp.gender,
-          marital_status: emp.maritalStatus,
-          nationality: emp.nationality,
-          national_id: emp.nationalId,
-          iqama_number: emp.passportNumber
-        },
-        contract_details: {}, // Mocked
-        leave_balances: {}, // Mocked
-        payroll_details: {
-          basic_salary: emp.basicSalary,
-          allowances: emp.allowances ? (typeof emp.allowances === 'string' ? JSON.parse(emp.allowances) : emp.allowances) : {},
-          bank_name: emp.bankName,
-          iban: emp.bankAccountNumber,
-          gosi_number: emp.pensionId
-        }
+        ...e,
+        full_name: e.fullName,
+        private_email: e.privateEmail,
+        date_of_birth: e.dateOfBirth ? new Date(Number(e.dateOfBirth)).toISOString().split('T')[0] : '',
+        marital_status: e.maritalStatus,
+        national_id: e.nationalId,
+        passport_number: e.passportNumber,
+        job_title: e.jobTitle,
+        department_name: e.department?.name || 'N/A',
+        status: e.employmentStatus,
+        employment_type: e.employmentType,
+        hire_date: e.hireDate ? new Date(Number(e.hireDate)).toISOString().split('T')[0] : '',
+        basic_salary: e.basicSalary,
+        bank_name: e.bankName,
+        bank_account_number: e.bankAccountNumber,
+        pension_id: e.pensionId
       };
     },
-    enabled: !!employeeId,
+    enabled: !!employeeId
   });
 
   const { data: employees = [] } = useQuery({
@@ -148,10 +137,10 @@ export default function EmployeeDetail() {
         ...d,
         document_name: d.name,
         file_url: d.fileUrl,
-        file_type: d.fileType
+        file_name: d.name + '.' + (d.fileType || 'pdf')
       }));
     },
-    enabled: !!employeeId,
+    enabled: !!employee,
     initialData: [],
   });
 
@@ -179,11 +168,10 @@ export default function EmployeeDetail() {
         ...l,
         start_date: l.startDate,
         end_date: l.endDate,
-        total_days: l.totalDays,
-        leave_type: l.leaveTypeId || 'Annual Leave'
+        leave_type: 'Annual Leave' // mock
       }));
     },
-    enabled: !!employeeId,
+    enabled: !!employee,
     initialData: [],
   });
 
@@ -200,7 +188,7 @@ export default function EmployeeDetail() {
         check_out: a.clockOut
       }));
     },
-    enabled: !!employeeId,
+    enabled: !!employee,
     initialData: [],
   });
 
@@ -229,6 +217,47 @@ export default function EmployeeDetail() {
     enabled: !!employeeId,
     initialData: [],
   });
+
+  const handleExportAttendance = () => {
+    const csvContent = "data:text/csv;charset=utf-8,Date,Check In,Check Out,Status\n" 
+      + attendance.map(a => `${a.date},${a.check_in},${a.check_out},${a.status}`).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const a = document.createElement("a");
+    a.href = encodedUri;
+    a.download = `${employee?.full_name}_attendance_${format(new Date(), 'yyyy-MM')}.csv`;
+    a.click();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 bg-white rounded-xl shadow border border-red-200">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Employee</h2>
+          <p className="text-slate-600 mb-4">{error?.message || "Failed to fetch employee details"}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 bg-white rounded-xl shadow border border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">Employee Not Found</h2>
+          <p className="text-slate-600 mb-4">The employee you're looking for doesn't exist or you don't have access.</p>
+        </div>
+      </div>
+    );
+  }
 
   const [compForm, setCompForm] = useState({ basicSalary: '', housing: '', transport: '', food: '', other: '', reason: '' });
   const [showCompDialog, setShowCompDialog] = useState(false);
