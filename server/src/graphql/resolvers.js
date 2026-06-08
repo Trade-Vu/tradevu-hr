@@ -99,8 +99,8 @@ export const resolvers = {
           throw new Error("Cannot view documents for other employees");
         }
         where.employeeId = user.employeeId;
-        where.status = 'ACTIVE';
-        where.visibilityLevel = { in: ['employee', 'all'] };
+        where.status = { in: ['ACTIVE', 'PENDING'] };
+        where.visibilityLevel = { in: ['employee', 'all', 'EMPLOYEE', 'ALL'] };
         return prisma.document.findMany({ where, orderBy: { createdAt: 'desc' } });
       }
       

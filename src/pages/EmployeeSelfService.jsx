@@ -160,7 +160,11 @@ export default function EmployeeSelfService() {
           }
         }
       `;
-      return gqlClient.request(MUTATION, input);
+      // Ensure visibilityLevel is lowercase 'employee'
+      return gqlClient.request(MUTATION, {
+        ...input,
+        visibilityLevel: input.visibilityLevel?.toLowerCase() || 'employee'
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-documents', employeeId] });
