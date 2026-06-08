@@ -21,6 +21,9 @@ import EmployeeList from "../components/dashboard/EmployeeList";
 import RecentActivity from "../components/dashboard/RecentActivity";
 import QuickActions from "../components/dashboard/QuickActions";
 import CelebrationsWidget from "../components/dashboard/CelebrationsWidget";
+import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import EmployeeDetail from "./EmployeeDetail";
 
 import { useAuth } from "@/lib/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -29,6 +32,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
   if (user?.role === 'EMPLOYEE') {
     return <Navigate to="/employeeselfservice" />;
@@ -99,30 +103,49 @@ export default function Dashboard() {
     return matchesSearch && matchesStatus;
   });
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="p-4 md:p-8 space-y-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto"
+    >
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">HR Dashboard</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">HR Dashboard</h1>
           <p className="text-slate-500 mt-1">Welcome back! Here's what's happening with onboarding.</p>
         </div>
         <Link to={createPageUrl("Employees?action=add")}>
-          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
+          <Button className="bg-slate-900 text-white hover:bg-slate-800 shadow-sm rounded-lg px-5 transition-all">
             <Plus className="w-4 h-4 mr-2" />
             Add New Hire
           </Button>
         </Link>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatsCard
           title="Total Employees"
           value={totalEmployees}
           icon={Users}
           color="blue"
           trend={`${templates.length} templates`}
+          isLoading={loadingEmployees}
         />
         <StatsCard
           title="Active Onboarding"
@@ -130,6 +153,7 @@ export default function Dashboard() {
           icon={Clock}
           color="orange"
           trend={`${pendingTasks} pending tasks`}
+          isLoading={loadingEmployees}
         />
         <StatsCard
           title="Completed"
@@ -137,6 +161,7 @@ export default function Dashboard() {
           icon={CheckCircle}
           color="green"
           trend="This month"
+          isLoading={loadingEmployees}
         />
         <StatsCard
           title="Avg. Progress"
@@ -144,20 +169,23 @@ export default function Dashboard() {
           icon={TrendingUp}
           color="purple"
           trend="Overall"
+          isLoading={loadingEmployees}
         />
-      </div>
+      </motion.div>
 
       {/* Quick Actions */}
-      <QuickActions />
+      <motion.div variants={itemVariants}>
+        <QuickActions />
+      </motion.div>
 
       {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6">
         {/* Employee List - Takes 2 columns */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-200">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden h-full flex flex-col">
+            <div className="p-5 border-b border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-xl font-bold text-slate-900">Employees</h2>
+                <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Employees</h2>
                 <div className="flex gap-2 w-full md:w-auto">
                   <div className="relative flex-1 md:flex-none">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -165,13 +193,13 @@ export default function Dashboard() {
                       placeholder="Search employees..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-full md:w-64"
+                      className="pl-9 w-full md:w-64 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                     />
                   </div>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-700 transition-colors cursor-pointer"
                   >
                     <option value="all">All Status</option>
                     <option value="not_started">Not Started</option>
@@ -181,10 +209,13 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <EmployeeList 
-              employees={filteredEmployees} 
-              isLoading={loadingEmployees}
-            />
+            <div className="flex-1 p-0">
+              <EmployeeList 
+                employees={filteredEmployees} 
+                isLoading={loadingEmployees}
+                onOpenDetail={setSelectedEmployeeId}
+              />
+            </div>
           </div>
         </div>
 
@@ -193,7 +224,20 @@ export default function Dashboard() {
           <CelebrationsWidget />
           <RecentActivity tasks={tasks} employees={employees} />
         </div>
-      </div>
-    </div>
+      </motion.div>
+
+      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && setSelectedEmployeeId(null)}>
+        <DialogContent className="max-w-6xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-transparent" hideCloseButton>
+          <DialogTitle className="sr-only">Employee Detail</DialogTitle>
+          <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
+          {selectedEmployeeId && (
+            <EmployeeDetail 
+              employeeIdProp={selectedEmployeeId} 
+              onClose={() => setSelectedEmployeeId(null)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }

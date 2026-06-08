@@ -7,7 +7,8 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
-import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye } from 'lucide-react';
+import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye, Inbox } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const GET_PENDING_APPROVALS = gql`
   query GetPendingApprovals {
@@ -117,7 +118,6 @@ const REJECT_PROFILE = gql`
   }
 `;
 
-
 const RejectDialog = ({ onReject, title = "Reject Request" }) => {
   const [reason, setReason] = React.useState("");
   const [open, setOpen] = React.useState(false);
@@ -132,29 +132,29 @@ const RejectDialog = ({ onReject, title = "Reject Request" }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2">
+        <Button variant="outline" className="text-slate-600 border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors">
           <XCircle className="w-4 h-4" />
           Reject
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="border-slate-100 shadow-xl rounded-2xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-slate-900 tracking-tight">{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Reason for rejection (Required)</label>
             <textarea
-              className="w-full min-h-[100px] p-3 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full min-h-[100px] p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
               placeholder="Please provide a reason..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" className="rounded-lg" onClick={() => setOpen(false)}>Cancel</Button>
             <Button 
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm"
               disabled={!reason.trim()} 
               onClick={handleReject}
             >
@@ -166,6 +166,36 @@ const RejectDialog = ({ onReject, title = "Reject Request" }) => {
     </Dialog>
   );
 };
+
+const ApprovalsSkeleton = () => (
+  <div className="space-y-4 animate-pulse">
+    {Array(4).fill(0).map((_, i) => (
+      <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border border-slate-100 rounded-xl bg-white shadow-sm gap-4">
+        <div className="flex-1 space-y-3 w-full">
+          <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+          <div className="h-3 bg-slate-100 rounded w-1/2"></div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="h-9 w-24 bg-slate-100 rounded-lg"></div>
+          <div className="h-9 w-24 bg-slate-100 rounded-lg"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const EmptyState = ({ message, icon: Icon }) => (
+  <motion.div 
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="text-center p-12 flex flex-col items-center justify-center border border-slate-100 rounded-2xl bg-white/50 border-dashed"
+  >
+    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
+      <Icon className="w-8 h-8 text-slate-300" />
+    </div>
+    <p className="text-slate-500 font-medium">{message}</p>
+  </motion.div>
+);
 
 export default function PendingApprovals() {
   const queryClient = useQueryClient();
@@ -211,8 +241,27 @@ export default function PendingApprovals() {
     onSuccess: invalidate
   });
 
-  if (loading) return <div className="p-8 text-slate-500">Loading approvals...</div>;
-  if (error) return <div className="p-8 text-red-500">Error loading approvals: {error.message}</div>;
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  if (error) return (
+    <div className="p-8 text-center mt-10">
+      <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg">
+        <AlertCircle className="w-5 h-5" />
+        <span>Error loading approvals: {error.message}</span>
+      </div>
+    </div>
+  );
 
   const pendingEmployees = data?.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL') || [];
   const pendingDocuments = data?.documents?.filter(d => d.status === 'PENDING') || [];
@@ -225,128 +274,139 @@ export default function PendingApprovals() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Approvals Inbox</h1>
-        <p className="text-slate-500">Review and action pending requests across the organization.</p>
-      </div>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 p-4 md:p-8 max-w-5xl mx-auto"
+    >
+      <motion.div variants={itemVariants}>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
+          <Inbox className="w-4 h-4 text-indigo-600" />
+          <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Inbox</span>
+        </div>
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Approvals</h1>
+        <p className="text-slate-500 mt-1">Review and action pending requests across the organization.</p>
+      </motion.div>
 
-      <Tabs defaultValue="onboarding" className="space-y-6">
-        <TabsList className="bg-white border p-1 rounded-lg">
-          <TabsTrigger value="onboarding" className="data-[state=active]:bg-slate-100 flex gap-2">
-            <UserCircle className="w-4 h-4" />
-            Onboarding 
-            {pendingEmployees.length > 0 && <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{pendingEmployees.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="data-[state=active]:bg-slate-100 flex gap-2">
-            <FileText className="w-4 h-4" />
-            Documents
-            {pendingDocuments.length > 0 && <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{pendingDocuments.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="leaves" className="data-[state=active]:bg-slate-100 flex gap-2">
-            <CalendarRange className="w-4 h-4" />
-            Leave Requests
-            {pendingLeaves.length > 0 && <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{pendingLeaves.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="profiles" className="data-[state=active]:bg-slate-100 flex gap-2">
-            <UserCircle className="w-4 h-4" />
-            Profile Updates
-            {pendingProfiles.length > 0 && <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700">{pendingProfiles.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
+      <motion.div variants={itemVariants}>
+        <Tabs defaultValue="onboarding" className="space-y-6">
+          <TabsList className="bg-slate-50/80 border border-slate-100 p-1.5 rounded-xl">
+            <TabsTrigger value="onboarding" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+              <UserCircle className="w-4 h-4" />
+              Onboarding 
+              {pendingEmployees.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingEmployees.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+              <FileText className="w-4 h-4" />
+              Documents
+              {pendingDocuments.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingDocuments.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="leaves" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+              <CalendarRange className="w-4 h-4" />
+              Leave Requests
+              {pendingLeaves.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingLeaves.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+              <UserCircle className="w-4 h-4" />
+              Profile Updates
+              {pendingProfiles.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingProfiles.length}</Badge>}
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="onboarding">
-          <Card>
-            <CardHeader>
-              <CardTitle>Employees Pending Onboarding Approval</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingEmployees.length === 0 ? (
-                <div className="text-center p-8 text-slate-500">No pending employee onboardings.</div>
+          <div className="pt-2">
+            <TabsContent value="onboarding" className="m-0 focus-visible:outline-none">
+              {loading ? (
+                <ApprovalsSkeleton />
+              ) : pendingEmployees.length === 0 ? (
+                <EmptyState message="No pending employee onboardings." icon={UserCircle} />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {pendingEmployees.map(emp => (
-                    <div key={emp.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                    <motion.div 
+                      key={emp.id} 
+                      whileHover={{ y: -2 }}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                    >
                       <div>
-                        <h4 className="font-medium text-slate-900">{emp.fullName}</h4>
-                        <p className="text-sm text-slate-500">{emp.jobTitle} • {emp.department?.name || 'No Dept'}</p>
+                        <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
+                        <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => window.open(`/employee/${emp.id}`, '_blank')}>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button variant="outline" className="rounded-lg border-slate-200 hover:bg-slate-50" onClick={() => window.open(`/employee/${emp.id}`, '_blank')}>
                           View Profile
                         </Button>
                         <Button 
-                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveEmployee({ employeeId: emp.id })}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Approve
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="documents">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingDocuments.length === 0 ? (
-                <div className="text-center p-8 text-slate-500">No pending documents.</div>
+            <TabsContent value="documents" className="m-0 focus-visible:outline-none">
+              {loading ? (
+                <ApprovalsSkeleton />
+              ) : pendingDocuments.length === 0 ? (
+                <EmptyState message="No pending documents." icon={FileText} />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {pendingDocuments.map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                    <motion.div 
+                      key={doc.id} 
+                      whileHover={{ y: -2 }}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                    >
                       <div>
-                        <h4 className="font-medium text-slate-900">{doc.name}</h4>
-                        <p className="text-sm text-slate-500">Category: {doc.category} • Uploaded by: {getEmployeeName(doc.employeeId)}</p>
+                        <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{doc.name}</h4>
+                        <p className="text-sm text-slate-500 mt-1">Category: <span className="font-medium text-slate-600">{doc.category}</span> • Uploaded by: {getEmployeeName(doc.employeeId)}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                            <Button variant="outline" className="rounded-lg text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2">
                               <Eye className="w-4 h-4" />
-                              View
+                              Preview
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                            <DialogHeader>
-                              <DialogTitle>{doc.name}</DialogTitle>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border-0 shadow-2xl">
+                            <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white">
+                              <DialogTitle className="text-slate-900">{doc.name}</DialogTitle>
                               <DialogDescription className="sr-only">Preview of {doc.name}</DialogDescription>
                             </DialogHeader>
-                            <div className="w-full flex-1 flex items-center justify-center bg-slate-100 rounded-lg overflow-hidden relative min-h-[60vh]">
+                            <div className="w-full flex-1 flex items-center justify-center bg-slate-50 relative min-h-[60vh] p-4">
                               {!doc.fileUrl ? (
-                                <p className="text-slate-500">Document URL not available</p>
+                                <p className="text-slate-500 font-medium">Document URL not available</p>
                               ) : ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(doc.fileType?.toLowerCase()) || doc.fileType?.startsWith('image/') || doc.fileUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                                <img src={doc.fileUrl} alt={doc.name} className="max-w-full max-h-full object-contain" />
+                                <img src={doc.fileUrl} alt={doc.name} className="max-w-full max-h-full object-contain rounded-lg shadow-sm border border-slate-200" />
                               ) : doc.fileType?.toLowerCase() === 'pdf' || doc.fileUrl.toLowerCase().endsWith('.pdf') ? (
                                 doc.fileUrl.includes('res.cloudinary.com') ? (
-                                  <div className="flex flex-col items-center w-full h-full p-4 overflow-auto">
-                                    <img src={doc.fileUrl.replace(/\.pdf$/i, '.jpg')} alt={doc.name} className="max-w-full h-auto object-contain shadow-sm border border-slate-200" />
-                                    <p className="text-xs text-slate-500 mt-2 text-center">Previewing first page. Click "Open in New Tab" to view the full PDF.</p>
+                                  <div className="flex flex-col items-center w-full h-full overflow-auto">
+                                    <img src={doc.fileUrl.replace(/\.pdf$/i, '.jpg')} alt={doc.name} className="max-w-full h-auto object-contain shadow-sm border border-slate-200 rounded-lg" />
+                                    <p className="text-xs font-medium text-slate-500 mt-3 text-center">Previewing first page. Click "Open in New Tab" to view the full PDF.</p>
                                   </div>
                                 ) : (
-                                  <object data={doc.fileUrl} type="application/pdf" className="w-full h-full">
-                                    <p className="text-center p-4">Your browser does not support PDFs. <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Download the PDF</a>.</p>
+                                  <object data={doc.fileUrl} type="application/pdf" className="w-full h-full rounded-lg shadow-sm">
+                                    <p className="text-center p-4 text-slate-500 font-medium">Your browser does not support PDFs. <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">Download the PDF</a>.</p>
                                   </object>
                                 )
                               ) : (
-                                <iframe src={doc.fileUrl} className="w-full h-full border-0" title={doc.name} />
+                                <iframe src={doc.fileUrl} className="w-full h-full border-0 rounded-lg shadow-sm bg-white" title={doc.name} />
                               )}
                               {doc.fileUrl && (
                                 <a 
                                   href={doc.fileUrl} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
-                                  className="absolute top-4 right-4 bg-white/90 text-blue-600 text-sm px-3 py-1.5 rounded-md shadow border border-slate-200 hover:bg-white hover:text-blue-700 z-10 font-medium flex items-center gap-2"
+                                  className="absolute bottom-6 right-6 bg-slate-900 text-white text-sm px-4 py-2 rounded-full shadow-lg hover:bg-slate-800 transition-colors z-10 font-medium flex items-center gap-2"
                                 >
-                                  <Eye className="w-4 h-4" /> Open in New Tab
+                                  <Eye className="w-4 h-4" /> Open Original
                                 </a>
                               )}
                             </div>
@@ -354,99 +414,102 @@ export default function PendingApprovals() {
                         </Dialog>
                         <RejectDialog onReject={(reason) => rejectDocument({ id: doc.id, reason })} title={`Reject Document: ${doc.name}`} />
                         <Button 
-                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveDocument({ id: doc.id })}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Approve
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="leaves">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Leave Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingLeaves.length === 0 ? (
-                <div className="text-center p-8 text-slate-500">No pending leave requests.</div>
+            <TabsContent value="leaves" className="m-0 focus-visible:outline-none">
+              {loading ? (
+                <ApprovalsSkeleton />
+              ) : pendingLeaves.length === 0 ? (
+                <EmptyState message="No pending leave requests." icon={CalendarRange} />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {pendingLeaves.map(leave => (
-                    <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                    <motion.div 
+                      key={leave.id} 
+                      whileHover={{ y: -2 }}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                    >
                       <div>
-                        <h4 className="font-medium text-slate-900">{getEmployeeName(leave.employeeId)}</h4>
-                        <p className="text-sm text-slate-500">
-                          {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()} ({leave.totalDays} days)
-                        </p>
-                        {leave.reason && <p className="text-sm text-slate-500 italic mt-1">"{leave.reason}"</p>}
+                        <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{getEmployeeName(leave.employeeId)}</h4>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-600 font-medium py-0 h-5 text-[10px]">
+                            {leave.totalDays} Days
+                          </Badge>
+                          <span className="text-sm text-slate-500">
+                            {new Date(leave.startDate).toLocaleDateString()} <span className="text-slate-300 mx-1">→</span> {new Date(leave.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {leave.reason && <p className="text-sm text-slate-500 italic mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">"{leave.reason}"</p>}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <RejectDialog onReject={(reason) => rejectLeave({ id: leave.id, reason })} title="Reject Leave Request" />
                         <Button 
-                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveLeave({ id: leave.id })}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Approve
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="profiles">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Profile Updates</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingProfiles.length === 0 ? (
-                <div className="text-center p-8 text-slate-500">No pending profile updates.</div>
+            <TabsContent value="profiles" className="m-0 focus-visible:outline-none">
+              {loading ? (
+                <ApprovalsSkeleton />
+              ) : pendingProfiles.length === 0 ? (
+                <EmptyState message="No pending profile updates." icon={UserCircle} />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {pendingProfiles.map(update => (
-                    <div key={update.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                    <motion.div 
+                      key={update.id} 
+                      whileHover={{ y: -2 }}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                    >
                       <div>
-                        <h4 className="font-medium text-slate-900">{getEmployeeName(update.employeeId)}</h4>
+                        <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{getEmployeeName(update.employeeId)}</h4>
                         <p className="text-sm text-slate-500 mt-1">
-                          Requested change to <span className="font-semibold text-slate-700">{update.fieldName}</span>:
+                          Requested change to <span className="font-semibold text-slate-700">{update.fieldName}</span>
                         </p>
-                        <div className="flex items-center gap-2 mt-2 text-sm">
-                          <span className="text-red-500 line-through bg-red-50 px-2 py-0.5 rounded">{update.currentValue || '(empty)'}</span>
-                          <span className="text-slate-400">→</span>
-                          <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded">{update.requestedValue}</span>
+                        <div className="flex items-center gap-2 mt-2 text-sm border border-slate-100 bg-slate-50 p-2 rounded-lg inline-flex">
+                          <span className="text-slate-400 line-through font-medium">{update.currentValue || '(empty)'}</span>
+                          <span className="text-slate-300">→</span>
+                          <span className="text-indigo-600 font-semibold">{update.requestedValue}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <RejectDialog onReject={(reason) => rejectProfile({ id: update.id, reason })} title="Reject Profile Update" />
                         <Button 
-                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveProfile({ id: update.id })}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Approve
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+            </TabsContent>
+          </div>
+        </Tabs>
+      </motion.div>
+    </motion.div>
   );
 }

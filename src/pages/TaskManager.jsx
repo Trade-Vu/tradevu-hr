@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from 'graphql-request';
@@ -13,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Kanban, FolderKanban } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { motion } from "framer-motion";
 
 const GET_TASKS = gql`
   query GetTasks {
@@ -48,6 +48,61 @@ const UPDATE_TASK = gql`
   }
 `;
 
+const TaskSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+    {Array(5).fill(0).map((_, i) => (
+      <div key={i} className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-4 bg-slate-200 rounded w-1/3 animate-pulse"></div>
+          <div className="w-6 h-4 bg-slate-200 rounded-full animate-pulse"></div>
+        </div>
+        <div className="space-y-3">
+          {Array(3).fill(0).map((_, j) => (
+            <div key={j} className="h-28 bg-white border border-slate-100 rounded-xl shadow-sm p-4 animate-pulse flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-100 rounded w-3/4"></div>
+                <div className="h-2 bg-slate-100 rounded w-full"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="w-12 h-4 bg-slate-100 rounded"></div>
+                <div className="w-6 h-6 bg-slate-100 rounded-full"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const ProjectSkeleton = () => (
+  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {Array(6).fill(0).map((_, i) => (
+      <div key={i} className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 h-[250px] animate-pulse flex flex-col">
+        <div className="flex justify-between items-start mb-4">
+          <div className="h-5 bg-slate-100 rounded w-1/2"></div>
+          <div className="w-16 h-5 bg-slate-100 rounded-full"></div>
+        </div>
+        <div className="h-3 bg-slate-100 rounded w-full mb-2"></div>
+        <div className="h-3 bg-slate-100 rounded w-2/3 mb-6"></div>
+        
+        <div className="space-y-2 mb-6">
+          <div className="flex justify-between">
+            <div className="w-12 h-3 bg-slate-100 rounded"></div>
+            <div className="w-8 h-3 bg-slate-100 rounded"></div>
+          </div>
+          <div className="w-full h-2 bg-slate-50 rounded-full"></div>
+        </div>
+
+        <div className="mt-auto grid grid-cols-2 gap-4">
+          <div className="h-8 bg-slate-100 rounded"></div>
+          <div className="h-8 bg-slate-100 rounded"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 export default function TaskManager() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
@@ -71,7 +126,6 @@ export default function TaskManager() {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Mock user
         const currentUser = {
           email: "mock_user@example.com",
           role: "admin",
@@ -79,7 +133,6 @@ export default function TaskManager() {
           full_name: "Mock User"
         };
         setUser(currentUser);
-        // Set initial form values based on the logged-in user
         setProjectForm(prev => ({ ...prev, project_manager: currentUser.email }));
         setTaskForm(prev => ({ ...prev, assigned_to: currentUser.email }));
       } catch (error) {
@@ -95,12 +148,11 @@ export default function TaskManager() {
   });
   const employees = employeesData.employees || [];
 
-  const { data: allTasksData = {} } = useQuery({
+  const { data: allTasksData = {}, isLoading: tasksLoading } = useQuery({
     queryKey: ['onboarding-tasks'],
     queryFn: async () => await gqlClient.request(GET_TASKS),
   });
 
-  // Dynamically create projects from unique employee IDs in onboarding tasks
   const uniqueEmployeeIds = Array.from(new Set((allTasksData.onboardingTasks || []).map(t => t.employeeId).filter(Boolean)));
   const projects = uniqueEmployeeIds.map(empId => {
     const emp = employees.find(e => e.id === empId);
@@ -112,7 +164,6 @@ export default function TaskManager() {
     };
   });
 
-  // Map onboarding tasks to Kanban format
   const allTasks = (allTasksData.onboardingTasks || []).map(t => ({
     id: t.id,
     title: t.title,
@@ -126,41 +177,35 @@ export default function TaskManager() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (data) => {
-      console.log("Mock create project", data);
       return {
         ...data,
         id: `project_${Date.now()}`,
-        organization_id: user.organization_id, // Ensure organization_id is passed
-        status: 'planning', // Default status for new projects
+        organization_id: user.organization_id,
+        status: 'planning',
       };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setShowProjectDialog(false);
-      setProjectForm({ project_name: '', description: '', project_manager: user?.email || '' }); // Reset form
+      setProjectForm({ project_name: '', description: '', project_manager: user?.email || '' });
     },
-    onError: (error) => {
-      console.error("Error creating project:", error);
-      // Optionally show a toast notification
-    }
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data) => {
-      console.log("Mock create task", data);
       return {
         ...data,
         id: `task_${Date.now()}`,
-        organization_id: user.organization_id, // Ensure organization_id is passed
+        organization_id: user.organization_id,
         assigned_by: user.email,
-        project_id: selectedProject?.id, // Assign to current selected project if any
-        status: 'todo', // Default status for new tasks
+        project_id: selectedProject?.id,
+        status: 'todo',
       };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-items'] });
       setShowTaskDialog(false);
-      setTaskForm({ // Reset form
+      setTaskForm({
         title: '',
         description: '',
         assigned_to: user?.email || '',
@@ -168,15 +213,10 @@ export default function TaskManager() {
         due_date: '',
       });
     },
-    onError: (error) => {
-      console.error("Error creating task:", error);
-      // Optionally show a toast notification
-    }
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      // If it's an onboarding task, update it on the backend
       return await gqlClient.request(UPDATE_TASK, { id, status: data.status });
     },
     onMutate: async ({ id, data }) => {
@@ -202,15 +242,12 @@ export default function TaskManager() {
       if (context?.previousData) {
         queryClient.setQueryData(['onboarding-tasks'], context.previousData);
       }
-      console.error("Error updating task:", error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
     }
   });
 
-  // Filter tasks by project if selected
-  // Show all tasks to everyone, as requested
   const tasks = selectedProject 
     ? allTasks.filter(t => t.project_id === selectedProject.id)
     : allTasks;
@@ -242,64 +279,124 @@ export default function TaskManager() {
   };
 
   const statusConfig = {
-    backlog: { title: 'Backlog', color: 'bg-slate-100 text-slate-700' },
-    todo: { title: 'To Do', color: 'bg-blue-100 text-blue-700' },
-    in_progress: { title: 'In Progress', color: 'bg-yellow-100 text-yellow-700' },
-    review: { title: 'Review', color: 'bg-purple-100 text-purple-700' },
-    done: { title: 'Done', color: 'bg-green-100 text-green-700' },
+    backlog: { title: 'Backlog', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    todo: { title: 'To Do', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    in_progress: { title: 'In Progress', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    review: { title: 'Review', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    done: { title: 'Done', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   };
 
   const priorityColors = {
-    low: 'border-l-blue-500',
-    medium: 'border-l-yellow-500',
+    low: 'border-l-indigo-400',
+    medium: 'border-l-amber-400',
     high: 'border-l-orange-500',
     urgent: 'border-l-red-500',
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-              <FolderKanban className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-slate-700">Task Management</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
-              Tasks & Projects
-            </h1>
-            <p className="text-lg text-slate-600">
-              Manage tasks, track progress, and collaborate with your team
-            </p>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="p-4 md:p-8 max-w-7xl mx-auto space-y-8"
+    >
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
+            <FolderKanban className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Task Management</span>
           </div>
-          <div className="flex gap-3">
-            {/* New Project Dialog */}
-            <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Project
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create Project</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(projectForm); }} className="space-y-4">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
+            Tasks & Projects
+          </h1>
+          <p className="text-slate-500">
+            Manage tasks, track progress, and collaborate with your team
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                <Plus className="w-4 h-4 mr-2" />
+                New Project
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl border-slate-100 shadow-xl max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Project</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(projectForm); }} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="project_name">Project Name</Label>
+                  <Input id="project_name" value={projectForm.project_name} onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} className="rounded-lg" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project_description">Description</Label>
+                  <Textarea id="project_description" value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} className="rounded-lg" rows={3} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project_manager">Project Manager</Label>
+                  <Select value={projectForm.project_manager} onValueChange={(value) => setProjectForm(prev => ({ ...prev, project_manager: value }))} required>
+                    <SelectTrigger id="project_manager" className="rounded-lg"><SelectValue placeholder="Select a manager" /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                      {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.email}>
+                          {emp.full_name || emp.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowProjectDialog(false)} className="rounded-lg">Cancel</Button>
+                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" disabled={createProjectMutation.isPending}>
+                    {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+            <DialogTrigger asChild>
+              <Button className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+                <Plus className="w-4 h-4 mr-2" />
+                New Task
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl border-slate-100 shadow-xl max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Create Task</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={(e) => { e.preventDefault(); createTaskMutation.mutate(taskForm); }} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="task_title">Task Title</Label>
+                  <Input id="task_title" value={taskForm.title} onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} className="rounded-lg" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="task_description">Description</Label>
+                  <Textarea id="task_description" value={taskForm.description} onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} className="rounded-lg" rows={3} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="project_name">Project Name</Label>
-                    <Input id="project_name" value={projectForm.project_name} onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="project_description">Description</Label>
-                    <Textarea id="project_description" value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} rows={3} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="project_manager">Project Manager</Label>
-                    <Select value={projectForm.project_manager} onValueChange={(value) => setProjectForm(prev => ({ ...prev, project_manager: value }))} required>
-                      <SelectTrigger id="project_manager"><SelectValue placeholder="Select a manager" /></SelectTrigger>
-                      <SelectContent>
+                    <Label htmlFor="assigned_to">Assign To</Label>
+                    <Select value={taskForm.assigned_to} onValueChange={(value) => setTaskForm(prev => ({ ...prev, assigned_to: value }))} required>
+                      <SelectTrigger id="assigned_to" className="rounded-lg"><SelectValue placeholder="Assignee" /></SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
                         {employees.map(emp => (
                           <SelectItem key={emp.id} value={emp.email}>
                             {emp.full_name || emp.email}
@@ -308,187 +405,138 @@ export default function TaskManager() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => setShowProjectDialog(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createProjectMutation.isPending}>
-                      {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-            {/* New Task Dialog */}
-            <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create Task</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={(e) => { e.preventDefault(); createTaskMutation.mutate(taskForm); }} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="task_title">Task Title</Label>
-                    <Input id="task_title" value={taskForm.title} onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} required />
+                    <Label htmlFor="priority">Priority</Label>
+                    <Select value={taskForm.priority} onValueChange={(value) => setTaskForm(prev => ({ ...prev, priority: value }))} required>
+                      <SelectTrigger id="priority" className="rounded-lg"><SelectValue placeholder="Priority" /></SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task_description">Description</Label>
-                    <Textarea id="task_description" value={taskForm.description} onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} rows={3} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="assigned_to">Assign To</Label>
-                      <Select value={taskForm.assigned_to} onValueChange={(value) => setTaskForm(prev => ({ ...prev, assigned_to: value }))} required>
-                        <SelectTrigger id="assigned_to"><SelectValue placeholder="Assignee" /></SelectTrigger>
-                        <SelectContent>
-                          {employees.map(emp => (
-                            <SelectItem key={emp.id} value={emp.email}>
-                              {emp.full_name || emp.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select value={taskForm.priority} onValueChange={(value) => setTaskForm(prev => ({ ...prev, priority: value }))} required>
-                        <SelectTrigger id="priority"><SelectValue placeholder="Priority" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="due_date">Due Date</Label>
-                    <Input id="due_date" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))} />
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createTaskMutation.isPending}>
-                      {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-
-        {/* View Toggle */}
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === 'kanban' ? 'default' : 'outline'}
-            onClick={() => setViewMode('kanban')}
-          >
-            <Kanban className="w-4 h-4 mr-2" />
-            Kanban
-          </Button>
-          <Button
-            variant={viewMode === 'projects' ? 'default' : 'outline'}
-            onClick={() => setViewMode('projects')}
-          >
-            <FolderKanban className="w-4 h-4 mr-2" />
-            Projects
-          </Button>
-        </div>
-
-        {/* Project Filter */}
-        {projects.length > 0 && (
-          <Card className="border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 overflow-x-auto">
-                <Button
-                  size="sm"
-                  variant={!selectedProject ? 'default' : 'outline'}
-                  onClick={() => setSelectedProject(null)}
-                >
-                  My Tasks
-                </Button>
-                {projects.map(project => (
-                  <Button
-                    key={project.id}
-                    size="sm"
-                    variant={selectedProject?.id === project.id ? 'default' : 'outline'}
-                    onClick={() => setSelectedProject(project)}
-                  >
-                    {project.project_name}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="due_date">Due Date</Label>
+                  <Input id="due_date" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))} className="rounded-lg" />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)} className="rounded-lg">Cancel</Button>
+                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" disabled={createTaskMutation.isPending}>
+                    {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                   </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </motion.div>
 
-        {/* Kanban View */}
-        {viewMode === 'kanban' && (
+      {/* View Toggle */}
+      <motion.div variants={itemVariants} className="flex gap-1.5 bg-slate-100 p-1 rounded-lg w-fit">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`rounded-md px-4 ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setViewMode('kanban')}
+        >
+          <Kanban className="w-4 h-4 mr-2" />
+          Kanban
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`rounded-md px-4 ${viewMode === 'projects' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setViewMode('projects')}
+        >
+          <FolderKanban className="w-4 h-4 mr-2" />
+          Projects
+        </Button>
+      </motion.div>
+
+      {/* Project Filter */}
+      {projects.length > 0 && (
+        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <Button
+              size="sm"
+              variant={!selectedProject ? 'default' : 'ghost'}
+              className={`rounded-lg whitespace-nowrap ${!selectedProject ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              onClick={() => setSelectedProject(null)}
+            >
+              My Tasks
+            </Button>
+            {projects.map(project => (
+              <Button
+                key={project.id}
+                size="sm"
+                variant={selectedProject?.id === project.id ? 'default' : 'ghost'}
+                className={`rounded-lg whitespace-nowrap ${selectedProject?.id === project.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                onClick={() => setSelectedProject(project)}
+              >
+                {project.project_name}
+              </Button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Main Content */}
+      <motion.div variants={itemVariants} className="min-h-[500px]">
+        {tasksLoading ? (
+          viewMode === 'kanban' ? <TaskSkeleton /> : <ProjectSkeleton />
+        ) : viewMode === 'kanban' ? (
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               {Object.entries(statusConfig).map(([status, config]) => (
                 <Droppable key={status} droppableId={status}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-blue-50' : ''} rounded-lg p-3`}
+                      className={`flex flex-col bg-slate-100/50 rounded-2xl p-4 min-h-[500px] border border-slate-200/40 transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50 border-indigo-100' : ''}`}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-slate-900">{config.title}</h3>
-                        <Badge variant="outline" className={config.color}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-slate-800 tracking-tight">{config.title}</h3>
+                        <Badge variant="outline" className={`${config.color} border font-semibold px-2 py-0.5 rounded-full`}>
                           {tasksByStatus[status].length}
                         </Badge>
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="flex-1 space-y-3">
                         {tasksByStatus[status].map((task, index) => (
                           <Draggable key={task.id} draggableId={task.id} index={index}>
                             {(provided, snapshot) => (
-                              <Card
+                              <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`border-l-4 ${priorityColors[task.priority]} ${
-                                  snapshot.isDragging ? 'shadow-lg' : ''
-                                } cursor-move hover:shadow-md transition-shadow`}
+                                className={`bg-white rounded-xl border border-slate-200/80 p-4 border-l-4 ${priorityColors[task.priority]} ${
+                                  snapshot.isDragging ? 'shadow-xl scale-105 rotate-2' : 'shadow-sm hover:shadow-md'
+                                } cursor-grab active:cursor-grabbing transition-all`}
+                                style={provided.draggableProps.style}
                               >
-                                <CardContent className="p-4">
-                                  <h4 className="font-medium text-slate-900 mb-2 text-sm">
-                                    {task.title}
-                                  </h4>
-                                  {task.description && (
-                                    <p className="text-xs text-slate-600 mb-3 line-clamp-2">
-                                      {task.description}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center justify-between">
-                                    <Badge variant="outline" className="text-xs">
-                                      {task.priority}
-                                    </Badge>
-                                    {task.due_date && (
-                                      <span className="text-xs text-slate-500">
-                                        {new Date(task.due_date).toLocaleDateString()}
-                                      </span>
-                                    )}
-                                  </div>
+                                <h4 className="font-semibold text-slate-900 mb-2 text-sm leading-snug">
+                                  {task.title}
+                                </h4>
+                                {task.description && (
+                                  <p className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                                    {task.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center justify-between mt-auto">
+                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md">
+                                    {task.priority}
+                                  </Badge>
                                   {task.assigned_to && (
-                                    <div className="mt-2 flex items-center gap-2">
-                                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs text-blue-700">
-                                        {task.assigned_to.charAt(0).toUpperCase()}
-                                      </div>
-                                      <span className="text-xs text-slate-600 truncate">
-                                        {task.assigned_to.split('@')[0]}
-                                      </span>
+                                    <div className="w-7 h-7 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[10px] text-indigo-700 font-bold" title={task.assigned_to}>
+                                      {task.assigned_to.charAt(0).toUpperCase()}
                                     </div>
                                   )}
-                                </CardContent>
-                              </Card>
+                                </div>
+                              </div>
                             )}
                           </Draggable>
                         ))}
@@ -500,10 +548,7 @@ export default function TaskManager() {
               ))}
             </div>
           </DragDropContext>
-        )}
-
-        {/* Projects View */}
-        {viewMode === 'projects' && (
+        ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map(project => {
               const projectTasks = allTasks.filter(t => t.project_id === project.id);
@@ -513,100 +558,89 @@ export default function TaskManager() {
                 : 0;
 
               return (
-                <Card key={project.id} className="border-slate-200 hover:shadow-lg transition-shadow">
-                  <CardHeader className="border-b border-slate-100">
-                    <CardTitle className="text-lg">{project.project_name}</CardTitle>
-                    <Badge variant="outline" className={
-                      project.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      project.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-700'
-                    }>
-                      {project.status.replace('_', ' ')}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-4">
-                    <p className="text-sm text-slate-600 line-clamp-2">{project.description}</p>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Progress</span>
-                        <span className="font-medium">{progress}%</span>
+                <motion.div key={project.id} whileHover={{ y: -4 }}>
+                  <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-all rounded-2xl overflow-hidden bg-white group flex flex-col">
+                    <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-5">
+                      <div className="flex justify-between items-start gap-4">
+                        <CardTitle className="text-lg font-bold text-slate-900 tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">
+                          {project.project_name}
+                        </CardTitle>
+                        <Badge variant="outline" className={`shrink-0 rounded-full border ${
+                          project.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          project.status === 'in_progress' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
+                          {project.status.replace('_', ' ')}
+                        </Badge>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-slate-500">Tasks</span>
-                        <p className="font-semibold text-slate-900">
-                          {completedTasks}/{projectTasks.length}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">Due Date</span>
-                        <p className="font-semibold text-slate-900">
-                          {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'No deadline'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {project.team_members && project.team_members.length > 0 && (
-                      <div>
-                        <span className="text-xs text-slate-500">Team</span>
-                        <div className="flex -space-x-2 mt-2">
-                          {project.team_members.slice(0, 3).map((email, idx) => (
-                            <div 
-                              key={idx}
-                              className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white"
-                            >
-                              {email.charAt(0).toUpperCase()}
-                            </div>
-                          ))}
-                          {project.team_members.length > 3 && (
-                            <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 text-xs border-2 border-white">
-                              +{project.team_members.length - 3}
-                            </div>
-                          )}
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6 flex-1 flex flex-col">
+                      <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
+                        {project.description}
+                      </p>
+                      
+                      <div className="space-y-2 mt-auto">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-500 uppercase tracking-wider">Progress</span>
+                          <span className="text-indigo-700">{progress}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 1, delay: 0.2 }}
+                            className="h-full bg-indigo-500 rounded-full"
+                          />
                         </div>
                       </div>
-                    )}
 
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => {
-                        setSelectedProject(project);
-                        setViewMode('kanban');
-                      }}
-                    >
-                      View Tasks
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">Tasks</span>
+                          <p className="font-bold text-slate-900">
+                            {completedTasks} <span className="text-slate-400 font-medium">/ {projectTasks.length}</span>
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">Due Date</span>
+                          <p className="font-semibold text-slate-900 truncate">
+                            {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'No deadline'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button 
+                        variant="outline" 
+                        className="w-full rounded-lg border-slate-200 hover:bg-slate-50 group-hover:border-indigo-200 group-hover:text-indigo-700 transition-colors"
+                        onClick={() => {
+                          setSelectedProject(project);
+                          setViewMode('kanban');
+                        }}
+                      >
+                        View Tasks
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               );
             })}
             
             {projects.length === 0 && (
-              <Card className="col-span-full border-slate-200">
-                <CardContent className="p-12 text-center">
-                  <FolderKanban className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No projects yet</h3>
-                  <p className="text-slate-500 mb-4">Create your first project to get started</p>
-                  <Button onClick={() => setShowProjectDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Project
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="col-span-full border border-slate-200/60 border-dashed rounded-2xl bg-white/50 p-16 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4">
+                  <FolderKanban className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">No projects yet</h3>
+                <p className="text-slate-500 mb-6 max-w-sm">Create your first project to start managing tasks and collaborating with your team.</p>
+                <Button onClick={() => setShowProjectDialog(true)} className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Project
+                </Button>
+              </div>
             )}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

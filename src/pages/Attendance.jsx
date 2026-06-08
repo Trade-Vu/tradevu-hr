@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
@@ -16,6 +15,31 @@ import BulkAttendanceImport from "../components/attendance/BulkAttendanceImport"
 import ZKTecoSettings from "../components/attendance/ZKTecoSettings";
 import ZKTecoDeviceManager from "../components/attendance/ZKTecoDeviceManager";
 import AttendanceSummary from "../components/attendance/AttendanceSummary";
+import { motion } from "framer-motion";
+
+const AttendanceSkeleton = () => (
+  <div className="space-y-4">
+    {Array(5).fill(0).map((_, i) => (
+      <div key={i} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm animate-pulse">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-slate-100 rounded-full"></div>
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-slate-100 rounded"></div>
+            <div className="h-3 w-24 bg-slate-100 rounded"></div>
+          </div>
+        </div>
+        <div className="flex gap-6">
+          {Array(3).fill(0).map((_, j) => (
+            <div key={j} className="text-center space-y-2">
+              <div className="h-6 w-8 bg-slate-100 rounded mx-auto"></div>
+              <div className="h-2 w-12 bg-slate-100 rounded mx-auto"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export default function Attendance() {
   const queryClient = useQueryClient();
@@ -27,7 +51,7 @@ export default function Attendance() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
 
-  const { data: attendanceRecords = [] } = useQuery({
+  const { data: attendanceRecords = [], isLoading: loadingRecords } = useQuery({
     queryKey: ['attendance'],
     queryFn: async () => {
       const ATT_QUERY = gql`
@@ -45,7 +69,7 @@ export default function Attendance() {
     initialData: [],
   });
 
-  const { data: employees = [] } = useQuery({
+  const { data: employees = [], isLoading: loadingEmployees } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
       const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
@@ -76,10 +100,8 @@ export default function Attendance() {
           }
         }
       `;
-      // We pass today's date formatted as YYYY-MM-DD
       const today = new Date().toISOString().split('T')[0];
       const data = await gqlClient.request(GET_MY_ATTENDANCE, { date: today });
-      // Find the record for the current user
       const record = (data.attendanceRecords || []).find(r => r.employeeId === user?.email);
       return record || null;
     },
@@ -164,28 +186,46 @@ export default function Attendance() {
 
   const departments = [...new Set(employees.map(e => e.department_id).filter(Boolean))];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-4 md:p-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4 md:p-8"
+    >
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-slate-700">Attendance Management</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Attendance Management</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
               Staff Attendance
             </h1>
-            <p className="text-lg text-slate-600">
+            <p className="text-slate-500">
               Track and manage employee attendance records
             </p>
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-3 bg-white p-2 rounded-lg shadow-sm border border-slate-200">
+          <div className="flex flex-col gap-3 items-end">
+            <div className="flex gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-slate-200/60">
               <Button 
                 onClick={() => clockInMutation.mutate()} 
                 disabled={!!myTodayRecord?.clockIn || clockInMutation.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-6"
               >
                 {myTodayRecord?.clockIn ? `Clocked In at ${myTodayRecord.clockIn}` : 'Clock In'}
               </Button>
@@ -193,121 +233,137 @@ export default function Attendance() {
                 onClick={() => clockOutMutation.mutate()} 
                 disabled={!myTodayRecord?.clockIn || !!myTodayRecord?.clockOut || clockOutMutation.isPending}
                 variant={myTodayRecord?.clockOut ? "outline" : "destructive"}
+                className={`rounded-lg px-6 ${!myTodayRecord?.clockOut ? 'bg-rose-600 hover:bg-rose-700 text-white border-0' : ''}`}
               >
                 {myTodayRecord?.clockOut ? `Clocked Out at ${myTodayRecord.clockOut}` : 'Clock Out'}
               </Button>
             </div>
-            <div className="flex gap-3 flex-wrap">
-            <Button size="sm" variant="outline" onClick={handlePrintReport}>
-              <Printer className="w-4 h-4 mr-2" />
-              Print
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleExportPDF}>
-              <Download className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleExportExcel}>
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
-            <Button 
-              onClick={() => setShowDeviceManager(true)}
-              variant="outline"
-              className="border-cyan-300 text-cyan-700 hover:bg-cyan-50"
-            >
-              <Smartphone className="w-4 h-4 mr-2" />
-              Devices
-            </Button>
-            <Button 
-              onClick={() => setShowSettingsDialog(true)}
-              variant="outline"
-              className="border-slate-300"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-            <Button 
-              onClick={() => setShowImportDialog(true)}
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import Attendance
-            </Button>
+            <div className="flex gap-2 flex-wrap justify-end">
+              <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-200/60 shadow-sm mr-2">
+                <Button size="sm" variant="ghost" className="h-8 text-slate-600 hover:text-indigo-600" onClick={handlePrintReport}>
+                  <Printer className="w-4 h-4 mr-1.5" />
+                  Print
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-slate-600 hover:text-indigo-600" onClick={handleExportPDF}>
+                  <Download className="w-4 h-4 mr-1.5" />
+                  PDF
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-slate-600 hover:text-indigo-600" onClick={handleExportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+                  Excel
+                </Button>
+              </div>
+              <Button 
+                size="sm"
+                onClick={() => setShowDeviceManager(true)}
+                variant="outline"
+                className="h-10 rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <Smartphone className="w-4 h-4 mr-2" />
+                Devices
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => setShowSettingsDialog(true)}
+                variant="outline"
+                className="h-10 rounded-lg border-slate-200 hover:bg-slate-50"
+              >
+                <Settings className="w-4 h-4 mr-2 text-slate-500" />
+                Settings
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => setShowImportDialog(true)}
+                className="h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import
+              </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Report Options */}
-        <Card className="border-slate-200">
-          <CardContent className="p-4">
-            <div className="flex gap-4 items-center">
-              <Label>Report Type:</Label>
-              <Select value={reportType} onValueChange={setReportType}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Staff Report</SelectItem>
-                  <SelectItem value="employee">Individual Employee</SelectItem>
-                  <SelectItem value="department">Department Report</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {reportType === 'employee' && (
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select employee" />
+        <motion.div variants={itemVariants}>
+          <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <Label className="whitespace-nowrap text-slate-600 font-semibold uppercase tracking-wider text-[10px]">Report Type:</Label>
+                <Select value={reportType} onValueChange={setReportType}>
+                  <SelectTrigger className="w-full sm:w-48 rounded-lg border-slate-200 bg-slate-50 focus:bg-white transition-colors">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.full_name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                    <SelectItem value="all">All Staff Report</SelectItem>
+                    <SelectItem value="employee">Individual Employee</SelectItem>
+                    <SelectItem value="department">Department Report</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
-              
-              {reportType === 'department' && (
-                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                
+                {reportType === 'employee' && (
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger className="w-full sm:w-64 rounded-lg border-slate-200 bg-slate-50 focus:bg-white transition-colors">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                      {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                {reportType === 'department' && (
+                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <SelectTrigger className="w-full sm:w-64 rounded-lg border-slate-200 bg-slate-50 focus:bg-white transition-colors">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                      {departments.map(dept => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <AttendanceSummary 
-          attendanceRecords={attendanceRecords}
-          employees={employees}
-        />
+        <motion.div variants={itemVariants}>
+          <AttendanceSummary 
+            attendanceRecords={attendanceRecords}
+            employees={employees}
+          />
+        </motion.div>
 
-        <Tabs defaultValue="summary" className="space-y-6">
-          <TabsList className="bg-white border border-slate-200">
-            <TabsTrigger value="summary" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Employee Summary
-            </TabsTrigger>
-            <TabsTrigger value="records" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Records
-            </TabsTrigger>
-          </TabsList>
+        <motion.div variants={itemVariants}>
+          <Tabs defaultValue="summary" className="space-y-6">
+            <TabsList className="bg-slate-100 p-1 rounded-xl">
+              <TabsTrigger value="summary" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-700 px-6">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Employee Summary
+                </div>
+              </TabsTrigger>
+              <TabsTrigger value="records" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-700 px-6">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Records
+                </div>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="summary">
-            <Card className="border-slate-200">
-              <CardContent className="p-6">
+            <TabsContent value="summary" className="mt-6">
+              {loadingEmployees || loadingRecords ? (
+                <AttendanceSkeleton />
+              ) : (
                 <div className="space-y-4">
-                  {employees.map(emp => {
+                  {employees.map((emp, index) => {
                     const empAttendance = attendanceRecords.filter(r => r.employee_id === emp.id);
                     const thisMonth = empAttendance.filter(r => {
                       const d = new Date(r.date);
@@ -319,48 +375,67 @@ export default function Attendance() {
                     const late = thisMonth.filter(r => r.status === 'late').length;
 
                     return (
-                      <div key={emp.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-700 font-semibold">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        key={emp.id} 
+                        className="flex flex-col md:flex-row md:items-center justify-between p-5 bg-white border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all rounded-2xl group gap-4"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                            <span className="text-indigo-700 font-bold text-lg">
                               {emp.full_name.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{emp.full_name}</p>
-                            <p className="text-sm text-slate-500">{emp.job_title}</p>
+                            <p className="font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{emp.full_name}</p>
+                            <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mt-0.5">{emp.job_title}</p>
                           </div>
                         </div>
-                        <div className="flex gap-4 text-sm">
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-green-600">{present}</p>
-                            <p className="text-xs text-slate-500">Present</p>
+                        <div className="flex gap-4 md:gap-8 bg-slate-50 p-3 rounded-xl border border-slate-100 w-full md:w-auto justify-center md:justify-end">
+                          <div className="text-center w-16">
+                            <p className="text-2xl font-black text-emerald-600">{present}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Present</p>
                           </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-red-600">{absent}</p>
-                            <p className="text-xs text-slate-500">Absent</p>
+                          <div className="w-px h-10 bg-slate-200"></div>
+                          <div className="text-center w-16">
+                            <p className="text-2xl font-black text-rose-600">{absent}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Absent</p>
                           </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-yellow-600">{late}</p>
-                            <p className="text-xs text-slate-500">Late</p>
+                          <div className="w-px h-10 bg-slate-200"></div>
+                          <div className="text-center w-16">
+                            <p className="text-2xl font-black text-amber-500">{late}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Late</p>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
+                  {employees.length === 0 && (
+                    <div className="text-center p-12 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex flex-col items-center">
+                      <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Users className="w-8 h-8 text-slate-300" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">No employees found</h3>
+                      <p className="text-slate-500">Add employees to start tracking attendance.</p>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
+            </TabsContent>
 
-          <TabsContent value="records">
-            <AttendanceRecords 
-              attendanceRecords={attendanceRecords}
-              employees={employees}
-              settings={currentSettings}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="records" className="mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                <AttendanceRecords 
+                  attendanceRecords={attendanceRecords}
+                  employees={employees}
+                  settings={currentSettings}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
 
         <BulkAttendanceImport
           open={showImportDialog}
@@ -379,6 +454,6 @@ export default function Attendance() {
           onClose={() => setShowDeviceManager(false)}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -11,8 +11,45 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit } from "lucide-react";
+import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
+
+const StatsSkeleton = () => (
+  <div className="grid md:grid-cols-3 gap-6">
+    {Array(3).fill(0).map((_, i) => (
+      <div key={i} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm animate-pulse">
+        <div className="w-12 h-12 bg-slate-100 rounded-xl mb-4"></div>
+        <div className="h-8 bg-slate-100 rounded w-16 mb-2"></div>
+        <div className="h-4 bg-slate-100 rounded w-24"></div>
+      </div>
+    ))}
+  </div>
+);
+
+const RequestsSkeleton = () => (
+  <div className="space-y-4">
+    {Array(4).fill(0).map((_, i) => (
+      <div key={i} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm animate-pulse flex items-start justify-between">
+        <div className="flex gap-4">
+          <div className="w-10 h-10 bg-slate-100 rounded-full"></div>
+          <div className="space-y-2">
+            <div className="h-4 bg-slate-100 rounded w-32"></div>
+            <div className="h-3 bg-slate-100 rounded w-24"></div>
+            <div className="h-3 bg-slate-100 rounded w-48 mt-2"></div>
+          </div>
+        </div>
+        <div className="space-y-2 flex flex-col items-end">
+          <div className="h-6 bg-slate-100 rounded-full w-20"></div>
+          <div className="flex gap-2 mt-2">
+            <div className="h-8 w-20 bg-slate-100 rounded-md"></div>
+            <div className="h-8 w-20 bg-slate-100 rounded-md"></div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export default function AllLeaveRequests() {
   const queryClient = useQueryClient();
@@ -30,7 +67,7 @@ export default function AllLeaveRequests() {
     attachment_url: '',
   });
 
-  const { data: leaveRequests = [] } = useQuery({
+  const { data: leaveRequests, isLoading: loadingRequests } = useQuery({
     queryKey: ['leave-requests'],
     queryFn: async () => {
       const LEAVE_QUERY = gql`
@@ -48,7 +85,6 @@ export default function AllLeaveRequests() {
         approvers: []
       }));
     },
-    initialData: [],
   });
 
   const { data: employees = [] } = useQuery({
@@ -63,7 +99,6 @@ export default function AllLeaveRequests() {
 
   const createAuditLog = async (action, entityId, entityName, changes = {}) => {
     // Mocked for now
-    console.log("Mocked createAuditLog:", { action, entityId, entityName, changes });
   };
 
   const createLeaveMutation = useMutation({
@@ -142,7 +177,6 @@ export default function AllLeaveRequests() {
 
     setUploadingDoc(true);
     try {
-      // Mocked file upload
       setFormData(prev => ({ ...prev, attachment_url: 'https://example.com/mock.pdf' }));
     } catch (error) {
       console.error("Error uploading:", error);
@@ -150,7 +184,7 @@ export default function AllLeaveRequests() {
     setUploadingDoc(false);
   };
 
-  const calculateDays = () => {
+  useEffect(() => {
     if (formData.start_date && formData.end_date) {
       const start = new Date(formData.start_date);
       const end = new Date(formData.end_date);
@@ -159,10 +193,6 @@ export default function AllLeaveRequests() {
     } else {
       setFormData(prev => ({ ...prev, total_days: 0 }));
     }
-  };
-
-  useEffect(() => {
-    calculateDays();
   }, [formData.start_date, formData.end_date]);
 
   const handleApprove = async (leave) => {
@@ -181,24 +211,44 @@ export default function AllLeaveRequests() {
     });
   };
 
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    approved: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
-    cancelled: 'bg-slate-100 text-slate-700',
+  const statusStyles = {
+    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    rejected: 'bg-rose-50 text-rose-700 border-rose-200',
+    cancelled: 'bg-slate-50 text-slate-700 border-slate-200',
+  };
+
+  const displayRequests = leaveRequests || [];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4 md:p-8"
+    >
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-between items-start">
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-              <Plane className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-slate-700">Leave Management</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
+              <Plane className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Leave Management</span>
             </div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-3">Leave Requests</h1>
-            <p className="text-lg text-slate-600">Manage and approve employee leave requests</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Leave Requests</h1>
+            <p className="text-slate-500">Manage and approve employee time off</p>
           </div>
           <Dialog open={showForm} onOpenChange={(open) => {
             setShowForm(open);
@@ -216,12 +266,12 @@ export default function AllLeaveRequests() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+              <Button className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
                 <Plus className="w-4 h-4 mr-2" />
-                New Leave Request
+                New Request
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-xl rounded-2xl border-slate-100 shadow-xl">
               <DialogHeader>
                 <DialogTitle>{editingLeave ? 'Edit' : 'Create'} Leave Request</DialogTitle>
               </DialogHeader>
@@ -232,14 +282,14 @@ export default function AllLeaveRequests() {
                 } else {
                   createLeaveMutation.mutate(formData);
                 }
-              }} className="space-y-4">
+              }} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label>Employee</Label>
                   <Select value={formData.employee_id} onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))} disabled={!!editingLeave}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-lg">
                       <SelectValue placeholder="Select employee" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
                       {employees.map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.full_name} - {emp.job_title}
@@ -253,8 +303,8 @@ export default function AllLeaveRequests() {
                   <div className="space-y-2">
                     <Label>Leave Type</Label>
                     <Select value={formData.leave_type} onValueChange={(value) => setFormData(prev => ({ ...prev, leave_type: value }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
                         <SelectItem value="annual">Annual Leave</SelectItem>
                         <SelectItem value="sick">Sick Leave</SelectItem>
                         <SelectItem value="personal">Personal Leave</SelectItem>
@@ -267,150 +317,190 @@ export default function AllLeaveRequests() {
                   </div>
                   <div className="space-y-2">
                     <Label>Total Days</Label>
-                    <Input type="number" value={formData.total_days} readOnly className="bg-slate-50" />
+                    <Input type="number" value={formData.total_days} readOnly className="bg-slate-50 rounded-lg text-slate-500" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Start Date</Label>
-                    <Input type="date" value={formData.start_date} onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))} required />
+                    <Input type="date" value={formData.start_date} onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))} className="rounded-lg" required />
                   </div>
                   <div className="space-y-2">
                     <Label>End Date</Label>
-                    <Input type="date" value={formData.end_date} onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))} required />
+                    <Input type="date" value={formData.end_date} onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))} className="rounded-lg" required />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Reason</Label>
-                  <Textarea value={formData.reason} onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))} rows={3} required />
+                  <Textarea value={formData.reason} onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))} className="rounded-lg" rows={3} required />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Supporting Document (Optional)</Label>
                   <input type="file" onChange={handleDocUpload} className="hidden" id="leave-doc" />
-                  <Button type="button" variant="outline" className="w-full" onClick={() => document.getElementById('leave-doc').click()} disabled={uploadingDoc}>
+                  <Button type="button" variant="outline" className="w-full rounded-lg border-dashed border-slate-300 hover:border-indigo-300 hover:bg-indigo-50" onClick={() => document.getElementById('leave-doc').click()} disabled={uploadingDoc}>
                     <Upload className="w-4 h-4 mr-2" />
                     {uploadingDoc ? 'Uploading...' : formData.attachment_url ? 'Document Uploaded ✓' : 'Upload Document'}
                   </Button>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-                  <Button type="submit" disabled={createLeaveMutation.isPending || updateLeaveMutation.isPending}>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button type="button" variant="outline" className="rounded-lg" onClick={() => setShowForm(false)}>Cancel</Button>
+                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" disabled={createLeaveMutation.isPending || updateLeaveMutation.isPending}>
                     {(createLeaveMutation.isPending || updateLeaveMutation.isPending) ? 'Saving...' : editingLeave ? 'Update Request' : 'Submit Request'}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-yellow-600" />
+        {loadingRequests ? (
+          <StatsSkeleton />
+        ) : (
+          <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-6">
+            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
+              <CardContent className="p-6 relative z-10">
+                <div className="w-12 h-12 bg-amber-100/50 rounded-xl flex items-center justify-center mb-4">
+                  <Clock className="w-6 h-6 text-amber-600" />
                 </div>
-              </div>
-              <p className="text-3xl font-bold text-slate-900 mt-4">
-                {leaveRequests.filter(l => l.status === 'pending').length}
-              </p>
-              <p className="text-sm text-slate-600">Pending Approvals</p>
-            </CardContent>
-          </Card>
+                <p className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {displayRequests.filter(l => l.status === 'pending').length}
+                </p>
+                <p className="text-sm font-medium text-slate-500 mt-1">Pending Approvals</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
+              <CardContent className="p-6 relative z-10">
+                <div className="w-12 h-12 bg-emerald-100/50 rounded-xl flex items-center justify-center mb-4">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
                 </div>
-              </div>
-              <p className="text-3xl font-bold text-slate-900 mt-4">
-                {leaveRequests.filter(l => l.status === 'approved').length}
-              </p>
-              <p className="text-sm text-slate-600">Approved</p>
-            </CardContent>
-          </Card>
+                <p className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {displayRequests.filter(l => l.status === 'approved').length}
+                </p>
+                <p className="text-sm font-medium text-slate-500 mt-1">Approved This Month</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Plane className="w-6 h-6 text-blue-600" />
+            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
+              <CardContent className="p-6 relative z-10">
+                <div className="w-12 h-12 bg-indigo-100/50 rounded-xl flex items-center justify-center mb-4">
+                  <Plane className="w-6 h-6 text-indigo-600" />
                 </div>
-              </div>
-              <p className="text-3xl font-bold text-slate-900 mt-4">{leaveRequests.length}</p>
-              <p className="text-sm text-slate-600">Total Requests</p>
-            </CardContent>
-          </Card>
-        </div>
+                <p className="text-3xl font-bold text-slate-900 tracking-tight">{displayRequests.length}</p>
+                <p className="text-sm font-medium text-slate-500 mt-1">Total Requests</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-        <Card className="border-slate-200">
-          <CardHeader className="border-b border-slate-200">
-            <CardTitle>All Leave Requests</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {leaveRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <Plane className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <p className="text-slate-500">No leave requests</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {leaveRequests.map(leave => (
-                  <div key={leave.id} className="p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-700 font-semibold">
+        <motion.div variants={itemVariants}>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-lg font-bold text-slate-900">All Leave Requests</h2>
+            </div>
+            
+            <div className="p-6">
+              {loadingRequests ? (
+                <RequestsSkeleton />
+              ) : displayRequests.length === 0 ? (
+                <div className="text-center py-12 flex flex-col items-center">
+                  <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                    <Plane className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">No leave requests</h3>
+                  <p className="text-slate-500 max-w-sm">When employees submit time off requests, they will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {displayRequests.map((leave, index) => (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      key={leave.id} 
+                      className="p-5 bg-white border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all rounded-2xl group"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                            <span className="text-indigo-700 font-bold text-lg">
                               {leave.employee_name?.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{leave.employee_name}</p>
-                            <p className="text-sm text-slate-600 capitalize">
-                              {leave.leave_type.replace('_', ' ')} • {leave.total_days} days
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="font-bold text-slate-900">{leave.employee_name}</h3>
+                              <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-slate-200 text-slate-600">
+                                {leave.leave_type.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{format(new Date(leave.start_date), 'MMM dd, yyyy')}</span>
+                              <span className="text-slate-300">-</span>
+                              <span>{format(new Date(leave.end_date), 'MMM dd, yyyy')}</span>
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium text-xs ml-1">
+                                {leave.total_days} day{leave.total_days !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                              "{leave.reason}"
                             </p>
                           </div>
                         </div>
-                        <p className="text-sm text-slate-600 mb-2">
-                          {format(new Date(leave.start_date), 'MMM dd, yyyy')} - {format(new Date(leave.end_date), 'MMM dd, yyyy')}
-                        </p>
-                        <p className="text-sm text-slate-500 italic">"{leave.reason}"</p>
+                        
+                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-3 pl-16 md:pl-0">
+                          <Badge className={`${statusStyles[leave.status]} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
+                            {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                          </Badge>
+                          
+                          {leave.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" 
+                                onClick={() => handleEdit(leave)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" 
+                                onClick={() => handleApprove(leave)}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1.5" />
+                                Approve
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700" 
+                                onClick={() => handleReject(leave)}
+                              >
+                                <XCircle className="w-4 h-4 mr-1.5" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Badge className={statusColors[leave.status]}>
-                          {leave.status}
-                        </Badge>
-                        {leave.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" className="p-2 h-auto" onClick={() => handleEdit(leave)}>
-                              <Edit className="w-4 h-4 text-slate-500 hover:text-blue-600" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleApprove(leave)}>
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleReject(leave)}>
-                              <XCircle className="w-4 h-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -5,10 +5,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, 
+  ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, Building,
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
   Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, 
-  CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload, Star
+  CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload, Star, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,11 +50,12 @@ const menuItems = [
   { id: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
-export default function EmployeeDetail() {
+export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
-  const employeeId = urlParams.get('id');
+  const employeeId = employeeIdProp || urlParams.get('id');
+  const isModal = !!employeeIdProp;
   const [activeSection, setActiveSection] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -509,6 +510,19 @@ export default function EmployeeDetail() {
   const lateDays = thisMonthAttendance.filter(a => a.status === 'late').length;
   const leaveDays = thisMonthAttendance.filter(a => a.status === 'leave').length;
 
+  const PremiumField = ({ icon: Icon, label, value, action }) => (
+    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50/50 border border-slate-100/60 hover:bg-slate-50 transition-colors relative">
+      <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shrink-0 shadow-sm">
+        <Icon className="w-5 h-5 text-indigo-500" />
+      </div>
+      <div className="pt-0.5 flex-1 pr-12">
+        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+        <div className="font-medium text-slate-900 break-words">{value}</div>
+      </div>
+      {action && <div className="absolute right-4 top-1/2 -translate-y-1/2">{action}</div>}
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeSection) {
       case 'personal':
@@ -516,8 +530,8 @@ export default function EmployeeDetail() {
           <div className="space-y-6">
             <OnboardingProgressWidget employeeId={employeeId} />
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">About</h3>
-              <div className="grid md:grid-cols-2 gap-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-5">About</h3>
+              <div className="grid md:grid-cols-2 gap-4">
                 {isEditing ? (
                   <>
                     <div className="space-y-2">
@@ -598,73 +612,33 @@ export default function EmployeeDetail() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Birthday</p>
-                        <p className="font-medium text-slate-900">
-                          {employee.personal_info?.date_of_birth || 'Not set'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <User className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Gender</p>
-                        <p className="font-medium text-slate-900">{employee.personal_info?.gender || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <User className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Nationality</p>
-                        <p className="font-medium text-slate-900">{employee.personal_info?.nationality || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <User className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Marital Status</p>
-                        <p className="font-medium text-slate-900">{employee.personal_info?.marital_status || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Shield className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">National ID</p>
-                        <p className="font-medium text-slate-900">{employee.personal_info?.national_id || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Shield className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Iqama Number</p>
-                        <p className="font-medium text-slate-900">{employee.personal_info?.iqama_number || 'Not set'}</p>
-                      </div>
-                    </div>
+                    <PremiumField icon={Calendar} label="Birthday" value={employee.personal_info?.date_of_birth ? format(new Date(employee.personal_info.date_of_birth), 'dd MMM yyyy') : 'Not set'} />
+                    <PremiumField icon={User} label="Gender" value={employee.personal_info?.gender || 'Not set'} />
+                    <PremiumField icon={User} label="Nationality" value={employee.personal_info?.nationality || 'Not set'} />
+                    <PremiumField icon={User} label="Marital Status" value={employee.personal_info?.marital_status || 'Not set'} />
+                    <PremiumField icon={Shield} label="National ID" value={employee.personal_info?.national_id || 'Not set'} />
+                    <PremiumField icon={Shield} label="Iqama Number" value={employee.personal_info?.iqama_number || 'Not set'} />
                   </>
                 )}
               </div>
             </div>
 
-            <div className="pt-6 border-t">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Contact</h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase">Work Email</p>
-                      <p className="font-medium text-slate-900">{employee.email}</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.email, 'work')}>
-                    <Mail className="w-4 h-4" />
-                  </Button>
-                </div>
+            <div className="pt-8 border-t border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-900 mb-5">Contact</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <PremiumField 
+                  icon={Mail} 
+                  label="Work Email" 
+                  value={employee.email} 
+                  action={
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.email, 'work')}>
+                      <Mail className="w-4 h-4" />
+                    </Button>
+                  } 
+                />
                 
                 {isEditing ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-1 md:col-span-2">
                     <Label>Private Email</Label>
                     <Input
                       type="email"
@@ -674,39 +648,35 @@ export default function EmployeeDetail() {
                     />
                   </div>
                 ) : employee.private_email ? (
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500 uppercase">Private Email</p>
-                        <p className="font-medium text-slate-900">{employee.private_email}</p>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost" onClick={() => handleSendEmail(employee.private_email, 'private')}>
-                      <Mail className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <PremiumField 
+                    icon={Mail} 
+                    label="Private Email" 
+                    value={employee.private_email} 
+                    action={
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.private_email, 'private')}>
+                        <Mail className="w-4 h-4" />
+                      </Button>
+                    } 
+                  />
                 ) : null}
                 
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase">Mobile No.</p>
-                      <p className="font-medium text-slate-900">{employee.phone || 'Not set'}</p>
-                    </div>
-                  </div>
-                  {employee.phone && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => handleSendSMS(employee.phone)} title="Send SMS">
-                        <MessageSquare className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleSendWhatsApp(employee.phone)} title="Send WhatsApp">
-                        <MessageCircle className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <PremiumField 
+                  icon={Phone} 
+                  label="Mobile No." 
+                  value={employee.phone || 'Not set'} 
+                  action={
+                    employee.phone && (
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendSMS(employee.phone)} title="Send SMS">
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-green-600 hover:bg-green-50" onClick={() => handleSendWhatsApp(employee.phone)} title="Send WhatsApp">
+                          <MessageCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )
+                  } 
+                />
               </div>
             </div>
           </div>
@@ -795,31 +765,13 @@ export default function EmployeeDetail() {
                 </div>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Job Title</p>
-                  <p className="font-medium text-slate-900">{employee.job_title}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Department</p>
-                  <p className="font-medium text-slate-900">{employee.department_name || employee.department_id || 'Not assigned'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Employment Type</p>
-                  <p className="font-medium text-slate-900">{employee.employment_type?.replace('_', ' ')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Employment Status</p>
-                  <Badge className="bg-green-100 text-green-700">{employee.employment_status}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Start Date</p>
-                  <p className="font-medium text-slate-900">{format(new Date(employee.start_date), 'MMM dd, yyyy')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Reports To</p>
-                  <p className="font-medium text-slate-900">{employee.manager_email || 'Not assigned'}</p>
-                </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <PremiumField icon={Briefcase} label="Job Title" value={employee.job_title} />
+                <PremiumField icon={Building} label="Department" value={employee.department_name || employee.department_id || 'Not assigned'} />
+                <PremiumField icon={FileText} label="Employment Type" value={employee.employment_type?.replace('_', ' ')} />
+                <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="bg-green-100 text-green-700 hover:bg-green-200">{employee.employment_status}</Badge>} />
+                <PremiumField icon={Calendar} label="Start Date" value={employee.start_date ? format(new Date(employee.start_date), 'MMM dd, yyyy') : 'Not set'} />
+                <PremiumField icon={User} label="Reports To" value={employee.manager_email || 'Not assigned'} />
               </div>
             )}
           </div>
@@ -892,31 +844,11 @@ export default function EmployeeDetail() {
                 </div>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Contract Type</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.contract_details?.contract_type || 'Not set'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Assigned Shift</p>
-                  <p className="font-medium text-slate-900">
-                    {shifts.find(s => s.id === employee.work_schedule?.shift_id)?.shift_name || 'Not assigned'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Contract Start</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.contract_details?.contract_start_date || 'Not set'}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-500 mb-1">Contract End</p>
-                  <p className="font-medium text-slate-900">
-                    {employee.contract_details?.contract_end_date || 'Not set'}
-                  </p>
-                </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <PremiumField icon={FileText} label="Contract Type" value={employee.contract_details?.contract_type || 'Not set'} />
+                <PremiumField icon={Clock} label="Assigned Shift" value={shifts.find(s => s.id === employee.work_schedule?.shift_id)?.shift_name || 'Not assigned'} />
+                <PremiumField icon={Calendar} label="Contract Start" value={employee.contract_details?.contract_start_date ? format(new Date(employee.contract_details.contract_start_date), 'MMM dd, yyyy') : 'Not set'} />
+                <PremiumField icon={Calendar} label="Contract End" value={employee.contract_details?.contract_end_date ? format(new Date(employee.contract_details.contract_end_date), 'MMM dd, yyyy') : 'Not set'} />
               </div>
             )}
 
@@ -1791,54 +1723,63 @@ export default function EmployeeDetail() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/Employees')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Employees
-        </Button>
-
-        <Card className="border-slate-200 overflow-hidden shadow-xl">
-          <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white relative">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+  const content = (
+    <Card className={`border-slate-200/60 overflow-hidden ${isModal ? 'shadow-none border-0 h-full rounded-none flex flex-col bg-white' : 'shadow-sm rounded-2xl bg-white'}`}>
+          <div className="bg-slate-900 text-white relative border-b border-slate-800">
+            {/* Subtle background pattern/gradient */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
+               <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl"></div>
+            </div>
+            
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 md:p-8 relative z-10 gap-4">
+              <div className="flex items-center gap-5">
+                <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl overflow-hidden shrink-0">
                   {employee.avatar_url ? (
-                    <img src={employee.avatar_url} alt={employee.full_name} className="w-full h-full rounded-full object-cover" />
+                    <img src={employee.avatar_url} alt={employee.full_name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-4xl text-green-600 font-bold">
+                    <span className="text-3xl text-indigo-400 font-bold">
                       {employee.full_name.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">{employee.full_name}</h2>
-                  <p className="text-green-100">{employee.job_title}</p>
+                  <h2 className="text-2xl font-bold tracking-tight text-white">{employee.full_name}</h2>
+                  <div className="flex items-center gap-3 mt-1.5 text-slate-400 flex-wrap">
+                    <span className="flex items-center gap-1.5 text-sm"><Briefcase className="w-4 h-4" /> {employee.job_title}</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                    <span className="flex items-center gap-1.5 text-sm"><Mail className="w-4 h-4" /> {employee.email}</span>
+                  </div>
                 </div>
               </div>
-              <Button variant="ghost" className="text-white hover:bg-white/20">
-                <MoreVertical className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-3">
+                 <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent hidden sm:flex">
+                   <MessageSquare className="w-4 h-4 mr-2" /> Message
+                 </Button>
+                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800">
+                   <MoreVertical className="w-5 h-5" />
+                 </Button>
+              </div>
             </div>
           </div>
 
-          <div className="flex">
-            <div className="w-64 border-r border-slate-200 bg-slate-50 p-4">
-              <div className="space-y-1">
+          <div className={`flex ${isModal ? 'flex-1 overflow-hidden' : ''} bg-white`}>
+            <div className={`w-64 border-r border-slate-200/60 bg-slate-50/50 p-4 shrink-0 ${isModal ? 'overflow-y-auto' : ''}`}>
+              <div className="space-y-1.5">
                 {menuItems.map(item => {
                   const Icon = item.icon;
+                  const isActive = activeSection === item.id;
                   return (
                     <button
                       key={item.id}
                       onClick={() => setActiveSection(item.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                        activeSection === item.id
-                          ? 'bg-green-100 text-green-700 font-medium'
-                          : 'text-slate-600 hover:bg-slate-100'
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${
+                        isActive
+                          ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent'
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
                       <span>{item.label}</span>
                     </button>
                   );
@@ -1846,7 +1787,7 @@ export default function EmployeeDetail() {
               </div>
             </div>
 
-            <div className="flex-1 p-8">
+            <div className={`flex-1 p-8 ${isModal ? 'overflow-y-auto' : ''}`}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-slate-900">
                   {menuItems.find(m => m.id === activeSection)?.label}
@@ -1954,6 +1895,29 @@ export default function EmployeeDetail() {
             </div>
           </div>
         </Card>
+  );
+
+  if (isModal) {
+    return (
+      <div className="h-[85vh] flex flex-col relative bg-white w-full rounded-2xl overflow-hidden">
+        {onClose && (
+           <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 z-50 rounded-full bg-slate-900/50 backdrop-blur-sm border border-slate-700 transition-all shadow-sm" onClick={onClose}>
+             <X className="w-4 h-4" />
+           </Button>
+        )}
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/Employees')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Employees
+        </Button>
+        {content}
       </div>
     </div>
   );
