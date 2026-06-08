@@ -303,6 +303,12 @@ export const resolvers = {
       const updateData = { ...input };
       if (input.dateOfBirth) updateData.dateOfBirth = new Date(input.dateOfBirth);
       if (input.hireDate) updateData.hireDate = new Date(input.hireDate);
+      if (input.employmentType) updateData.employmentType = input.employmentType.toUpperCase();
+      if (input.employmentStatus) {
+        let status = input.employmentStatus.toUpperCase();
+        if (status === 'ON_LEAVE') status = 'ACTIVE'; // Fallback since ON_LEAVE is not in enum
+        updateData.employmentStatus = status;
+      }
       
       const updated = await prisma.employee.update({
         where: { id },

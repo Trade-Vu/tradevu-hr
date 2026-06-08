@@ -28,11 +28,22 @@ export const typeDefs = `#graphql
     employeeCode: String!
     fullName: String!
     email: String!
+    privateEmail: String
+    phone: String
+    dateOfBirth: String
+    gender: String
+    maritalStatus: String
+    nationality: String
+    nationalId: String
+    passportNumber: String
     jobTitle: String!
     departmentId: String
     department: Department
     employmentStatus: String!
+    employmentType: String
     hireDate: String!
+    basicSalary: Float
+    allowances: String
     onboardingStatus: String
     onboardingProgress: Int
   }
@@ -298,6 +309,22 @@ export const typeDefs = `#graphql
     basicSalary: Float
   }
 
+  input UpdateEmployeeInput {
+    privateEmail: String
+    phone: String
+    dateOfBirth: String
+    gender: String
+    maritalStatus: String
+    nationality: String
+    nationalId: String
+    passportNumber: String
+    jobTitle: String
+    departmentId: String
+    employmentType: String
+    employmentStatus: String
+    hireDate: String
+  }
+
   input LeaveRequestInput {
     leaveTypeId: String!
     startDate: String!
@@ -311,7 +338,7 @@ export const typeDefs = `#graphql
     login(email: String!, password: String!): AuthPayload!
     
     createEmployee(input: EmployeeInput!): Employee!
-    updateEmployee(id: ID!, input: EmployeeInput!): Employee!
+    updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
     deleteEmployee(id: ID!): Boolean
     
     createDepartment(name: String!, code: String, headEmployeeId: String): Department!
