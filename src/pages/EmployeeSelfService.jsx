@@ -97,9 +97,25 @@ export default function EmployeeSelfService() {
   });
 
   const { data: documents = [] } = useQuery({
-    queryKey: ['my-documents', employee?.id],
-    queryFn: async () => [],
-    enabled: !!employee,
+    queryKey: ['my-documents', employeeId],
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const DOCS_QUERY = gql`
+        query GetMyDocuments($employeeId: ID!) {
+          documents(employeeId: $employeeId) {
+            id name category fileUrl fileType status
+          }
+        }
+      `;
+      const data = await gqlClient.request(DOCS_QUERY, { employeeId });
+      return data.documents.map(d => ({
+        ...d,
+        document_name: d.name,
+        file_name: d.name + '.' + (d.fileType || 'pdf'),
+        file_url: d.fileUrl
+      }));
+    },
+    enabled: !!employeeId,
     initialData: [],
   });
 
@@ -131,6 +147,29 @@ export default function EmployeeSelfService() {
     },
     onError: (error) => {
       toast.error("Failed to update profile: " + error.message);
+      console.error(error);
+    }
+  });
+
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async (input) => {
+      const MUTATION = gql`
+        mutation UploadDocument($employeeId: ID!, $name: String!, $category: String!, $fileUrl: String!, $fileType: String!, $visibilityLevel: String!) {
+          uploadDocument(employeeId: $employeeId, name: $name, category: $category, fileUrl: $fileUrl, fileType: $fileType, visibilityLevel: $visibilityLevel) {
+            id
+          }
+        }
+      `;
+      return gqlClient.request(MUTATION, input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-documents', employeeId] });
+      setIsUploadOpen(false);
+      setUploadData({ name: '', category: 'General', file: null });
+      toast.success("Document uploaded successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to upload document: " + error.message);
       console.error(error);
     }
   });
