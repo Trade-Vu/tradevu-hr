@@ -2,6 +2,32 @@ import { hashPassword, comparePassword, generateToken } from '../utils/auth.js';
 import { v2 as cloudinary } from 'cloudinary';
 import { createAuditLog } from '../utils/audit.js';
 
+const checkAndPromoteEmployee = async (employeeId, prisma) => {
+  const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!emp || emp.employmentStatus !== 'DRAFT') return;
+
+  const isComplete = 
+    emp.phone && 
+    emp.dateOfBirth && 
+    emp.residentialAddress && 
+    emp.emergencyContact && 
+    emp.emergencyPhone && 
+    emp.nationalId && 
+    emp.bankName && 
+    emp.bankAccountNumber &&
+    emp.managerId;
+
+  if (isComplete) {
+    const docCount = await prisma.document.count({ where: { employeeId } });
+    if (docCount > 0) {
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: { employmentStatus: 'PENDING_ONBOARDING', onboardingStatus: 'in_progress' }
+      });
+    }
+  }
+};
+
 export const resolvers = {
   Query: {
     me: async (_, __, { prisma, user, requireAuth }) => {
@@ -323,24 +349,7 @@ export const resolvers = {
         updateData.employmentStatus = status;
       }
       
-      // Auto-promotion from DRAFT
-      if (existing.employmentStatus === 'DRAFT' && !updateData.employmentStatus) {
-        const mergedData = { ...existing, ...updateData };
-        const isComplete = 
-          mergedData.phone && 
-          mergedData.dateOfBirth && 
-          mergedData.residentialAddress && 
-          mergedData.emergencyContact && 
-          mergedData.emergencyPhone && 
-          mergedData.nationalId && 
-          mergedData.bankName && 
-          mergedData.bankAccountNumber;
-
-        if (isComplete) {
-          updateData.employmentStatus = 'PENDING_ONBOARDING';
-          updateData.onboardingStatus = 'in_progress';
-        }
-      }
+      // Auto-promotion is now handled after the update by checkAndPromoteEmployee
       
       const updated = await prisma.employee.update({
         where: { id },
@@ -348,6 +357,7 @@ export const resolvers = {
       });
       
       await createAuditLog({ actorId: user.id, entityType: 'Employee', entityId: id, action: 'UPDATE' });
+      await checkAndPromoteEmployee(id, prisma);
       return updated;
     },
     deleteEmployee: async (_, { id }, { prisma, user, requireRole }) => {
@@ -714,6 +724,8 @@ export const resolvers = {
         entityId: document.id,
         action: 'CREATE'
       });
+      
+      await checkAndPromoteEmployee(employeeId, prisma);
       
       return document;
     },
