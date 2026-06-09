@@ -79,7 +79,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
           employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } employmentStatus employmentType hireDate basicSalary allowances bankName bankAccountNumber pensionId
+            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId
           }
         }
       `;
@@ -95,6 +95,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         employment_status: e.employmentStatus,
         employment_type: e.employmentType,
         start_date: e.hireDate ? new Date(Number(e.hireDate)).toISOString().split('T')[0] : '',
+        probation_start_date: e.probationStartDate ? new Date(Number(e.probationStartDate)).toISOString().split('T')[0] : '',
+        probation_end_date: e.probationEndDate ? new Date(Number(e.probationEndDate)).toISOString().split('T')[0] : '',
         personal_info: {
           date_of_birth: e.dateOfBirth ? new Date(Number(e.dateOfBirth)).toISOString().split('T')[0] : '',
           gender: e.gender,
@@ -293,6 +295,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         employmentType: data.employment_type || undefined,
         employmentStatus: data.employment_status || undefined,
         hireDate: data.start_date || undefined,
+        probationStartDate: data.probation_start_date || undefined,
+        probationEndDate: data.probation_end_date || undefined,
         bankName: data.payroll_details?.bank_name || undefined,
         bankAccountNumber: data.payroll_details?.iban || undefined,
         pensionId: data.payroll_details?.gosi_number || undefined
@@ -303,11 +307,12 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       return gqlClient.request(UPDATE_EMP, { id, input });
     },
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+      await queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
       setIsEditing(false);
       toast.success("Saved successfully");
     },
     onError: (error) => {
+      console.error("Mutation error:", error);
       toast.error("Failed to save: " + error.message);
     }
   });
@@ -528,7 +533,14 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       case 'personal':
         return (
           <div className="space-y-6">
-            <OnboardingProgressWidget employeeId={employeeId} />
+            <OnboardingProgressWidget 
+              employeeId={employeeId} 
+              onCompleteAction={() => {
+                setActiveSection('job');
+                setIsEditing(true);
+                setEditData(prev => ({ ...prev, employment_status: 'PROBATION' }));
+              }} 
+            />
             <div>
               <h3 className="text-lg font-semibold text-slate-900 mb-5">About</h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -746,6 +758,26 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                     onChange={(e) => setEditData(prev => ({ ...prev, start_date: e.target.value }))}
                   />
                 </div>
+                {editData.employment_status === 'PROBATION' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Probation Start Date</Label>
+                      <Input
+                        type="date"
+                        value={editData.probation_start_date || ''}
+                        onChange={(e) => setEditData(prev => ({ ...prev, probation_start_date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Probation End Date</Label>
+                      <Input
+                        type="date"
+                        value={editData.probation_end_date || ''}
+                        onChange={(e) => setEditData(prev => ({ ...prev, probation_end_date: e.target.value }))}
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label>Reports To (Manager)</Label>
                   <Select

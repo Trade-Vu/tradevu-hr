@@ -45,6 +45,8 @@ export const typeDefs = `#graphql
     employmentStatus: String!
     employmentType: String
     hireDate: String!
+    probationStartDate: String
+    probationEndDate: String
     basicSalary: Float
     allowances: String
     onboardingStatus: String
@@ -144,6 +146,8 @@ export const typeDefs = `#graphql
     title: String!
     message: String!
     category: String!
+    channel: String!
+    deepLink: String
     isRead: Boolean!
     createdAt: String!
   }
@@ -368,6 +372,8 @@ export const typeDefs = `#graphql
     employmentType: String
     employmentStatus: String
     hireDate: String
+    probationStartDate: String
+    probationEndDate: String
     bankName: String
     bankAccountNumber: String
     pensionId: String

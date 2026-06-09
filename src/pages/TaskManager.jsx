@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Kanban, FolderKanban } from "lucide-react";
+import { Plus, Kanban, FolderKanban, Calendar } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { motion } from "framer-motion";
 
@@ -110,6 +110,7 @@ export default function TaskManager() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [projectForm, setProjectForm] = useState({
     project_name: '',
     description: '',
@@ -287,10 +288,10 @@ export default function TaskManager() {
   };
 
   const priorityColors = {
-    low: 'border-l-indigo-400',
-    medium: 'border-l-amber-400',
-    high: 'border-l-orange-500',
-    urgent: 'border-l-red-500',
+    low: 'bg-slate-300',
+    medium: 'bg-slate-400',
+    high: 'bg-slate-600',
+    urgent: 'bg-red-500',
   };
 
   const containerVariants = {
@@ -489,14 +490,14 @@ export default function TaskManager() {
           viewMode === 'kanban' ? <TaskSkeleton /> : <ProjectSkeleton />
         ) : viewMode === 'kanban' ? (
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
               {Object.entries(statusConfig).map(([status, config]) => (
                 <Droppable key={status} droppableId={status}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex flex-col bg-slate-100/50 rounded-2xl p-4 min-h-[500px] border border-slate-200/40 transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50 border-indigo-100' : ''}`}
+                      className={`flex flex-col bg-slate-100/50 rounded-2xl p-4 min-h-[500px] border border-slate-200/40 transition-colors w-[320px] shrink-0 snap-start ${snapshot.isDraggingOver ? 'bg-indigo-50/50 border-indigo-100' : ''}`}
                     >
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold text-slate-800 tracking-tight">{config.title}</h3>
@@ -513,25 +514,35 @@ export default function TaskManager() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`bg-white rounded-xl border border-slate-200/80 p-4 border-l-4 ${priorityColors[task.priority]} ${
-                                  snapshot.isDragging ? 'shadow-xl scale-105 rotate-2' : 'shadow-sm hover:shadow-md'
-                                } cursor-grab active:cursor-grabbing transition-all`}
+                                onClick={() => setSelectedTask(task)}
+                                className={`group bg-white rounded-2xl border border-slate-200 p-5 ${
+                                  snapshot.isDragging ? 'shadow-2xl scale-[1.02] rotate-1 ring-1 ring-slate-900/5 z-50' : 'shadow-sm hover:shadow-md hover:border-slate-300'
+                                } cursor-grab active:cursor-grabbing transition-all flex flex-col gap-3 min-h-[140px]`}
                                 style={provided.draggableProps.style}
                               >
-                                <h4 className="font-semibold text-slate-900 mb-2 text-sm leading-snug">
+                                <div className="flex justify-between items-center">
+                                  {task.category ? (
+                                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-widest">{task.category.replace('_', ' ')}</span>
+                                  ) : <span />}
+                                  <div className="flex items-center justify-center w-5 h-5 rounded-md hover:bg-slate-50 transition-colors" title={`Priority: ${task.priority}`}>
+                                    <div className={`w-2 h-2 rounded-full ${priorityColors[task.priority]}`} />
+                                  </div>
+                                </div>
+                                <h4 className="font-medium text-slate-900 text-base leading-snug tracking-tight">
                                   {task.title}
                                 </h4>
                                 {task.description && (
-                                  <p className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                                  <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
                                     {task.description}
                                   </p>
                                 )}
-                                <div className="flex items-center justify-between mt-auto">
-                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-md">
-                                    {task.priority}
-                                  </Badge>
+                                <div className="flex items-center justify-between mt-auto pt-4">
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No date'}
+                                  </div>
                                   {task.assigned_to && (
-                                    <div className="w-7 h-7 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center text-[10px] text-indigo-700 font-bold" title={task.assigned_to}>
+                                    <div className="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-xs text-slate-600 font-medium" title={task.assigned_to}>
                                       {task.assigned_to.charAt(0).toUpperCase()}
                                     </div>
                                   )}
@@ -641,6 +652,76 @@ export default function TaskManager() {
           </div>
         )}
       </motion.div>
+
+      {/* Task Details Dialog */}
+      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+        <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-0 shadow-2xl rounded-2xl">
+          {selectedTask && (
+            <>
+              <div className="bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-8 relative">
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 font-semibold backdrop-blur-sm uppercase shadow-sm">
+                    {selectedTask.status.replace('_', ' ')}
+                  </Badge>
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 font-semibold backdrop-blur-sm uppercase shadow-sm">
+                    {selectedTask.priority}
+                  </Badge>
+                </div>
+                <h2 className="text-2xl font-bold text-white mt-4 mb-2 pr-20 leading-tight drop-shadow-sm">
+                  {selectedTask.title}
+                </h2>
+                <div className="flex items-center gap-4 text-white/90 text-sm font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <FolderKanban className="w-4 h-4" />
+                    Project: {projects.find(p => p.id === selectedTask.project_id)?.project_name || 'My Tasks'}
+                  </div>
+                  {selectedTask.category && (
+                    <div className="flex items-center gap-1.5">
+                      <Kanban className="w-4 h-4" />
+                      {selectedTask.category.replace('_', ' ')}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="p-6 space-y-6 bg-slate-50/50">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Assignee</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-200">
+                        {selectedTask.assigned_to.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-semibold text-sm text-slate-700">{selectedTask.assigned_to}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Due Date</span>
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <span className="font-semibold text-sm text-slate-700">
+                        {selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : 'No deadline'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-3">Description</span>
+                  <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                    {selectedTask.description || <span className="italic text-slate-400">No description provided.</span>}
+                  </div>
+                </div>
+                
+                <div className="flex justify-end pt-2">
+                  <Button onClick={() => setSelectedTask(null)} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-sm px-6">
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

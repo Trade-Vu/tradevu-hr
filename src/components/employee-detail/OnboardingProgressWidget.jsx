@@ -5,6 +5,7 @@ import { gql } from "graphql-request";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const GET_TASKS = gql`
   query GetTasks($employeeId: ID) {
@@ -15,7 +16,7 @@ const GET_TASKS = gql`
   }
 `;
 
-export default function OnboardingProgressWidget({ employeeId }) {
+export default function OnboardingProgressWidget({ employeeId, onCompleteAction }) {
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['onboarding-tasks', employeeId],
     queryFn: async () => {
@@ -46,7 +47,15 @@ export default function OnboardingProgressWidget({ employeeId }) {
               </div>
               <span className="text-lg font-bold text-blue-700">{progress}%</span>
             </div>
-            <Progress value={progress} className="h-2 bg-blue-100" />
+            <Progress value={progress} className="h-2 bg-blue-100 mb-3" />
+            {progress === 100 && onCompleteAction && (
+              <Button 
+                onClick={onCompleteAction}
+                className="mt-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors"
+              >
+                Set Employee to Probation
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

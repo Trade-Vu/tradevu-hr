@@ -56,10 +56,26 @@ export default function SettingsApprovalWorkflows() {
     queryFn: async () => await gqlClient.request(GET_WORKFLOWS),
   });
 
-  const workflows = (workflowData.approvalWorkflows || []).map(w => ({
-    ...w,
-    parsedSteps: w.steps ? JSON.parse(w.steps) : []
-  }));
+  const workflows = (workflowData.approvalWorkflows || []).map(w => {
+    let parsed = [];
+    try {
+      if (w.steps) {
+        parsed = JSON.parse(w.steps);
+        // Handle double-encoded JSON just in case
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse workflow steps", e);
+    }
+    if (!Array.isArray(parsed)) parsed = [];
+    
+    return {
+      ...w,
+      parsedSteps: parsed
+    };
+  });
 
   const [workflowForm, setWorkflowForm] = useState({
     name: '',
@@ -297,8 +313,8 @@ export default function SettingsApprovalWorkflows() {
                             <span className="text-[10px] mt-1.5 text-slate-500 font-bold uppercase tracking-wider">Requester</span>
                           </div>
                           
-                          {workflow.parsedSteps.sort((a, b) => a.order - b.order).map((step, idx) => (
-                            <React.Fragment key={idx}>
+                          {Array.isArray(workflow.parsedSteps) && [...workflow.parsedSteps].sort((a, b) => a.order - b.order).map((step, idx) => (
+                            <div className="contents" key={idx}>
                               <div className="text-slate-300 px-1">
                                  <ArrowRight className="w-5 h-5" />
                               </div>
@@ -311,10 +327,10 @@ export default function SettingsApprovalWorkflows() {
                                 </div>
                                 <span className="text-[10px] mt-1.5 text-indigo-700 font-bold uppercase tracking-wider">{step.role.replace('_', ' ')}</span>
                               </div>
-                            </React.Fragment>
+                            </div>
                           ))}
 
-                          <React.Fragment>
+                          <div className="contents">
                             <div className="text-slate-300 px-1">
                                <ArrowRight className="w-5 h-5" />
                             </div>
@@ -324,7 +340,7 @@ export default function SettingsApprovalWorkflows() {
                               </div>
                               <span className="text-[10px] mt-1.5 text-green-700 font-bold uppercase tracking-wider">Approved</span>
                             </div>
-                          </React.Fragment>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-lg border border-amber-200/50">

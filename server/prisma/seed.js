@@ -121,7 +121,59 @@ async function main() {
     }
   })
 
-  console.log('Seeded database with test users and employees')
+  // Seed Approval Workflows
+  const workflowsToSeed = [
+    {
+      name: 'Leave Request Workflow',
+      entityType: 'LeaveRequest',
+      steps: [
+        { order: 1, role: 'MANAGER' },
+        { order: 2, role: 'HR_ADMIN' }
+      ]
+    },
+    {
+      name: 'Payroll Processing Workflow',
+      entityType: 'PayrollRun',
+      steps: [
+        { order: 1, role: 'HR_ADMIN' },
+        { order: 2, role: 'FINANCE' }
+      ]
+    },
+    {
+      name: 'Document Publishing Workflow',
+      entityType: 'Document',
+      steps: [
+        { order: 1, role: 'HR_ADMIN' },
+        { order: 2, role: 'SUPER_ADMIN' }
+      ]
+    },
+    {
+      name: 'Employee Profile Updates',
+      entityType: 'Employee',
+      steps: [
+        { order: 1, role: 'HR_ADMIN' }
+      ]
+    }
+  ];
+
+  for (const wf of workflowsToSeed) {
+    const existingWf = await prisma.approvalWorkflow.findFirst({
+      where: { name: wf.name, organizationId: org.id }
+    });
+    if (!existingWf) {
+      await prisma.approvalWorkflow.create({
+        data: {
+          name: wf.name,
+          entityType: wf.entityType,
+          steps: wf.steps,
+          organizationId: org.id,
+          isActive: true
+        }
+      });
+    }
+  }
+
+  console.log('Seeded database with test users, employees, and workflows')
 }
 
 main()

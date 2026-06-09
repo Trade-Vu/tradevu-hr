@@ -481,6 +481,14 @@ me: async (_, __, { prisma, user, requireAuth }) => {
         const hNum = Number(input.hireDate);
         updateData.hireDate = isNaN(hNum) ? new Date(input.hireDate) : new Date(hNum);
       }
+      if (input.probationStartDate) {
+        const psNum = Number(input.probationStartDate);
+        updateData.probationStartDate = isNaN(psNum) ? new Date(input.probationStartDate) : new Date(psNum);
+      }
+      if (input.probationEndDate) {
+        const peNum = Number(input.probationEndDate);
+        updateData.probationEndDate = isNaN(peNum) ? new Date(input.probationEndDate) : new Date(peNum);
+      }
       if (input.employmentType) updateData.employmentType = input.employmentType.toUpperCase();
       if (input.employmentStatus) {
         let status = input.employmentStatus.toUpperCase();
@@ -879,29 +887,7 @@ me: async (_, __, { prisma, user, requireAuth }) => {
       
       return approvalRecord;
     },
-    updateOnboardingTask: async (_, { id, isCompleted, status }, { prisma, user, requireAuth, ipAddress }) => {
-      requireAuth();
-      const updateData = {};
-      if (isCompleted !== undefined) {
-        updateData.isCompleted = isCompleted;
-        updateData.completedAt = isCompleted ? new Date() : null;
-      }
-      if (status !== undefined) {
-        updateData.status = status;
-        if (status === 'done') {
-           updateData.isCompleted = true;
-           updateData.completedAt = new Date();
-        } else {
-           updateData.isCompleted = false;
-           updateData.completedAt = null;
-        }
-      }
-      
-      return prisma.onboardingTask.update({
-        where: { id },
-        data: updateData
-      });
-    },
+
 
     // Phase 2 Mutations
     createLeaveType: async (_, { name, daysPerYear, isPaid = true, requiresApproval = true }, { prisma, user, requireRole, ipAddress }) => {
@@ -1441,7 +1427,16 @@ me: async (_, __, { prisma, user, requireAuth }) => {
     updateOnboardingTask: async (_, { id, status, isCompleted }, { prisma, requireAuth }) => {
       requireAuth();
       const data = {};
-      if (status !== undefined) data.status = status;
+      if (status !== undefined) {
+        data.status = status;
+        if (status === 'done') {
+           data.isCompleted = true;
+           data.completedAt = new Date();
+        } else {
+           data.isCompleted = false;
+           data.completedAt = null;
+        }
+      }
       if (isCompleted !== undefined) {
         data.isCompleted = isCompleted;
         if (isCompleted) data.completedAt = new Date();
