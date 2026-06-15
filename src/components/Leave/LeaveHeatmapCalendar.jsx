@@ -11,6 +11,7 @@ import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
 
 export default function LeaveHeatmapCalendar() {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ export default function LeaveHeatmapCalendar() {
 
   const [selectedDates, setSelectedDates] = useState([]);
   const [viewMode, setViewMode] = useState("personal"); // personal or team
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
 
   // Generate calendar dates by month
   const months = useMemo(() => {
@@ -111,6 +114,30 @@ export default function LeaveHeatmapCalendar() {
     );
   };
 
+  const handleAddRange = () => {
+    if (!rangeStart || !rangeEnd) return;
+    const start = new Date(rangeStart);
+    const end = new Date(rangeEnd);
+    if (start > end) {
+      toast.error("Start date must be before end date");
+      return;
+    }
+    const days = eachDayOfInterval({ start, end });
+    const newDates = [];
+    days.forEach(day => {
+      if (!isWeekend(day)) {
+        newDates.push(format(day, "yyyy-MM-dd"));
+      }
+    });
+    setSelectedDates(prev => {
+      const merged = new Set([...prev, ...newDates]);
+      return Array.from(merged).sort();
+    });
+    setRangeStart("");
+    setRangeEnd("");
+    toast.success(`Added ${newDates.length} days to plan.`);
+  };
+
   const getCellClasses = (day) => {
     if (!day) return "bg-transparent";
     
@@ -194,6 +221,27 @@ export default function LeaveHeatmapCalendar() {
               </div>
             )}
           </div>
+          
+          {viewMode === "personal" && myPlan?.status !== 'APPROVED' && (
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-muted/50 p-4 rounded-lg border border-slate-100 dark:border-slate-800">
+              <span className="text-sm font-medium whitespace-nowrap">Add Date Range:</span>
+              <Input 
+                type="date" 
+                value={rangeStart} 
+                onChange={(e) => setRangeStart(e.target.value)} 
+                className="max-w-[160px] bg-white dark:bg-slate-900" 
+              />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input 
+                type="date" 
+                value={rangeEnd} 
+                onChange={(e) => setRangeEnd(e.target.value)} 
+                className="max-w-[160px] bg-white dark:bg-slate-900" 
+              />
+              <Button onClick={handleAddRange} variant="secondary">Add Range</Button>
+              <Button onClick={() => setSelectedDates([])} variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 ml-auto">Clear All</Button>
+            </div>
+          )}
           
           {/* Calendar Grid - Month by Month */}
           <TooltipProvider delayDuration={100}>

@@ -5,6 +5,11 @@ import { render } from '@react-email/render';
 import WelcomeEmail from '../emails/WelcomeEmail.jsx';
 import LeaveUpdateEmail from '../emails/LeaveUpdateEmail.jsx';
 import PromotionEmail from '../emails/PromotionEmail.jsx';
+import EmployeeCreationEmail from '../emails/EmployeeCreationEmail.jsx';
+import EmployeeActivationEmail from '../emails/EmployeeActivationEmail.jsx';
+import ProbationNoticeEmail from '../emails/ProbationNoticeEmail.jsx';
+import SuspensionNoticeEmail from '../emails/SuspensionNoticeEmail.jsx';
+import ExitNoticeEmail from '../emails/ExitNoticeEmail.jsx';
 import BaseTemplate from '../emails/BaseTemplate.jsx';
 
 // Initialize Resend only if the API key is present
@@ -60,6 +65,16 @@ export class NotificationService {
                 htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
               } else if (category === 'promotion') {
                 htmlContent = await render(React.createElement(PromotionEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'employee_created') {
+                htmlContent = await render(React.createElement(EmployeeCreationEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'employee_activated') {
+                htmlContent = await render(React.createElement(EmployeeActivationEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'probation_update') {
+                htmlContent = await render(React.createElement(ProbationNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'suspension_notice') {
+                htmlContent = await render(React.createElement(SuspensionNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'exit_notice') {
+                htmlContent = await render(React.createElement(ExitNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
               } else {
                 htmlContent = await render(React.createElement(BaseTemplate, { previewText: title }, 
                   React.createElement('div', { style: { fontFamily: 'sans-serif' } },

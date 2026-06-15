@@ -866,6 +866,27 @@ me: async (_, __, { prisma, user, requireAuth }) => {
       const actionWithContext = auditContext ? `${actionString} - ${auditContext}` : actionString;
       
       await createAuditLog({ prisma, ipAddress, actorId: user.id, entityType: 'Employee', entityId: id, action: actionWithContext, previousValue: existing, newValue: updated });
+      
+      if (auditAction === 'PROMOTE') {
+        const usr = await prisma.user.findUnique({ where: { employeeId: id } });
+        if (usr) {
+          await NotificationService.notify({
+            userId: usr.id,
+            category: 'promotion',
+            title: 'Congratulations on your promotion! 🎉',
+            message: `Your employment profile has been updated with a new promotion: ${auditContext}`,
+            emailProps: {
+              newTitle: updateData.jobTitle || existing.jobTitle,
+              newGrade: updateData.employeeGrade || existing.employeeGrade,
+              newClass: updateData.employeeClass || existing.employeeClass,
+              effectiveDate: new Date().toLocaleDateString()
+            },
+            deepLink: '/EmployeeSelfService',
+            sendEmail: true
+          });
+        }
+      }
+      
       await checkAndPromoteEmployee(id, prisma);
       return updated;
     },

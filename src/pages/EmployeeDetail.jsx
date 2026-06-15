@@ -102,7 +102,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const departments = departmentsData || [];
 
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [promoteForm, setPromoteForm] = useState({ jobTitle: '', departmentId: '' });
+  const [promoteForm, setPromoteForm] = useState({ jobTitle: '', departmentId: '', employeeClass: '', employeeGrade: '' });
 
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [suspendForm, setSuspendForm] = useState({ startDate: '', endDate: '', reason: '', superAdminApproved: false });
@@ -2188,17 +2188,38 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>New Grade</Label>
+                <Input 
+                  value={promoteForm.employeeGrade} 
+                  onChange={(e) => setPromoteForm({...promoteForm, employeeGrade: e.target.value})}
+                  placeholder="e.g. Level 3, Director"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>New Class</Label>
+                <Input 
+                  value={promoteForm.employeeClass} 
+                  onChange={(e) => setPromoteForm({...promoteForm, employeeClass: e.target.value})}
+                  placeholder="e.g. A, B, Professional"
+                />
+              </div>
               <Button 
                 onClick={() => {
                   updateEmployeeMutation.mutate({ 
                     id: employee.id, 
-                    data: { job_title: promoteForm.jobTitle, department_id: promoteForm.departmentId },
+                    data: { 
+                      job_title: promoteForm.jobTitle, 
+                      department_id: promoteForm.departmentId,
+                      employeeClass: promoteForm.employeeClass,
+                      employeeGrade: promoteForm.employeeGrade
+                    },
                     auditAction: 'PROMOTE',
-                    auditContext: `Promoted to ${promoteForm.jobTitle}`
+                    auditContext: `Promoted to ${promoteForm.jobTitle || 'new level'} (Grade: ${promoteForm.employeeGrade || '-'}, Class: ${promoteForm.employeeClass || '-'})`
                   });
                   setShowPromoteDialog(false);
                 }} 
-                disabled={updateEmployeeMutation.isPending || !promoteForm.jobTitle}
+                disabled={updateEmployeeMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass && !promoteForm.employeeGrade)}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {updateEmployeeMutation.isPending ? 'Saving...' : 'Confirm Promotion'}

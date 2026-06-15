@@ -11,7 +11,7 @@ import {
   Hr,
 } from '@react-email/components';
 
-export const BaseTemplate = ({ children, previewText }) => {
+export const BaseTemplate = ({ children, previewText, headerTitle = "TradeVu HR" }) => {
   return (
     <Html>
       <Head />
@@ -29,11 +29,17 @@ export const BaseTemplate = ({ children, previewText }) => {
         <Body className="bg-slate-50 font-sans">
           <Container className="mx-auto py-10 px-4 max-w-[600px]">
             <Section className="bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
-              {/* Header with Purple Gradient */}
-              <div className="bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 p-8 text-center">
-                {/* Fallback to TradeVu logo or text */}
-                <Text className="text-white text-2xl font-bold tracking-tight m-0">TradeVu HR</Text>
-              </div>
+              {/* Header Section */}
+              <Section className="bg-purple-700 p-8 text-center" style={{ backgroundColor: '#4f46e5' }}>
+                <Img 
+                  src={`${process.env.FRONTEND_URL || 'http://localhost:5173'}/logo-icon-white.png`} 
+                  alt="TradeVu HR" 
+                  width="48" 
+                  height="48" 
+                  style={{ margin: '0 auto', marginBottom: '8px' }}
+                />
+                <Text className="text-white text-2xl font-bold tracking-tight m-0" style={{ color: '#ffffff' }}>{headerTitle}</Text>
+              </Section>
 
               {/* Main Content */}
               <Section className="p-8">
