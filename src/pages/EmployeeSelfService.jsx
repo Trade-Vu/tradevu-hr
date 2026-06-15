@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
+import { createPageUrl } from "@/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   TrendingUp, Download, Edit, Save, Clock, CheckCircle,
   Plane, Receipt, Shield, Upload, Eye
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
@@ -21,6 +23,7 @@ import { uploadToCloudinary } from "@/utils/cloudinary";
 import { motion } from "framer-motion";
 
 export default function EmployeeSelfService() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const employeeId = user?.employeeId;
@@ -296,7 +299,10 @@ NET SALARY: ${payroll.net_salary} SAR
         {/* Quick Stats */}
         <motion.div variants={itemVariants} className="grid md:grid-cols-4 gap-6">
           <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-            <Card className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+            <Card 
+              className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
+              onClick={() => navigate(createPageUrl("LeaveManagement"))}
+            >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="w-12 h-12 bg-indigo-100/50 rounded-xl flex items-center justify-center border border-indigo-200/50">
@@ -594,7 +600,10 @@ NET SALARY: ${payroll.net_salary} SAR
           {/* Leave Tab */}
           <TabsContent value="leave">
             <div className="grid md:grid-cols-2 gap-6">
-              <Card className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+              <Card 
+                className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
+                onClick={() => navigate(createPageUrl("LeaveManagement"))}
+              >
                 <CardHeader className="border-b border-slate-200">
                   <CardTitle>Leave Balance</CardTitle>
                 </CardHeader>
@@ -622,7 +631,10 @@ NET SALARY: ${payroll.net_salary} SAR
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+              <Card 
+                className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
+                onClick={() => navigate(createPageUrl("LeaveManagement"))}
+              >
                 <CardHeader className="border-b border-slate-200">
                   <CardTitle>Leave History</CardTitle>
                 </CardHeader>

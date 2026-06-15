@@ -52,6 +52,7 @@ export default function Dashboard() {
             fullName
             email
             jobTitle
+            employmentStatus
             onboardingStatus
             onboardingProgress
           }
@@ -63,6 +64,7 @@ export default function Dashboard() {
         ...emp,
         full_name: emp.fullName,
         job_title: emp.jobTitle,
+        employment_status: emp.employmentStatus,
         onboarding_status: emp.onboardingStatus || 'not_started',
         progress_percentage: emp.onboardingProgress || 0
       }));
@@ -81,6 +83,7 @@ export default function Dashboard() {
               fullName
               email
               jobTitle
+              employmentStatus
               onboardingStatus
               onboardingProgress
             }
@@ -97,6 +100,7 @@ export default function Dashboard() {
           ...emp,
           full_name: emp.fullName,
           job_title: emp.jobTitle,
+          employment_status: emp.employmentStatus,
           onboarding_status: emp.onboardingStatus || 'not_started',
           progress_percentage: emp.onboardingProgress || 0
         }))
@@ -216,11 +220,11 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Main Content Grid */}
-      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6">
+      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 h-[500px] mb-8">
         {/* Employee List - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden h-full flex flex-col">
-            <div className="p-5 border-b border-slate-100">
+        <div className="lg:col-span-2 min-h-0 flex flex-col">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="p-5 border-b border-slate-100 shrink-0">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Employees</h2>
                 <div className="flex gap-2 w-full md:w-auto">
@@ -246,7 +250,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex-1 p-0 relative">
+            <div className="flex-1 p-0 relative min-h-0 overflow-y-auto custom-scrollbar">
               {(loadingPaginated || isFetching) && (
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
                   {/* Optional spinner */}
@@ -259,7 +263,7 @@ export default function Dashboard() {
               />
             </div>
             {paginatedData?.totalPages > 1 && (
-              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm">
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm shrink-0">
                 <span className="text-slate-500">
                   Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
                 </span>
@@ -287,9 +291,11 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity - Takes 1 column */}
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6 h-full min-h-0">
           <CelebrationsWidget />
-          <RecentActivity tasks={tasks} employees={employees} />
+          <div className="flex-1 flex flex-col min-h-0">
+            <RecentActivity />
+          </div>
         </div>
       </motion.div>
 

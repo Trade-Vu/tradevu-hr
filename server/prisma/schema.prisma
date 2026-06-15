@@ -243,6 +243,7 @@ model Employee {
   updatedAt DateTime @updatedAt
 
   // Relations
+  leavePlans            LeavePlan[]
   leaveRequests         LeaveRequest[]
   leaveBalances         LeaveBalance[]
   attendanceRecords     Attendance[]
@@ -369,6 +370,19 @@ model LeaveRequest {
   updatedAt       DateTime       @updatedAt
 
   approvals ApprovalRecord[]
+}
+
+model LeavePlan {
+  id              String         @id @default(uuid())
+  employeeId      String
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+  year            Int
+  plannedDates    Json           // Array of date strings: ["2026-05-10", "2026-05-11"]
+  status          ApprovalStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([employeeId, year])
 }
 
 // ─── ATTENDANCE ───────────────────────────────────────────

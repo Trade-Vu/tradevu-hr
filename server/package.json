@@ -4,11 +4,12 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "tsx src/index.js",
+    "dev": "nodemon --exec tsx src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node prisma/seed.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "email:dev": "email dev --dir src/emails"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +20,8 @@
     "@as-integrations/express5": "^1.1.2",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@react-email/components": "^1.0.11",
+    "@react-email/render": "^2.0.8",
     "@trigger.dev/express": "^2.3.19",
     "@trigger.dev/sdk": "^2.3.19",
     "@upstash/redis": "^1.38.0",
@@ -30,11 +33,14 @@
     "graphql": "^16.14.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.21.0",
+    "react-email": "^6.6.0",
     "resend": "^6.12.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@react-email/ui": "^6.6.0",
     "nodemon": "^3.1.14",
-    "prisma": "^7.8.0"
+    "prisma": "^7.8.0",
+    "tsx": "^4.22.4"
   }
 }

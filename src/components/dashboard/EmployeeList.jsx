@@ -6,12 +6,22 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronRight, Mail, Briefcase, UserPlus } from "lucide-react";
 
 const statusColors = {
+  ACTIVE: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  INACTIVE: "bg-slate-50 text-slate-600 border-slate-200",
+  ON_LEAVE: "bg-amber-50 text-amber-600 border-amber-200",
+  TERMINATED: "bg-red-50 text-red-600 border-red-200",
+  PENDING_ONBOARDING: "bg-blue-50 text-blue-600 border-blue-200",
   not_started: "bg-slate-50 text-slate-600 border-slate-200",
   in_progress: "bg-blue-50 text-blue-600 border-blue-200",
-  completed: "bg-green-50 text-green-600 border-green-200",
+  completed: "bg-emerald-50 text-emerald-600 border-emerald-200",
 };
 
 const statusLabels = {
+  ACTIVE: "Active",
+  INACTIVE: "Inactive",
+  ON_LEAVE: "On Leave",
+  TERMINATED: "Terminated",
+  PENDING_ONBOARDING: "Pending Onboarding",
   not_started: "Not Started",
   in_progress: "In Progress",
   completed: "Completed",
@@ -86,8 +96,8 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
                     {employee.employeeCode}
                   </span>
                 )}
-                <Badge variant="outline" className={`${statusColors[employee.onboarding_status] || 'bg-slate-50 text-slate-600 border-slate-200'} font-medium border text-[10px] py-0 h-5`}>
-                  {statusLabels[employee.onboarding_status] || employee.onboarding_status || 'Draft'}
+                <Badge variant="outline" className={`${statusColors[employee.employment_status || employee.onboarding_status] || 'bg-slate-50 text-slate-600 border-slate-200'} font-medium border text-[10px] py-0 h-5`}>
+                  {statusLabels[employee.employment_status || employee.onboarding_status] || employee.employment_status || employee.onboarding_status || 'Draft'}
                 </Badge>
               </div>
               <div className="flex items-center gap-4 text-xs text-slate-500 mb-2">

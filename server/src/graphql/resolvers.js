@@ -299,6 +299,33 @@ me: async (_, __, { prisma, user, requireAuth }) => {
         currentPage: page
       };
     },
+    myLeavePlans: async (_, { year }, { prisma, user, requireAuth }) => {
+      requireAuth();
+      const employee = await prisma.employee.findUnique({ where: { email: user.email } });
+      if (!employee) throw new Error("Employee record not found for this user");
+      return prisma.leavePlan.findMany({
+        where: { employeeId: employee.id, year },
+        include: { employee: true }
+      });
+    },
+    teamLeavePlans: async (_, { year }, { prisma, user, requireAuth }) => {
+      requireAuth();
+      if (['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+        return prisma.leavePlan.findMany({
+          where: { year },
+          include: { employee: true }
+        });
+      }
+      const employee = await prisma.employee.findUnique({ where: { email: user.email } });
+      if (!employee) return [];
+      return prisma.leavePlan.findMany({
+        where: { 
+          year,
+          employee: { managerId: employee.id }
+        },
+        include: { employee: true }
+      });
+    },
     attendanceRecords: async (_, { employeeId, date }, { prisma, user, requireAuth, ipAddress }) => {
       requireAuth();
       const where = {};
@@ -1328,6 +1355,31 @@ me: async (_, __, { prisma, user, requireAuth }) => {
       });
       await recordApprovalEvent({ entityType: 'LeaveRequest', entityId: id, approverUserId: user.id, action: 'REJECTED', comments: reason, previousStatus: leave.status });
       return updated;
+    },
+    submitLeavePlan: async (_, { year, plannedDates }, { prisma, user, requireAuth }) => {
+      requireAuth();
+      const employee = await prisma.employee.findUnique({ where: { email: user.email } });
+      if (!employee) throw new Error("Employee not found");
+      
+      return prisma.leavePlan.upsert({
+        where: { employeeId_year: { employeeId: employee.id, year } },
+        update: { plannedDates, status: 'PENDING' },
+        create: { employeeId: employee.id, year, plannedDates, status: 'PENDING' }
+      });
+    },
+    approveLeavePlan: async (_, { planId }, { prisma, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      return prisma.leavePlan.update({
+        where: { id: planId },
+        data: { status: 'APPROVED' }
+      });
+    },
+    rejectLeavePlan: async (_, { planId }, { prisma, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+      return prisma.leavePlan.update({
+        where: { id: planId },
+        data: { status: 'REJECTED' }
+      });
     },
     clockIn: async (_, __, { prisma, user, requireAuth }) => {
       requireAuth();

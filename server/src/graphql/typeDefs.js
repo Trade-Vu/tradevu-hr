@@ -111,6 +111,17 @@ export const typeDefs = `#graphql
     createdAt: String!
   }
 
+  type LeavePlan {
+    id: ID!
+    employeeId: String!
+    employee: Employee
+    year: Int!
+    plannedDates: [String!]!
+    status: String!
+    createdAt: String!
+    updatedAt: String!
+  }
+
   type Attendance {
     id: ID!
     employeeId: String!
@@ -370,6 +381,8 @@ export const typeDefs = `#graphql
     leaveTypes: [LeaveType]
     leaveRequests(employeeId: ID): [LeaveRequest]
     paginatedLeaveRequests(page: Int, limit: Int, employeeId: ID): PaginatedLeaveRequests!
+    myLeavePlans(year: Int!): [LeavePlan!]!
+    teamLeavePlans(year: Int!): [LeavePlan!]!
     attendanceRecords(employeeId: ID, date: String): [Attendance]
     documents(employeeId: ID, category: String): [Document]
     documentHistory(documentId: ID!): [DocumentVersion]
@@ -529,9 +542,12 @@ export const typeDefs = `#graphql
     createLeaveType(name: String!, daysPerYear: Int!, isPaid: Boolean, requiresApproval: Boolean): LeaveType!
     submitLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
     approveLeaveRequest(id: ID!): LeaveRequest!
-    rejectLeaveRequest(id: ID!, reason: String
-    attachmentUrl: String!): LeaveRequest!
+    rejectLeaveRequest(id: ID!, reason: String, attachmentUrl: String): LeaveRequest!
     
+    submitLeavePlan(year: Int!, plannedDates: [String!]!): LeavePlan!
+    approveLeavePlan(planId: ID!): LeavePlan!
+    rejectLeavePlan(planId: ID!): LeavePlan!
+
     clockIn: Attendance!
     clockOut: Attendance!
     

@@ -1,5 +1,12 @@
 import { prisma } from '../db.js';
 import { Resend } from 'resend';
+import React from 'react';
+import { render } from '@react-email/render';
+import WelcomeEmail from '../emails/WelcomeEmail.jsx';
+import LeaveUpdateEmail from '../emails/LeaveUpdateEmail.jsx';
+import PromotionEmail from '../emails/PromotionEmail.jsx';
+import BaseTemplate from '../emails/BaseTemplate.jsx';
+
 // Initialize Resend only if the API key is present
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -13,8 +20,9 @@ export class NotificationService {
    * @param {string} params.message - Notification body
    * @param {string} params.deepLink - URL path to relevant record
    * @param {boolean} [params.sendEmail=false] - Whether to also send an email
+   * @param {Object} [params.emailProps={}] - Specific props for customized email templates
    */
-  static async notify({ userId, category, title, message, deepLink, sendEmail = false }) {
+  static async notify({ userId, category, title, message, deepLink, sendEmail = false, emailProps = {} }) {
     try {
       // 1. Create the in-app notification record
       const notification = await prisma.notification.create({
@@ -44,21 +52,34 @@ export class NotificationService {
             const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
             
+            let htmlContent;
+            try {
+              if (category === 'onboarding_welcome') {
+                htmlContent = await render(React.createElement(WelcomeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'leave') {
+                htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'promotion') {
+                htmlContent = await render(React.createElement(PromotionEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else {
+                htmlContent = await render(React.createElement(BaseTemplate, { previewText: title }, 
+                  React.createElement('div', { style: { fontFamily: 'sans-serif' } },
+                    React.createElement('h2', { className: "text-2xl font-bold text-slate-900 mb-4 mt-0" }, title),
+                    React.createElement('p', { className: "text-base text-slate-700 leading-relaxed mb-4" }, `Hi ${user.employee?.fullName || 'there'},`),
+                    React.createElement('p', { className: "text-base text-slate-700 leading-relaxed mb-6" }, message),
+                    deepLink && React.createElement('a', { href: `${frontendUrl}${deepLink}`, className: "bg-purple-600 text-white font-semibold rounded-lg px-6 py-3 no-underline text-center inline-block" }, "View Details")
+                  )
+                ));
+              }
+            } catch (err) {
+              console.error("Error rendering React Email:", err);
+              htmlContent = `<p>${message}</p>`; // Fallback
+            }
+
             await resend.emails.send({
               from: `TradeVu HR <${fromEmail}>`,
               to: [user.email],
               subject: title,
-              html: `
-                <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; color: #333;">
-                  <h2 style="color: #4f46e5;">${title}</h2>
-                  <p>Hi ${user.employee?.fullName || 'there'},</p>
-                  <p>${message}</p>
-                  ${deepLink ? `<a href="${frontendUrl}${deepLink}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 6px; margin-top: 24px; font-weight: bold;">View Details</a>` : ''}
-                  <p style="margin-top: 30px; font-size: 12px; color: #888;">
-                    This is an automated message from your TradeVu HR portal.
-                  </p>
-                </div>
-              `
+              html: htmlContent
             });
             console.log(`[NotificationService] Email dispatched to ${user.email} via Resend.`);
           } else {

@@ -18,6 +18,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import NotificationBell from "@/components/ui/NotificationBell";
 
 const navigationStructure = [
@@ -39,7 +45,7 @@ const navigationStructure = [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
       { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      { title: "Leave Requests", url: createPageUrl("AllLeaveRequests"), icon: Plane },
+      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
       { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
     ]
   },
@@ -120,7 +126,7 @@ const employeeNavigation = [
     icon: FileText,
     isParent: true,
     children: [
-      { title: "Leave Requests", url: createPageUrl("LeaveManagement"), icon: Plane },
+      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
       { title: "My Loans", url: createPageUrl("Loans"), icon: DollarSign },
       { title: "Expense Claims", url: createPageUrl("Expenses"), icon: Receipt },
       { title: "Request HR Letter", url: createPageUrl("HRLetters"), icon: FileText },
@@ -255,34 +261,38 @@ export default function Layout({ children }) {
 
         {/* Icons */}
         <nav className="flex-1 flex flex-col gap-2 w-full px-2 overflow-y-auto hide-scrollbar">
-          {navItems.map((item, i) => {
-            const isActive = activePrimary?.title === item.title;
-            return (
-              <motion.button
-                key={item.title}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  handlePrimaryClick(item);
-                  if (window.innerWidth < 768) setIsMobileMenuOpen(false);
-                }}
-                className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-colors group relative ${
-                  isActive 
-                    ? (isDark ? 'bg-indigo-500 text-white shadow-sm' : 'bg-white shadow-sm text-slate-900 border border-slate-200') 
-                    : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900')
-                }`}
-              >
-                <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
-                {/* Tooltip */}
-                <div className="absolute left-14 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 pointer-events-none font-medium">
-                  {item.title}
-                </div>
-              </motion.button>
-            );
-          })}
+          <TooltipProvider delayDuration={200}>
+            {navItems.map((item, i) => {
+              const isActive = activePrimary?.title === item.title;
+              return (
+                <Tooltip key={item.title}>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        handlePrimaryClick(item);
+                        if (window.innerWidth < 768) setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-colors group relative ${
+                        isActive 
+                          ? (isDark ? 'bg-indigo-500 text-white shadow-sm' : 'bg-white shadow-sm text-slate-900 border border-slate-200') 
+                          : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900')
+                      }`}
+                    >
+                      <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
+                    </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={14} className="z-[100] font-medium bg-slate-900 text-white border-none shadow-md">
+                    {item.title}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </TooltipProvider>
         </nav>
 
         {/* Theme Toggle & Avatar */}
