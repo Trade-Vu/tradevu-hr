@@ -1,0 +1,12 @@
+import { prisma } from './src/db.js';
+
+async function main() {
+  const users = await prisma.user.findMany({
+    select: {
+      email: true,
+      role: true,
+    }
+  });
+  console.log(users);
+}
+main();

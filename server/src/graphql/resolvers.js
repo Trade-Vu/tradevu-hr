@@ -578,6 +578,19 @@ me: async (_, __, { prisma, user, requireAuth }) => {
       const { templateId, employmentType, ...employeeData } = input;
       const count = await prisma.employee.count({ where: { organizationId: user.organizationId } });
       const employeeCode = `EMP-${(count + 1).toString().padStart(6, '0')}`;
+      
+      let managerId = null;
+      if (employeeData.departmentId) {
+        const dept = await prisma.department.findUnique({ where: { id: employeeData.departmentId } });
+        if (dept?.headEmployeeId) managerId = dept.headEmployeeId;
+      }
+      if (!managerId) {
+        const hrAdmin = await prisma.user.findFirst({
+          where: { organizationId: user.organizationId, role: 'HR_ADMIN', employeeId: { not: null } }
+        });
+        if (hrAdmin) managerId = hrAdmin.employeeId;
+      }
+
       const emp = await prisma.employee.create({
         data: {
           ...employeeData,
@@ -587,6 +600,7 @@ me: async (_, __, { prisma, user, requireAuth }) => {
           hireDate: new Date(employeeData.hireDate),
           employmentStatus: 'DRAFT',
           onboardingStatus: 'not_started',
+          managerId,
         }
       });
       await createAuditLog({ prisma, ipAddress, actorId: user.id, entityType: 'Employee', entityId: emp.id, action: 'CREATE', newValue: emp, ipAddress });
@@ -997,6 +1011,21 @@ me: async (_, __, { prisma, user, requireAuth }) => {
           endDate.setMonth(endDate.getMonth() + 3);
           updateData.probationEndDate = endDate;
         }
+      }
+
+      if (input.departmentId !== undefined && input.departmentId !== existing.departmentId) {
+        let managerId = null;
+        if (input.departmentId) {
+          const dept = await prisma.department.findUnique({ where: { id: input.departmentId } });
+          if (dept?.headEmployeeId) managerId = dept.headEmployeeId;
+        }
+        if (!managerId) {
+          const hrAdmin = await prisma.user.findFirst({
+            where: { organizationId: user.organizationId, role: 'HR_ADMIN', employeeId: { not: null } }
+          });
+          if (hrAdmin) managerId = hrAdmin.employeeId;
+        }
+        updateData.managerId = managerId;
       }
       
       // Auto-promotion is now handled after the update by checkAndPromoteEmployee
