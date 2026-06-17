@@ -96,7 +96,7 @@ export default function LeaveOverview() {
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
       const CREATE_LEAVE = gql`
-        mutation CreateLeave($employeeId: ID!, $leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
+        mutation CreateLeave($leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
           submitLeaveRequest(input: {
             leaveTypeId: $leaveTypeId,
             startDate: $startDate,

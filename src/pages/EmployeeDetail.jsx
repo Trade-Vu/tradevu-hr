@@ -116,6 +116,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     queryFn: async () => {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
+          employee(id: $id) {
             id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator
             promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
             statusHistory { id previousStatus newStatus changedBy reason createdAt }
@@ -286,8 +287,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const requestCompensationUpdateMutation = useMutation({
     mutationFn: async (input) => {
       const COMP_MUTATION = gql`
-        mutation RequestCompUpdate($empId: ID!, $basic: Float!, $allowances: String, $reason: String!) {
-          requestCompensationUpdate(employeeId: $empId, basicSalary: $basic, allowances: $allowances, reason: $reason) { id status }
+        mutation RequestCompUpdate($empId: ID!, $basic: Float!, $allowances: String, $reason: String!, $pensionAdministrator: String!, $attachmentUrl: String!) {
+          requestCompensationUpdate(employeeId: $empId, basicSalary: $basic, allowances: $allowances, reason: $reason, pensionAdministrator: $pensionAdministrator, attachmentUrl: $attachmentUrl) { id status }
         }
       `;
       const allowancesObj = {
@@ -300,7 +301,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         empId: employeeId,
         basic: parseFloat(input.basicSalary) || 0,
         allowances: JSON.stringify(allowancesObj),
-        reason: input.reason
+        reason: input.reason,
+        pensionAdministrator: "Not Specified",
+        attachmentUrl: ""
       });
     },
     onSuccess: (data, variables) => {
@@ -382,7 +385,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         mutation OffboardEmployee($id: ID!, $input: OffboardEmployeeInput!) {
           offboardEmployee(id: $id, input: $input) {
             id
-            employment_status
+            employmentStatus
           }
         }
       `;

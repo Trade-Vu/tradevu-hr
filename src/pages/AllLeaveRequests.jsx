@@ -109,7 +109,7 @@ export default function AllLeaveRequests() {
     queryFn: async () => {
       const GET_LEAVE_TYPES = gql`
         query GetLeaveTypes {
-          leaveTypes { id name maxDays defaultNoticeDaysRequired }
+          leaveTypes { id name daysPerYear isPaid }
         }
       `;
       const data = await gqlClient.request(GET_LEAVE_TYPES);
@@ -134,7 +134,7 @@ export default function AllLeaveRequests() {
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
       const CREATE_LEAVE = gql`
-        mutation CreateLeave($employeeId: ID!, $leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
+        mutation CreateLeave($leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
           submitLeaveRequest(input: {
             leaveTypeId: $leaveTypeId,
             startDate: $startDate,
@@ -187,12 +187,13 @@ export default function AllLeaveRequests() {
 
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
-      const UPDATE_LEAVE = gql`
-        mutation UpdateLeave($id: ID!, $status: String!) {
-          updateLeaveRequest(id: $id, status: $status) { id status }
-        }
-      `;
-      const updated = await gqlClient.request(UPDATE_LEAVE, { id, status: data.status });
+      let mutationStr;
+      if (data.status === 'approved') {
+        mutationStr = gql`mutation ApproveLeave($id: ID!) { approveLeaveRequest(id: $id) { id status } }`;
+      } else {
+        mutationStr = gql`mutation RejectLeave($id: ID!) { rejectLeaveRequest(id: $id, reason: "Rejected by HR", attachmentUrl: "none") { id status } }`;
+      }
+      const updated = await gqlClient.request(mutationStr, { id });
       await createAuditLog('update', id, oldData?.employee_name, {
         before: oldData,
         after: updated,

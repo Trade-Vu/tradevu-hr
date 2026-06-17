@@ -76,8 +76,8 @@ const APPROVE_DOCUMENT = gql`
 `;
 
 const REJECT_DOCUMENT = gql`
-  mutation RejectDocument($id: ID!, $reason: String) {
-    rejectDocument(id: $id, reason: $reason) {
+  mutation RejectDocument($id: ID!, $reason: String, $attachmentUrl: String!) {
+    rejectDocument(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
       id
       status
     }
@@ -94,8 +94,8 @@ const APPROVE_LEAVE = gql`
 `;
 
 const REJECT_LEAVE = gql`
-  mutation RejectLeave($id: ID!, $reason: String!) {
-    rejectLeaveRequest(id: $id, reason: $reason) {
+  mutation RejectLeave($id: ID!, $reason: String, $attachmentUrl: String!) {
+    rejectLeaveRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
       id
       status
     }
@@ -112,8 +112,8 @@ const APPROVE_PROFILE = gql`
 `;
 
 const REJECT_PROFILE = gql`
-  mutation RejectProfile($id: ID!, $reason: String!) {
-    rejectProfileUpdateRequest(id: $id, reason: $reason) {
+  mutation RejectProfile($id: ID!, $reason: String, $attachmentUrl: String!) {
+    rejectProfileUpdateRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
       id
       status
     }
@@ -464,7 +464,7 @@ export default function PendingApprovals() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        <RejectDialog onReject={(reason) => rejectDocument({ id: doc.id, reason })} title={`Reject Document: ${doc.name}`} />
+                        <RejectDialog onReject={(reason) => rejectDocument({ id: doc.id, reason, attachmentUrl: "" })} title={`Reject Document: ${doc.name}`} />
                         <Button 
                           className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveDocument({ id: doc.id })}
@@ -510,7 +510,7 @@ export default function PendingApprovals() {
                         {leave.reason && <p className="text-sm text-slate-500 italic mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">"{leave.reason}"</p>}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <RejectDialog onReject={(reason) => rejectLeave({ id: leave.id, reason })} title="Reject Leave Request" />
+                        <RejectDialog onReject={(reason) => rejectLeave({ id: leave.id, reason, attachmentUrl: "" })} title="Reject Leave Request" />
                         <Button 
                           className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveLeave({ id: leave.id })}
@@ -555,7 +555,7 @@ export default function PendingApprovals() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <RejectDialog onReject={(reason) => rejectProfile({ id: update.id, reason })} title="Reject Profile Update" />
+                        <RejectDialog onReject={(reason) => rejectProfile({ id: update.id, reason, attachmentUrl: "" })} title="Reject Profile Update" />
                         <Button 
                           className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                           onClick={() => approveProfile({ id: update.id })}

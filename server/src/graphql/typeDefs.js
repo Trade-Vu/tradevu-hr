@@ -300,6 +300,7 @@ export const typeDefs = `#graphql
     content: String
     status: String!
     requiresAck: Boolean!
+    createdAt: String!
   }
 
   type Announcement {
