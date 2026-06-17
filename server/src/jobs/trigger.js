@@ -121,6 +121,8 @@ client.defineJob({
     let executedCount = 0;
     for (const req of pendingPromotions) {
       await io.runTask(`execute-promotion-${req.id}`, async () => {
+        const currentEmployee = await prisma.employee.findUnique({ where: { id: req.employeeId } });
+        
         await prisma.employee.update({
           where: { id: req.employeeId },
           data: {
@@ -141,6 +143,18 @@ client.defineJob({
         if (req.newEmployeeGrade) {
           await applyDynamicBenefits(req.employeeId, req.newEmployeeGrade, prisma);
         }
+
+        await prisma.promotionHistory.create({
+          data: {
+            employeeId: req.employeeId,
+            previousTitle: currentEmployee.jobTitle,
+            newTitle: req.newJobTitle || currentEmployee.jobTitle,
+            previousGrade: currentEmployee.employeeGrade,
+            newGrade: req.newEmployeeGrade || currentEmployee.employeeGrade,
+            effectiveDate: req.effectiveDate,
+            approvedBy: req.requestedById
+          }
+        });
         
         await prisma.promotionRequest.update({
           where: { id: req.id },

@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, Mail, Briefcase, Calendar, FileText } from "lucide-react";
-import ReactCountryFlag from "react-country-flag";
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 export default function AddEmployeeForm({ templates, departments, onSubmit, onCancel, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -16,7 +17,6 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
     template_id: "",
     start_date: "",
     phone: "",
-    phoneExtension: "+234",
     status: "not_started",
     progress_percentage: 0,
     employment_type: "full_time",
@@ -31,10 +31,8 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
       return;
     }
     const submissionData = {
-      ...formData,
-      phone: formData.phone ? `${formData.phoneExtension} ${formData.phone.replace(/^0+/, '')}` : ""
+      ...formData
     };
-    delete submissionData.phoneExtension;
     onSubmit(submissionData);
   };
 
@@ -86,64 +84,12 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="flex gap-2">
-                  <Select value={formData.phoneExtension} onValueChange={(value) => handleChange("phoneExtension", value)}>
-                    <SelectTrigger className="w-[110px]">
-                      <SelectValue placeholder="Ext" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="+1">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="US" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+1 (US/CA)</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="+44">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="GB" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+44 (UK)</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="+234">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="NG" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+234 (NG)</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="+91">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="IN" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+91 (IN)</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="+61">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="AU" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+61 (AU)</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="+27">
-                        <div className="flex items-center gap-2">
-                          <ReactCountryFlag countryCode="ZA" svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} />
-                          <span>+27 (ZA)</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    className="flex-1"
+                  <PhoneInput
+                    international
+                    defaultCountry="NG"
                     value={formData.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    placeholder={
-                      formData.phoneExtension === "+1" ? "(555) 000-0000" :
-                      formData.phoneExtension === "+44" ? "7911 123456" :
-                      formData.phoneExtension === "+234" ? "801 234 5678" :
-                      formData.phoneExtension === "+91" ? "98765 43210" :
-                      formData.phoneExtension === "+61" ? "412 345 678" :
-                      formData.phoneExtension === "+27" ? "82 123 4567" :
-                      "0000 000 0000"
-                    }
+                    onChange={(value) => handleChange("phone", value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
               </div>

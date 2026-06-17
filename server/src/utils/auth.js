@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_please_change_in_production';
+const SECRET = process.env.JWT_SECRET;
 
 export const hashPassword = async (password) => {
   const salt = await bcrypt.genSalt(10);

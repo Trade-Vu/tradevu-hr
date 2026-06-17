@@ -513,6 +513,7 @@ export const typeDefs = `#graphql
   input EmployeeInput {
     fullName: String!
     email: String!
+    phone: String
     jobTitle: String!
     departmentId: String
     employmentType: String
@@ -531,7 +532,7 @@ export const typeDefs = `#graphql
     startDate: String!
     endDate: String!
     reason: String
-    attachmentUrl: String!
+    attachmentUrl: String
     superAdminApproved: Boolean!
   }
 

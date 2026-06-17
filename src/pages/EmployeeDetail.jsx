@@ -117,7 +117,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
           employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator
+            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator employeeGrade employeeClass
             promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
             statusHistory { id previousStatus newStatus changedBy reason createdAt }
           }
@@ -1959,23 +1959,27 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               {employee.promotion_history && employee.promotion_history.length > 0 ? (
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-50 text-slate-500">
                       <tr>
-                        <th className="px-4 py-3 font-medium text-slate-700">Date</th>
-                        <th className="px-4 py-3 font-medium text-slate-700">Previous Title</th>
-                        <th className="px-4 py-3 font-medium text-slate-700">New Title</th>
-                        <th className="px-4 py-3 font-medium text-slate-700">Previous Grade</th>
-                        <th className="px-4 py-3 font-medium text-slate-700">New Grade</th>
+                        <th className="px-4 py-3 font-medium">Date</th>
+                        <th className="px-4 py-3 font-medium">Previous</th>
+                        <th className="px-4 py-3 font-medium">New</th>
+                        <th className="px-4 py-3 font-medium">Approved By</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-slate-100">
                       {employee.promotion_history.map(ph => (
-                        <tr key={ph.id} className="bg-white hover:bg-slate-50">
-                          <td className="px-4 py-3">{new Date(Number(ph.effectiveDate) || ph.effectiveDate).toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-slate-600">{ph.previousTitle || 'N/A'}</td>
-                          <td className="px-4 py-3 font-medium text-slate-900">{ph.newTitle || 'N/A'}</td>
-                          <td className="px-4 py-3 text-slate-600">{ph.previousGrade || 'N/A'}</td>
-                          <td className="px-4 py-3 font-medium text-slate-900">{ph.newGrade || 'N/A'}</td>
+                        <tr key={ph.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-slate-600">{new Date(ph.createdAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div>{ph.previousTitle}</div>
+                            <div className="text-xs text-slate-400">{ph.previousGrade}</div>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-900">
+                            <div>{ph.newTitle}</div>
+                            <div className="text-xs text-slate-500">{ph.newGrade}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">{ph.approvedBy || 'System'}</td>
                         </tr>
                       ))}
                     </tbody>
