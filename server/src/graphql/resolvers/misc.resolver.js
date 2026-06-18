@@ -539,9 +539,9 @@ startOnboarding: async (_, {
 suspendEmployee: async (_, {
   id,
   input
-}, context) => {
-  if (!context.user) throw new Error('Not authenticated');
-  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(context.user.role)) {
+}, { prisma, user }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
   return await prisma.$transaction(async tx => {
@@ -568,7 +568,7 @@ suspendEmployee: async (_, {
     });
     await tx.auditLog.create({
       data: {
-        actorId: context.user.id,
+        actorId: user.id,
         action: 'SUSPEND',
         entityType: 'EMPLOYEE',
         entityId: id,
@@ -586,9 +586,9 @@ suspendEmployee: async (_, {
 offboardEmployee: async (_, {
   id,
   input
-}, context) => {
-  if (!context.user) throw new Error('Not authenticated');
-  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(context.user.role)) {
+}, { prisma, user }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
   return await prisma.$transaction(async tx => {
@@ -631,7 +631,7 @@ offboardEmployee: async (_, {
     await tx.auditLog.create({
       data: {
         organizationId: employee.organizationId,
-        userId: context.user.id,
+        userId: user.id,
         action: 'OFFBOARD',
         entityType: 'EMPLOYEE',
         entityId: id,
