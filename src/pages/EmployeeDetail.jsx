@@ -4,10 +4,10 @@ import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { 
+import {
   ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, Building,
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
-  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare, 
+  Shield, Gift, MoreVertical, Edit, Save, MessageCircle, MessageSquare,
   CheckCircle, Plus, Trash2, Download, Printer, FileSpreadsheet, Upload, Star, X, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -273,7 +273,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   });
 
   const handleExportAttendance = () => {
-    const csvContent = "data:text/csv;charset=utf-8,Date,Check In,Check Out,Status\n" 
+    const csvContent = "data:text/csv;charset=utf-8,Date,Check In,Check Out,Status\n"
       + attendance.map(a => `${a.date},${a.check_in},${a.check_out},${a.status}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const a = document.createElement("a");
@@ -318,7 +318,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     }
   });
 
-  
+
   const suspendEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const SUSPEND_EMP = gql`
@@ -439,9 +439,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         employeeClass: data.employeeClass || undefined,
         employeeGrade: data.employeeGrade || undefined
       };
-      
+
       Object.keys(input).forEach(key => input[key] === undefined && delete input[key]);
-      
+
       return gqlClient.request(UPDATE_EMP, { id, input });
     },
     onSuccess: async () => {
@@ -578,9 +578,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     setUploadingFile(true);
     try {
       const result = await uploadToCloudinary(file);
-      setDocForm(prev => ({ 
-        ...prev, 
-        file_url: result.secure_url, 
+      setDocForm(prev => ({
+        ...prev,
+        file_url: result.secure_url,
         file_name: file.name,
         file_type: result.format || 'PDF',
         file_size: result.bytes || 0
@@ -599,9 +599,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     setUploadingFile(true);
     try {
       const result = await uploadToCloudinary(file);
-      setReplaceForm(prev => ({ 
-        ...prev, 
-        file_url: result.secure_url, 
+      setReplaceForm(prev => ({
+        ...prev,
+        file_url: result.secure_url,
         file_name: file.name,
         file_type: result.format || 'PDF',
         file_size: result.bytes || 0
@@ -622,10 +622,10 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   };
 
   const handleExportExcel = () => {
-    const csvData = thisMonthAttendance.map(record => 
+    const csvData = thisMonthAttendance.map(record =>
       `${format(new Date(record.date), 'yyyy-MM-dd')},${record.status},${record.check_in || ''},${record.check_out || ''}`
     ).join('\n');
-    
+
     const blob = new Blob([`Date,Status,Check In,Check Out\n${csvData}`], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -671,7 +671,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       case 'personal':
         return (
           <div className="space-y-6">
-            <OnboardingProgressWidget 
+            <OnboardingProgressWidget
               employeeId={employeeId}
               employee={employee}
               onCompleteAction={() => {
@@ -787,17 +787,17 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
             <div className="pt-8 border-t border-slate-100">
               <h3 className="text-lg font-semibold text-slate-900 mb-5">Contact</h3>
               <div className="grid md:grid-cols-2 gap-4">
-                <PremiumField 
-                  icon={Mail} 
-                  label="Work Email" 
-                  value={employee.email} 
+                <PremiumField
+                  icon={Mail}
+                  label="Work Email"
+                  value={employee.email}
                   action={
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.email, 'work')}>
                       <Mail className="w-4 h-4" />
                     </Button>
-                  } 
+                  }
                 />
-                
+
                 {isEditing ? (
                   <div className="space-y-2 col-span-1 md:col-span-2">
                     <Label>Private Email</Label>
@@ -809,22 +809,22 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                     />
                   </div>
                 ) : employee.private_email ? (
-                  <PremiumField 
-                    icon={Mail} 
-                    label="Private Email" 
-                    value={employee.private_email} 
+                  <PremiumField
+                    icon={Mail}
+                    label="Private Email"
+                    value={employee.private_email}
                     action={
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.private_email, 'private')}>
                         <Mail className="w-4 h-4" />
                       </Button>
-                    } 
+                    }
                   />
                 ) : null}
-                
-                <PremiumField 
-                  icon={Phone} 
-                  label="Mobile No." 
-                  value={employee.phone || 'Not set'} 
+
+                <PremiumField
+                  icon={Phone}
+                  label="Mobile No."
+                  value={employee.phone || 'Not set'}
                   action={
                     employee.phone && (
                       <div className="flex gap-1">
@@ -836,7 +836,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                         </Button>
                       </div>
                     )
-                  } 
+                  }
                 />
               </div>
             </div>
@@ -1127,7 +1127,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                   </div>
                 </div>
               )}
-              
+
               <div className="pt-6">
                 <h4 className="font-semibold text-slate-900 mb-3">Leave History</h4>
                 {leaveRequests.length === 0 ? (
@@ -1147,8 +1147,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                         </div>
                         <Badge className={
                           leave.status === 'approved' ? 'bg-green-100 text-green-700' :
-                          leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
+                            leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
                         }>
                           {leave.status}
                         </Badge>
@@ -1181,31 +1181,31 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
                     <Label>New Basic Salary (NGN)</Label>
-                    <Input 
-                      type="number" 
-                      value={compForm.basicSalary} 
-                      onChange={(e) => setCompForm({...compForm, basicSalary: e.target.value})}
+                    <Input
+                      type="number"
+                      value={compForm.basicSalary}
+                      onChange={(e) => setCompForm({ ...compForm, basicSalary: e.target.value })}
                       placeholder="e.g. 500000"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Housing Allowance</Label>
-                    <Input type="number" value={compForm.housing} onChange={(e) => setCompForm({...compForm, housing: e.target.value})} />
+                    <Input type="number" value={compForm.housing} onChange={(e) => setCompForm({ ...compForm, housing: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Transport Allowance</Label>
-                    <Input type="number" value={compForm.transport} onChange={(e) => setCompForm({...compForm, transport: e.target.value})} />
+                    <Input type="number" value={compForm.transport} onChange={(e) => setCompForm({ ...compForm, transport: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Reason for Update</Label>
-                    <Input 
-                      value={compForm.reason} 
-                      onChange={(e) => setCompForm({...compForm, reason: e.target.value})} 
+                    <Input
+                      value={compForm.reason}
+                      onChange={(e) => setCompForm({ ...compForm, reason: e.target.value })}
                       placeholder="e.g. Annual Review, Promotion"
                     />
                   </div>
-                  <Button 
-                    onClick={() => requestCompensationUpdateMutation.mutate(compForm)} 
+                  <Button
+                    onClick={() => requestCompensationUpdateMutation.mutate(compForm)}
                     disabled={requestCompensationUpdateMutation.isPending || !compForm.basicSalary || !compForm.reason}
                     className="w-full bg-slate-900 text-white"
                   >
@@ -1288,7 +1288,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-slate-600 mb-1">Total Compensation</p>
                     <p className="text-2xl font-bold text-blue-700">
-                      {((employee.payroll_details?.basic_salary || 0) + 
+                      {((employee.payroll_details?.basic_salary || 0) +
                         Object.values(employee.payroll_details?.allowances || {}).reduce((sum, val) => sum + (val || 0), 0)
                       ).toLocaleString()} NGN
                     </p>
@@ -1376,7 +1376,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                                 <TableCell>
                                   <Badge variant="outline" className={
                                     history.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                                    history.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                      history.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                                   }>
                                     {history.status}
                                   </Badge>
@@ -1414,7 +1414,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="grid md:grid-cols-4 gap-4">
               <div className="p-4 bg-green-50 rounded-lg text-center">
                 <p className="text-3xl font-bold text-green-700">{presentDays}</p>
@@ -1456,10 +1456,10 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                       </div>
                       <Badge className={
                         record.status === 'present' ? 'bg-green-100 text-green-700' :
-                        record.status === 'absent' ? 'bg-red-100 text-red-700' :
-                        record.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
-                        record.status === 'leave' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-700'
+                          record.status === 'absent' ? 'bg-red-100 text-red-700' :
+                            record.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                              record.status === 'leave' ? 'bg-blue-100 text-blue-700' :
+                                'bg-slate-100 text-slate-700'
                       }>
                         {record.status}
                       </Badge>
@@ -1544,7 +1544,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 </DialogContent>
               </Dialog>
             </div>
-            
+
             <div className="flex gap-4 mb-6">
               <Input placeholder="Search documents..." value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} className="max-w-xs" />
               <select value={docCategoryFilter} onChange={(e) => setDocCategoryFilter(e.target.value)} className="flex h-10 items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm w-64">
@@ -1585,8 +1585,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                           {doc.status && (
                             <Badge variant="secondary" className={
                               doc.status === 'EXPIRING_SOON' ? 'bg-amber-100 text-amber-700' :
-                              doc.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
-                              'bg-green-100 text-green-700'
+                                doc.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
+                                  'bg-green-100 text-green-700'
                             }>
                               {doc.status}
                             </Badge>
@@ -1623,7 +1623,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 ))}
               </div>
             )}
-            
+
             {/* Replace Document Dialog */}
             <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
               <DialogContent>
@@ -1781,7 +1781,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-slate-900">Assigned Assets</h3>
             </div>
-            
+
             {assets.length === 0 ? (
               <div className="text-center py-12">
                 <Laptop className="w-16 h-16 mx-auto mb-4 text-slate-300" />
@@ -1833,7 +1833,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-slate-900">Performance Evaluations</h3>
-            
+
             {evaluations.length === 0 ? (
               <div className="text-center py-12">
                 <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
@@ -1852,8 +1852,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                           </Badge>
                           <Badge className={
                             evaluation.status === 'reviewed' ? 'bg-green-100 text-green-700' :
-                            evaluation.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
-                            'bg-yellow-100 text-yellow-700'
+                              evaluation.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                                'bg-yellow-100 text-yellow-700'
                           }>
                             {evaluation.status}
                           </Badge>
@@ -1866,11 +1866,10 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                             {[...Array(5)].map((_, i) => (
                               <Star
                                 key={i}
-                                className={`w-4 h-4 ${
-                                  i < evaluation.overall_rating
+                                className={`w-4 h-4 ${i < evaluation.overall_rating
                                     ? 'fill-yellow-500 text-yellow-500'
                                     : 'text-gray-300'
-                                }`}
+                                  }`}
                               />
                             ))}
                           </div>
@@ -1953,7 +1952,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         return (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-slate-900">Lifecycle & History</h3>
-            
+
             <div className="space-y-4 mt-6">
               <h4 className="font-medium text-slate-800">Promotion History</h4>
               {employee.promotion_history && employee.promotion_history.length > 0 ? (
@@ -2090,138 +2089,137 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const content = (
     <motion.div variants={itemVariants} className={`w-full ${isModal ? 'h-full flex flex-col flex-1 min-h-0' : ''}`}>
       <Card className={`border-slate-200/60 overflow-hidden ${isModal ? 'shadow-none border-0 h-full rounded-none flex flex-col bg-white flex-1 min-h-0' : 'shadow-xl shadow-slate-200/40 rounded-2xl bg-white/70 backdrop-blur-md'}`}>
-          <div className="bg-slate-900 text-white relative border-b border-slate-800">
-            {/* Subtle background pattern/gradient */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
-               <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl"></div>
-            </div>
-            
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 md:p-8 relative z-10 gap-4">
-              <div className="flex items-center gap-5">
-                <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl overflow-hidden shrink-0">
-                  {employee.avatar_url ? (
-                    <img src={employee.avatar_url} alt={employee.full_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-3xl text-indigo-400 font-bold">
-                      {employee.full_name.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-white">{employee.full_name}</h2>
-                  <div className="flex items-center gap-3 mt-1.5 text-slate-400 flex-wrap">
-                    <span className="flex items-center gap-1.5 text-sm"><Briefcase className="w-4 h-4" /> {employee.job_title}</span>
-                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                    <span className="flex items-center gap-1.5 text-sm"><Mail className="w-4 h-4" /> {employee.email}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                 <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent hidden sm:flex">
-                   <MessageSquare className="w-4 h-4 mr-2" /> Message
-                 </Button>
-                {['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800">
-                        <MoreVertical className="w-5 h-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuLabel>Employee Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {employee.employment_status === 'ACTIVE' && (
-                        <DropdownMenuItem onClick={() => {
-                          setPromoteForm({ jobTitle: employee.job_title || '', departmentId: employee.department_id || '' });
-                          setShowPromoteDialog(true);
-                        }}>
-                          Promote Employee
-                        </DropdownMenuItem>
-                      )}
-                      {employee.employment_status !== 'SUSPENDED' && (
-                        <DropdownMenuItem onClick={() => setShowSuspendDialog(true)} className="text-amber-600 focus:text-amber-600 focus:bg-amber-50">
-                          Suspend Employee
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => setShowOffboardDialog(true)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                        Offboard Employee
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+        <div className="bg-slate-900 text-white relative border-b border-slate-800">
+          {/* Subtle background pattern/gradient */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl"></div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 md:p-8 relative z-10 gap-4">
+            <div className="flex items-center gap-5">
+              <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl overflow-hidden shrink-0">
+                {employee.avatar_url ? (
+                  <img src={employee.avatar_url} alt={employee.full_name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl text-indigo-400 font-bold">
+                    {employee.full_name.charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-white">{employee.full_name}</h2>
+                <div className="flex items-center gap-3 mt-1.5 text-slate-400 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-sm"><Briefcase className="w-4 h-4" /> {employee.job_title}</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                  <span className="flex items-center gap-1.5 text-sm"><Mail className="w-4 h-4" /> {employee.email}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent hidden sm:flex">
+                <MessageSquare className="w-4 h-4 mr-2" /> Message
+              </Button>
+              {['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800">
+                      <MoreVertical className="w-5 h-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Employee Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {employee.employment_status === 'ACTIVE' && (
+                      <DropdownMenuItem onClick={() => {
+                        setPromoteForm({ jobTitle: employee.job_title || '', departmentId: employee.department_id || '' });
+                        setShowPromoteDialog(true);
+                      }}>
+                        Promote Employee
+                      </DropdownMenuItem>
+                    )}
+                    {employee.employment_status !== 'SUSPENDED' && (
+                      <DropdownMenuItem onClick={() => setShowSuspendDialog(true)} className="text-amber-600 focus:text-amber-600 focus:bg-amber-50">
+                        Suspend Employee
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setShowOffboardDialog(true)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                      Offboard Employee
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={`flex ${isModal ? 'flex-1 overflow-hidden' : ''} bg-white`}>
+          <div className={`w-64 border-r border-slate-200/60 bg-slate-50/50 p-4 shrink-0 ${isModal ? 'overflow-y-auto' : ''}`}>
+            <div className="space-y-1.5">
+              {menuItems.map(item => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${isActive
+                        ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent'
+                      }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className={`flex ${isModal ? 'flex-1 overflow-hidden' : ''} bg-white`}>
-            <div className={`w-64 border-r border-slate-200/60 bg-slate-50/50 p-4 shrink-0 ${isModal ? 'overflow-y-auto' : ''}`}>
-              <div className="space-y-1.5">
-                {menuItems.map(item => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveSection(item.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-medium ${
-                        isActive
-                          ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
-                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 border border-transparent'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          <div className={`flex-1 p-8 ${isModal ? 'overflow-y-auto' : ''}`}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {menuItems.find(m => m.id === activeSection)?.label}
+              </h2>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (isEditing) {
+                    handleSave();
+                  } else {
+                    setIsEditing(true);
+                  }
+                }}
+                className="gap-2"
+                disabled={updateEmployeeMutation.isPending}
+              >
+                {isEditing ? (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {updateEmployeeMutation.isPending ? 'Saving...' : 'Save'}
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </>
+                )}
+              </Button>
             </div>
 
-            <div className={`flex-1 p-8 ${isModal ? 'overflow-y-auto' : ''}`}>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  {menuItems.find(m => m.id === activeSection)?.label}
-                </h2>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (isEditing) {
-                      handleSave();
-                    } else {
-                      setIsEditing(true);
-                    }
-                  }}
-                  className="gap-2"
-                  disabled={updateEmployeeMutation.isPending}
-                >
-                  {isEditing ? (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {updateEmployeeMutation.isPending ? 'Saving...' : 'Save'}
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_APPROVAL' && (
-                <div className="mb-6">
-                  <Card className="border-blue-200 bg-blue-50">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-blue-900">Employee Actions</h3>
-                        <p className="text-sm text-blue-700">This employee has completed their Draft profile and is awaiting HR approval.</p>
-                      </div>
-                      <Button 
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={async () => {
-                          try {
-                            const APPROVE_EMPLOYEE = gql`
+            {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_APPROVAL' && (
+              <div className="mb-6">
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-blue-900">Employee Actions</h3>
+                      <p className="text-sm text-blue-700">This employee has completed their Draft profile and is awaiting HR approval.</p>
+                    </div>
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={async () => {
+                        try {
+                          const APPROVE_EMPLOYEE = gql`
                               mutation ApproveEmployeeData($employeeId: ID!) {
                                 approveEmployeeData(employeeId: $employeeId) {
                                   id
@@ -2229,36 +2227,36 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                                 }
                               }
                             `;
-                            await gqlClient.request(APPROVE_EMPLOYEE, { employeeId });
-                            toast.success("Employee data approved!");
-                            queryClient.invalidateQueries(['employee', employeeId]);
-                          } catch (err) {
-                            const errMsg = err.response?.errors?.[0]?.message || err.message || "Failed to approve employee data.";
-                            toast.error(errMsg);
-                            console.error(err);
-                          }
-                        }}
-                      >
-                        Approve Profile Data
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+                          await gqlClient.request(APPROVE_EMPLOYEE, { employeeId });
+                          toast.success("Employee data approved!");
+                          queryClient.invalidateQueries(['employee', employeeId]);
+                        } catch (err) {
+                          const errMsg = err.response?.errors?.[0]?.message || err.message || "Failed to approve employee data.";
+                          toast.error(errMsg);
+                          console.error(err);
+                        }
+                      }}
+                    >
+                      Approve Profile Data
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-              {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_ONBOARDING' && (
-                <div className="mb-6">
-                  <Card className="border-green-200 bg-green-50">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-green-900">Employee Actions</h3>
-                        <p className="text-sm text-green-700">This employee has been approved and is ready for onboarding.</p>
-                      </div>
-                      <Button 
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={async () => {
-                          try {
-                            const START_ONBOARDING = gql`
+            {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_ONBOARDING' && (
+              <div className="mb-6">
+                <Card className="border-green-200 bg-green-50">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-green-900">Employee Actions</h3>
+                      <p className="text-sm text-green-700">This employee has been approved and is ready for onboarding.</p>
+                    </div>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={async () => {
+                        try {
+                          const START_ONBOARDING = gql`
                               mutation StartOnboarding($employeeId: ID!) {
                                 startOnboarding(employeeId: $employeeId) {
                                   id
@@ -2267,268 +2265,268 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                                 }
                               }
                             `;
-                            await gqlClient.request(START_ONBOARDING, { employeeId });
-                            toast.success("Onboarding started! Tasks have been generated.");
-                            queryClient.invalidateQueries(['employee', employeeId]);
-                          } catch (err) {
-                            const errMsg = err.response?.errors?.[0]?.message || err.message || "Failed to start onboarding.";
-                            toast.error(errMsg);
-                            console.error(err);
-                          }
-                        }}
-                      >
-                        Start Onboarding
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+                          await gqlClient.request(START_ONBOARDING, { employeeId });
+                          toast.success("Onboarding started! Tasks have been generated.");
+                          queryClient.invalidateQueries(['employee', employeeId]);
+                        } catch (err) {
+                          const errMsg = err.response?.errors?.[0]?.message || err.message || "Failed to start onboarding.";
+                          toast.error(errMsg);
+                          console.error(err);
+                        }
+                      }}
+                    >
+                      Start Onboarding
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-              {renderContent()}
-            </div>
+            {renderContent()}
           </div>
-        </Card>
+        </div>
+      </Card>
 
-        <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Promote Employee</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>New Job Title</Label>
-                <Input 
-                  value={promoteForm.jobTitle} 
-                  onChange={(e) => setPromoteForm({...promoteForm, jobTitle: e.target.value})}
-                  placeholder="e.g. Senior Software Engineer"
-                />
-                {employee.job_title && <p className="text-xs text-slate-500 mt-1">Current: {employee.job_title}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>New Department</Label>
-                <Select
-                  value={promoteForm.departmentId}
-                  onValueChange={(value) => setPromoteForm({...promoteForm, departmentId: value})}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                  <SelectContent>
-                    {departments.map(dept => (
-                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {employee.department_name && <p className="text-xs text-slate-500 mt-1">Current: {employee.department_name}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>New Grade</Label>
-                <Select
-                  value={promoteForm.employeeGrade}
-                  onValueChange={(value) => setPromoteForm({...promoteForm, employeeGrade: value})}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Entry Level">Entry Level</SelectItem>
-                    <SelectItem value="Team Member">Team Member</SelectItem>
-                    <SelectItem value="Mid-Level">Mid-Level</SelectItem>
-                    <SelectItem value="Senior Level">Senior Level</SelectItem>
-                    <SelectItem value="Management">Management</SelectItem>
-                    <SelectItem value="Department Head">Department Head</SelectItem>
-                    <SelectItem value="CEO">CEO</SelectItem>
-                  </SelectContent>
-                </Select>
-                {employee.employeeGrade && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeGrade}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>New Class</Label>
-                <Input 
-                  value={promoteForm.employeeClass} 
-                  onChange={(e) => setPromoteForm({...promoteForm, employeeClass: e.target.value})}
-                  placeholder="e.g. A, B, Professional"
-                />
-                {employee.employeeClass && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeClass}</p>}
-              </div>
-              <div className="flex items-center space-x-2 mt-4">
-                <Checkbox 
-                  id="isHead" 
-                  checked={promoteForm.isHeadOfDepartment} 
-                  onCheckedChange={(checked) => setPromoteForm({...promoteForm, isHeadOfDepartment: checked})}
-                />
-                <label htmlFor="isHead" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Appoint as Head of Department
-                </label>
-              </div>
-              <div className="space-y-2">
-                <Label>Effective Date</Label>
-                <Input 
-                  type="date"
-                  value={promoteForm.effectiveDate} 
-                  onChange={(e) => setPromoteForm({...promoteForm, effectiveDate: e.target.value})}
-                />
-              </div>
+      <Dialog open={showPromoteDialog} onOpenChange={setShowPromoteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Promote Employee</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>New Job Title</Label>
+              <Input
+                value={promoteForm.jobTitle}
+                onChange={(e) => setPromoteForm({ ...promoteForm, jobTitle: e.target.value })}
+                placeholder="e.g. Senior Software Engineer"
+              />
+              {employee.job_title && <p className="text-xs text-slate-500 mt-1">Current: {employee.job_title}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>New Department</Label>
+              <Select
+                value={promoteForm.departmentId}
+                onValueChange={(value) => setPromoteForm({ ...promoteForm, departmentId: value })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  {departments.map(dept => (
+                    <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {employee.department_name && <p className="text-xs text-slate-500 mt-1">Current: {employee.department_name}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>New Grade</Label>
+              <Select
+                value={promoteForm.employeeGrade}
+                onValueChange={(value) => setPromoteForm({ ...promoteForm, employeeGrade: value })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Entry Level">Entry Level</SelectItem>
+                  <SelectItem value="Team Member">Team Member</SelectItem>
+                  <SelectItem value="Mid-Level">Mid-Level</SelectItem>
+                  <SelectItem value="Senior Level">Senior Level</SelectItem>
+                  <SelectItem value="Management">Management</SelectItem>
+                  <SelectItem value="Department Head">Department Head</SelectItem>
+                  <SelectItem value="CEO">CEO</SelectItem>
+                </SelectContent>
+              </Select>
+              {employee.employeeGrade && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeGrade}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>New Class</Label>
+              <Input
+                value={promoteForm.employeeClass}
+                onChange={(e) => setPromoteForm({ ...promoteForm, employeeClass: e.target.value })}
+                placeholder="e.g. A, B, Professional"
+              />
+              {employee.employeeClass && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeClass}</p>}
+            </div>
+            <div className="flex items-center space-x-2 mt-4">
+              <Checkbox
+                id="isHead"
+                checked={promoteForm.isHeadOfDepartment}
+                onCheckedChange={(checked) => setPromoteForm({ ...promoteForm, isHeadOfDepartment: checked })}
+              />
+              <label htmlFor="isHead" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Appoint as Head of Department
+              </label>
+            </div>
+            <div className="space-y-2">
+              <Label>Effective Date</Label>
+              <Input
+                type="date"
+                value={promoteForm.effectiveDate}
+                onChange={(e) => setPromoteForm({ ...promoteForm, effectiveDate: e.target.value })}
+              />
+            </div>
 
-              {promoteForm.employeeGrade && (
-                <div className="mt-4 p-4 bg-gray-50 border rounded-lg">
-                  <h4 className="text-sm font-semibold mb-2">Benefits Preview</h4>
-                  {isFetchingPreview ? (
-                    <p className="text-sm text-gray-500">Calculating new benefits...</p>
-                  ) : promotionPreview ? (
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Salary:</span>
-                        <span className="font-medium">
-                          {employee?.basicSalary?.toLocaleString() || 0} → {promotionPreview.newSalary.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Annual Leave:</span>
-                        <span className="font-medium">
-                          {promotionPreview.oldLeaveDays} days → {promotionPreview.newLeaveDays} days
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">HMO Plan:</span>
-                        <span className="font-medium">
-                          {promotionPreview.oldHmoPlan} → {promotionPreview.newHmoPlan}
-                        </span>
-                      </div>
+            {promoteForm.employeeGrade && (
+              <div className="mt-4 p-4 bg-gray-50 border rounded-lg">
+                <h4 className="text-sm font-semibold mb-2">Benefits Preview</h4>
+                {isFetchingPreview ? (
+                  <p className="text-sm text-gray-500">Calculating new benefits...</p>
+                ) : promotionPreview ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Salary:</span>
+                      <span className="font-medium">
+                        {employee?.basicSalary?.toLocaleString() || 0} → {promotionPreview.newSalary.toLocaleString()}
+                      </span>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">Select a valid grade to preview benefits.</p>
-                  )}
-                </div>
-              )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Annual Leave:</span>
+                      <span className="font-medium">
+                        {promotionPreview.oldLeaveDays} days → {promotionPreview.newLeaveDays} days
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">HMO Plan:</span>
+                      <span className="font-medium">
+                        {promotionPreview.oldHmoPlan} → {promotionPreview.newHmoPlan}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Select a valid grade to preview benefits.</p>
+                )}
+              </div>
+            )}
 
-              <Button 
-                onClick={() => {
-                  requestPromotionMutation.mutate({ 
-                    employeeId: employee.id, 
-                    newJobTitle: promoteForm.jobTitle || undefined, 
-                    newDepartmentId: promoteForm.departmentId || undefined,
-                    newEmployeeClass: promoteForm.employeeClass || undefined,
-                    newEmployeeGrade: promoteForm.employeeGrade || undefined,
-                    isHeadOfDepartment: promoteForm.isHeadOfDepartment,
-                    effectiveDate: promoteForm.effectiveDate
-                  });
-                }} 
-                disabled={requestPromotionMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass && !promoteForm.employeeGrade)}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {requestPromotionMutation.isPending ? 'Requesting...' : 'Confirm Promotion'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            <Button
+              onClick={() => {
+                requestPromotionMutation.mutate({
+                  employeeId: employee.id,
+                  newJobTitle: promoteForm.jobTitle || undefined,
+                  newDepartmentId: promoteForm.departmentId || undefined,
+                  newEmployeeClass: promoteForm.employeeClass || undefined,
+                  newEmployeeGrade: promoteForm.employeeGrade || undefined,
+                  isHeadOfDepartment: promoteForm.isHeadOfDepartment,
+                  effectiveDate: promoteForm.effectiveDate
+                });
+              }}
+              disabled={requestPromotionMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass && !promoteForm.employeeGrade)}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              {requestPromotionMutation.isPending ? 'Requesting...' : 'Confirm Promotion'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <Dialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Suspend Employee</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>Start Date</Label>
-                <Input type="date" value={suspendForm.startDate} onChange={e => setSuspendForm({...suspendForm, startDate: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <Input type="date" value={suspendForm.endDate} onChange={e => setSuspendForm({...suspendForm, endDate: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <Textarea value={suspendForm.reason} onChange={e => setSuspendForm({...suspendForm, reason: e.target.value})} placeholder="Reason for suspension..." />
-              </div>
-              <div className="flex items-center space-x-2 py-2">
-                <Checkbox id="sa-approve" checked={suspendForm.superAdminApproved} onCheckedChange={c => setSuspendForm({...suspendForm, superAdminApproved: !!c})} />
-                <Label htmlFor="sa-approve">Super Admin Approved</Label>
-              </div>
-              <Button 
-                onClick={() => {
-                  if (!suspendForm.superAdminApproved) return toast.error('Super Admin approval is required.');
-                  if (!suspendForm.startDate || !suspendForm.endDate || !suspendForm.reason) return toast.error('Please fill all fields.');
-                  suspendEmployeeMutation.mutate({
-                    id: employee.id,
-                    data: { 
-                      startDate: suspendForm.startDate,
-                      endDate: suspendForm.endDate,
-                      reason: suspendForm.reason,
-                      superAdminApproved: suspendForm.superAdminApproved
-                    }
-                  });
-                  setShowSuspendDialog(false);
-                }}
-                disabled={suspendEmployeeMutation.isPending || !suspendForm.superAdminApproved}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                Confirm Suspension
-              </Button>
+      <Dialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Suspend Employee</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Input type="date" value={suspendForm.startDate} onChange={e => setSuspendForm({ ...suspendForm, startDate: e.target.value })} />
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="space-y-2">
+              <Label>End Date</Label>
+              <Input type="date" value={suspendForm.endDate} onChange={e => setSuspendForm({ ...suspendForm, endDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea value={suspendForm.reason} onChange={e => setSuspendForm({ ...suspendForm, reason: e.target.value })} placeholder="Reason for suspension..." />
+            </div>
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox id="sa-approve" checked={suspendForm.superAdminApproved} onCheckedChange={c => setSuspendForm({ ...suspendForm, superAdminApproved: !!c })} />
+              <Label htmlFor="sa-approve">Super Admin Approved</Label>
+            </div>
+            <Button
+              onClick={() => {
+                if (!suspendForm.superAdminApproved) return toast.error('Super Admin approval is required.');
+                if (!suspendForm.startDate || !suspendForm.endDate || !suspendForm.reason) return toast.error('Please fill all fields.');
+                suspendEmployeeMutation.mutate({
+                  id: employee.id,
+                  data: {
+                    startDate: suspendForm.startDate,
+                    endDate: suspendForm.endDate,
+                    reason: suspendForm.reason,
+                    superAdminApproved: suspendForm.superAdminApproved
+                  }
+                });
+                setShowSuspendDialog(false);
+              }}
+              disabled={suspendEmployeeMutation.isPending || !suspendForm.superAdminApproved}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Confirm Suspension
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <Dialog open={showOffboardDialog} onOpenChange={setShowOffboardDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Offboard Employee</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>Exit Type</Label>
-                <Select value={offboardForm.type} onValueChange={v => setOffboardForm({...offboardForm, type: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RESIGNATION">Resigned</SelectItem>
-                    <SelectItem value="TERMINATION">Terminated / Fired</SelectItem>
-                    <SelectItem value="RETIREMENT">Retirement</SelectItem>
-                    <SelectItem value="CONTRACT_EXPIRATION">Contract Expiration</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Exit Date</Label>
-                <Input type="date" value={offboardForm.exitDate} onChange={e => setOffboardForm({...offboardForm, exitDate: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <Textarea value={offboardForm.reason} onChange={e => setOffboardForm({...offboardForm, reason: e.target.value})} placeholder="Reason for leaving..." />
-              </div>
-              <Button 
-                onClick={() => {
-                  if (!offboardForm.exitDate || !offboardForm.reason) return toast.error('Please fill all fields.');
-                  offboardEmployeeMutation.mutate({
-                    id: employee.id,
-                    data: { 
-                      exitType: offboardForm.type,
-                      exitDate: offboardForm.exitDate,
-                      reason: offboardForm.reason
-                    }
-                  });
-                  setShowOffboardDialog(false);
-                  setTimeout(() => navigate('/Employees'), 1000);
-                }}
-                disabled={offboardEmployeeMutation.isPending}
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-              >
-                Confirm Offboarding
-              </Button>
+      <Dialog open={showOffboardDialog} onOpenChange={setShowOffboardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Offboard Employee</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Exit Type</Label>
+              <Select value={offboardForm.type} onValueChange={v => setOffboardForm({ ...offboardForm, type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RESIGNATION">Resigned</SelectItem>
+                  <SelectItem value="TERMINATION">Terminated / Fired</SelectItem>
+                  <SelectItem value="RETIREMENT">Retirement</SelectItem>
+                  <SelectItem value="CONTRACT_EXPIRATION">Contract Expiration</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </DialogContent>
-        </Dialog>
-    
+            <div className="space-y-2">
+              <Label>Exit Date</Label>
+              <Input type="date" value={offboardForm.exitDate} onChange={e => setOffboardForm({ ...offboardForm, exitDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea value={offboardForm.reason} onChange={e => setOffboardForm({ ...offboardForm, reason: e.target.value })} placeholder="Reason for leaving..." />
+            </div>
+            <Button
+              onClick={() => {
+                if (!offboardForm.exitDate || !offboardForm.reason) return toast.error('Please fill all fields.');
+                offboardEmployeeMutation.mutate({
+                  id: employee.id,
+                  data: {
+                    exitType: offboardForm.type,
+                    exitDate: offboardForm.exitDate,
+                    reason: offboardForm.reason
+                  }
+                });
+                setShowOffboardDialog(false);
+                setTimeout(() => navigate('/Employees'), 1000);
+              }}
+              disabled={offboardEmployeeMutation.isPending}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              Confirm Offboarding
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </motion.div>
   );
 
   if (isModal) {
     return (
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="h-[85vh] flex flex-col relative bg-white w-full rounded-2xl overflow-hidden"
       >
         {onClose && (
-           <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 z-50 rounded-full bg-slate-900/50 backdrop-blur-sm border border-slate-700 transition-all shadow-sm" onClick={onClose}>
-             <X className="w-4 h-4" />
-           </Button>
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 z-50 rounded-full bg-slate-900/50 backdrop-blur-sm border border-slate-700 transition-all shadow-sm" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
         )}
         {content}
       </motion.div>
@@ -2537,7 +2535,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4 md:p-8">
-      <motion.div 
+      <motion.div
         className="max-w-7xl mx-auto space-y-6"
         variants={containerVariants}
         initial="hidden"

@@ -67,6 +67,7 @@ export default function Employees() {
               employeeCode
               fullName
               email
+              phone
               jobTitle
               department {
                 name
@@ -89,6 +90,7 @@ export default function Employees() {
           ...emp,
           full_name: emp.fullName,
           job_title: emp.jobTitle,
+          phone: emp.phone,
           department_name: emp.department?.name,
           employment_status: emp.employmentStatus,
           onboarding_status: emp.onboardingStatus,

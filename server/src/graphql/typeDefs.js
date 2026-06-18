@@ -651,11 +651,9 @@ export const typeDefs = `#graphql
     archiveDocument(id: ID!): Document!
     deleteDocument(id: ID!): Document!
     approveDocument(id: ID!): Document!
-    rejectDocument(id: ID!, reason: String
-    attachmentUrl: String!): Document!
+    rejectDocument(id: ID!, reason: String, attachmentUrl: String): Document!
     approveProfileUpdateRequest(id: ID!): ProfileUpdateRequest!
-    rejectProfileUpdateRequest(id: ID!, reason: String
-    attachmentUrl: String!): ProfileUpdateRequest!
+    rejectProfileUpdateRequest(id: ID!, reason: String, attachmentUrl: String): ProfileUpdateRequest!
     
     markNotificationRead(id: ID!): Notification!
 

@@ -42,7 +42,8 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:5173' }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173', 'https://trade-hriscp.vercel.app'];
+app.use(cors({ origin: allowedOrigins }));
 
 app.use(requestId);
 

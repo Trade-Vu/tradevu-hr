@@ -76,7 +76,7 @@ const APPROVE_DOCUMENT = gql`
 `;
 
 const REJECT_DOCUMENT = gql`
-  mutation RejectDocument($id: ID!, $reason: String, $attachmentUrl: String!) {
+  mutation RejectDocument($id: ID!, $reason: String, $attachmentUrl: String) {
     rejectDocument(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
       id
       status
@@ -94,7 +94,7 @@ const APPROVE_LEAVE = gql`
 `;
 
 const REJECT_LEAVE = gql`
-  mutation RejectLeave($id: ID!, $reason: String, $attachmentUrl: String!) {
+  mutation RejectLeave($id: ID!, $reason: String, $attachmentUrl: String) {
     rejectLeaveRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
       id
       status
