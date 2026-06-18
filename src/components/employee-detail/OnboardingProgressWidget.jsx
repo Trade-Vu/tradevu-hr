@@ -27,9 +27,10 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
   });
 
   const isProbation = employee?.employmentStatus === 'PROBATION';
-  const isActiveOrOffboarded = employee?.employmentStatus === 'ACTIVE' || employee?.employmentStatus === 'OFFBOARDED';
+  const hiddenStatuses = ['ACTIVE', 'OFFBOARDED', 'RESIGNED', 'TERMINATED', 'SUSPENDED'];
+  const shouldHide = hiddenStatuses.includes(employee?.employmentStatus);
 
-  if (isLoading || (!isProbation && tasks.length === 0) || isActiveOrOffboarded) return null;
+  if (isLoading || (!isProbation && tasks.length === 0) || shouldHide) return null;
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.isCompleted).length;
@@ -118,7 +119,7 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
                   <span className="text-lg font-bold text-blue-700">{progress}%</span>
                 </div>
                 <Progress value={progress} className="h-2 bg-blue-100 mb-3" />
-                {progress === 100 && onCompleteAction && employee?.employment_status !== 'ACTIVE' && employee?.employment_status !== 'OFFBOARDED' && (
+                {progress === 100 && onCompleteAction && !hiddenStatuses.includes(employee?.employmentStatus) && (
                   <Button 
                     onClick={onCompleteAction}
                     className="mt-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors"
