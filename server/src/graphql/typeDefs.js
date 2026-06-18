@@ -639,7 +639,7 @@ export const typeDefs = `#graphql
     exitType: String!
     exitDate: String!
     reason: String
-    attachmentUrl: String!
+    attachmentUrl: String
   }
 
   input CompensationBandInput {
