@@ -41,6 +41,8 @@ export default function EmployeeSelfService() {
         query GetEmployeeSelfService($id: ID!) {
           employee(id: $id) {
             id fullName email phone privateEmail dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } hireDate employmentStatus
+            promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
+            statusHistory { id previousStatus newStatus changedBy reason createdAt }
           }
         }
       `;
@@ -54,6 +56,8 @@ export default function EmployeeSelfService() {
         department_id: emp.department?.name || emp.departmentId,
         start_date: emp.hireDate,
         employment_status: emp.employmentStatus,
+        promotion_history: emp.promotionHistory || [],
+        status_history: emp.statusHistory || [],
       };
     },
     enabled: !!employeeId,
@@ -279,7 +283,7 @@ NET SALARY: ${payroll.net_salary} SAR
               Draft Status
             </h3>
             <p className="mt-1 text-sm">
-              Your profile is currently in <strong>DRAFT</strong> status. To proceed to Pending Onboarding, please ensure you have provided your personal details (Phone, Private Email, Date of Birth, Gender, Marital Status, Nationality, National ID, Passport Number) below, and uploaded at least one required document in the Documents tab.
+              Your profile is currently in <strong>DRAFT</strong> status. To proceed to Pending Onboarding, please ensure you have provided your personal details (Phone, Private Email, Date of Birth, Gender, Marital Status, Nationality, National ID Number, Passport Number) below, and uploaded at least one required document in the Documents tab.
             </p>
           </motion.div>
         )}
@@ -392,10 +396,8 @@ NET SALARY: ${payroll.net_salary} SAR
               <Receipt className="w-4 h-4 mr-2" />
               Expenses
             </TabsTrigger>
-            <TabsTrigger value="documents">
-              <FileText className="w-4 h-4 mr-2" />
-              Documents
-            </TabsTrigger>
+            <TabsTrigger value="documents" className="rounded-full data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Documents</TabsTrigger>
+            <TabsTrigger value="job-history" className="rounded-full data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Job History</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -482,7 +484,7 @@ NET SALARY: ${payroll.net_salary} SAR
                         <Input value={employee.nationality || 'Not provided'} disabled />
                       </div>
                       <div className="space-y-2">
-                        <Label>National ID {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
+                        <Label>National ID Number {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
                         <Input value={employee.nationalId || 'Not provided'} disabled />
                       </div>
                       <div className="space-y-2">
@@ -511,29 +513,44 @@ NET SALARY: ${payroll.net_salary} SAR
                       </div>
                       <div className="space-y-2">
                         <Label>Gender {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
-                        <Input
+                        <select
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                           value={editData.gender || ''}
                           onChange={(e) => setEditData(prev => ({ ...prev, gender: e.target.value }))}
-                          placeholder="Male / Female / Other"
-                        />
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
                       </div>
                       <div className="space-y-2">
                         <Label>Marital Status {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
-                        <Input
+                        <select
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                           value={editData.maritalStatus || ''}
                           onChange={(e) => setEditData(prev => ({ ...prev, maritalStatus: e.target.value }))}
-                          placeholder="Single / Married"
-                        />
+                        >
+                          <option value="">Select Status</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                        </select>
                       </div>
                       <div className="space-y-2">
                         <Label>Nationality {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
-                        <Input
+                        <select
+                          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                           value={editData.nationality || ''}
                           onChange={(e) => setEditData(prev => ({ ...prev, nationality: e.target.value }))}
-                        />
+                        >
+                          <option value="">Select Nationality</option>
+                          {['Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Côte d\'Ivoire','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo (Congo-Brazzaville)','Costa Rica','Croatia','Cuba','Cyprus','Czechia (Czech Republic)','Democratic Republic of the Congo','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini (fmr. "Swaziland")','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Holy See','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar (formerly Burma)','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine State','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States of America','Uruguay','Uzbekistan','Vanuatu','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'].map(country => (
+                            <option key={country} value={country}>{country}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="space-y-2">
-                        <Label>National ID {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
+                        <Label>National ID Number {employee.employment_status === 'DRAFT' && <span className="text-red-500">*</span>}</Label>
                         <Input
                           value={editData.nationalId || ''}
                           onChange={(e) => setEditData(prev => ({ ...prev, nationalId: e.target.value }))}
@@ -901,6 +918,90 @@ NET SALARY: ${payroll.net_salary} SAR
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Job History Tab */}
+          <TabsContent value="job-history" className="mt-6">
+            <Card className="border-none shadow-xl shadow-slate-200/40 rounded-2xl overflow-hidden bg-white/60 backdrop-blur-xl">
+              <CardHeader className="border-b border-slate-100 bg-white/50 pb-6 pt-8 px-8">
+                <CardTitle className="text-xl text-slate-800">Lifecycle & History</CardTitle>
+              </CardHeader>
+              <CardContent className="p-8 space-y-12">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-slate-800 text-lg">Promotion History</h4>
+                  {employee?.promotion_history && employee.promotion_history.length > 0 ? (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4 font-medium">Date</th>
+                            <th className="px-6 py-4 font-medium">Previous Role</th>
+                            <th className="px-6 py-4 font-medium">New Role</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {employee.promotion_history.map(ph => (
+                            <tr key={ph.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 text-slate-600">{new Date(ph.createdAt).toLocaleDateString()}</td>
+                              <td className="px-6 py-4 text-slate-600">
+                                <div className="font-medium text-slate-800">{ph.previousTitle}</div>
+                                <div className="text-xs text-slate-500 mt-1">{ph.previousGrade}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="font-medium text-indigo-700">{ph.newTitle}</div>
+                                <div className="text-xs text-indigo-500/70 mt-1">{ph.newGrade}</div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-center text-slate-500">
+                      <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p>No promotion history found.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium text-slate-800 text-lg">Status History</h4>
+                  {employee?.status_history && employee.status_history.length > 0 ? (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-6 py-4 font-medium text-slate-600">Date</th>
+                            <th className="px-6 py-4 font-medium text-slate-600">Previous Status</th>
+                            <th className="px-6 py-4 font-medium text-slate-600">New Status</th>
+                            <th className="px-6 py-4 font-medium text-slate-600">Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {employee.status_history.map(sh => (
+                            <tr key={sh.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 text-slate-600">{new Date(Number(sh.createdAt) || sh.createdAt).toLocaleDateString()}</td>
+                              <td className="px-6 py-4 text-slate-600">
+                                <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{sh.previousStatus}</Badge>
+                              </td>
+                              <td className="px-6 py-4">
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100">{sh.newStatus}</Badge>
+                              </td>
+                              <td className="px-6 py-4 text-slate-600">{sh.reason || 'N/A'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 text-center text-slate-500">
+                      <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p>No status history found.</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

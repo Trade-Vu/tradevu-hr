@@ -273,22 +273,36 @@ department: async (_, {
     }
   });
 },
-onboardingTasks: async (_, __, {
+onboardingTasks: async (_, { employeeId }, {
   prisma,
   user,
   requireAuth
 }) => {
   requireAuth();
-  // To show everyone's tasks, we fetch all tasks in the org
-  return prisma.onboardingTask.findMany({
-    where: {
-      employee: {
-        organizationId: user.organizationId
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
+  const isAdmin = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
+  
+  if (!isAdmin) {
+    if (employeeId && employeeId !== user.employeeId) {
+      throw new Error('Not authorized to view these tasks');
     }
+    return prisma.onboardingTask.findMany({
+      where: {
+        employeeId: user.employeeId
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  const where = {
+    employee: { organizationId: user.organizationId }
+  };
+  if (employeeId) {
+    where.employeeId = employeeId;
+  }
+  
+  return prisma.onboardingTask.findMany({
+    where,
+    orderBy: { createdAt: 'desc' }
   });
 },
 shifts: async (_, __, {
@@ -319,20 +333,7 @@ approvalWorkflows: async (_, __, {
     steps: wf.steps ? JSON.stringify(wf.steps) : '[]'
   }));
 },
-onboardingTasks: async (_, {
-  employeeId
-}, {
-  prisma,
-  requireAuth
-}) => {
-  requireAuth();
-  const where = employeeId ? {
-    employeeId
-  } : {};
-  return prisma.onboardingTask.findMany({
-    where
-  });
-},
+
 offboardingDetails: async (_, {
   employeeId
 }, {
@@ -425,16 +426,16 @@ approveEmployeeData: async (_, {
   if (emp.employmentStatus !== 'PENDING_APPROVAL') {
     throw new Error("Employee is not in PENDING_APPROVAL state");
   }
-  const pendingDocs = await prisma.document.count({
+  // Automatically approve pending documents during onboarding profile approval
+  await prisma.document.updateMany({
     where: {
       employeeId: emp.id,
       status: 'PENDING'
+    },
+    data: {
+      status: 'APPROVED'
     }
   });
-  if (pendingDocs > 0) {
-    throw new Error(`Cannot approve employee profile: ${pendingDocs} document(s) are pending approval. Please review and approve all documents first.`);
-  }
-
   const updatedEmp = await prisma.employee.update({
     where: {
       id: employeeId
@@ -559,59 +560,201 @@ startOnboarding: async (_, {
 suspendEmployee: async (_, {
   id,
   input
-}, { prisma, user }) => {
+}, { prisma, user, ipAddress }) => {
   if (!user) throw new Error('Not authenticated');
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
   return await prisma.$transaction(async tx => {
-    const employee = await tx.employee.update({
-      where: {
-        id
-      },
-      data: {
-        employmentStatus: 'SUSPENDED'
-      },
-      include: {
-        department: true,
-        organization: true
-      }
-    });
-
-    await tx.employeeStatusHistory.create({
-      data: {
-        employeeId: id,
-        previousStatus: employee.employmentStatus,
-        newStatus: 'SUSPENDED',
-        changedBy: user.id,
-        reason: input.reason || 'Employee suspended'
-      }
-    });
-
-    await tx.suspension.create({
+    const employee = await tx.employee.findUnique({ where: { id }, include: { department: true, organization: true } });
+    const suspension = await tx.suspension.create({
       data: {
         employeeId: id,
         startDate: new Date(input.startDate),
         endDate: new Date(input.endDate),
-        reason: input.reason,
-        approvedBy: input.superAdminApproved ? "SuperAdmin" : null
+        reason: input.reason || 'Employee suspended',
+        status: 'PENDING'
       }
     });
-    await tx.auditLog.create({
+
+    await tx.approvalRecord.create({
       data: {
-        userId: user.id, organizationId: user.organizationId,
-        action: 'SUSPEND',
-        entityType: 'EMPLOYEE',
-        entityId: id,
-        newValue: {
-          reason: input.reason,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          superAdminApproved: input.superAdminApproved
-        }
+        entityType: 'Suspension',
+        entityId: suspension.id,
+        suspensionRequestId: suspension.id,
+        approverUserId: user.id, // Initial requester
+        action: 'PENDING'
       }
     });
+
+    await createAuditLog({
+      prisma,
+      ipAddress,
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'Employee',
+      entityId: id,
+      action: 'SUSPENSION_REQUESTED',
+      details: `Suspension requested from ${input.startDate} to ${input.endDate}`
+    });
+
     return employee;
+  });
+},
+approveSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Not authorized');
+  }
+  return await prisma.$transaction(async tx => {
+    const suspension = await tx.suspension.update({
+      where: { id },
+      data: { status: 'APPROVED', approvedBy: user.id }
+    });
+
+    const employee = await tx.employee.update({
+      where: { id: suspension.employeeId },
+      data: { employmentStatus: 'SUSPENDED' }
+    });
+
+    await tx.employeeStatusHistory.create({
+      data: {
+        employeeId: employee.id,
+        previousStatus: 'ACTIVE',
+        newStatus: 'SUSPENDED',
+        changedBy: user.id,
+        reason: suspension.reason || 'Employee suspended'
+      }
+    });
+
+    await tx.approvalRecord.create({
+      data: {
+        entityType: 'Suspension',
+        entityId: id,
+        suspensionRequestId: id,
+        approverUserId: user.id,
+        action: 'APPROVED',
+        comments
+      }
+    });
+
+    await createAuditLog({
+      prisma, ipAddress,
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'Suspension', entityId: id,
+      action: 'SUSPENSION_APPROVED',
+      details: 'Suspension approved'
+    });
+
+    return suspension;
+  });
+},
+rejectSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Not authorized');
+  }
+  return await prisma.$transaction(async tx => {
+    const suspension = await tx.suspension.update({
+      where: { id },
+      data: { status: 'REJECTED', approvedBy: user.id }
+    });
+
+    await tx.approvalRecord.create({
+      data: {
+        entityType: 'Suspension',
+        entityId: id,
+        suspensionRequestId: id,
+        approverUserId: user.id,
+        action: 'REJECTED',
+        comments
+      }
+    });
+
+    await createAuditLog({
+      prisma, ipAddress,
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'Suspension', entityId: id,
+      action: 'SUSPENSION_REJECTED',
+      details: 'Suspension rejected'
+    });
+
+    return suspension;
+  });
+},
+approvePromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Not authorized');
+  }
+  return await prisma.$transaction(async tx => {
+    const promotion = await tx.promotionRequest.update({
+      where: { id },
+      data: { status: 'APPROVED', isExecuted: true }
+    });
+
+    await tx.employee.update({
+      where: { id: promotion.employeeId },
+      data: {
+        jobTitle: promotion.newJobTitle,
+        departmentId: promotion.newDepartmentId,
+        employeeClass: promotion.newEmployeeClass,
+        employeeGrade: promotion.newEmployeeGrade
+      }
+    });
+
+    await tx.approvalRecord.create({
+      data: {
+        entityType: 'PromotionRequest',
+        entityId: id,
+        promotionRequestId: id,
+        approverUserId: user.id,
+        action: 'APPROVED',
+        comments
+      }
+    });
+
+    await createAuditLog({
+      prisma, ipAddress,
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'PromotionRequest', entityId: id,
+      action: 'PROMOTION_APPROVED',
+      details: 'Promotion approved and applied'
+    });
+
+    return promotion;
+  });
+},
+rejectPromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
+  if (!user) throw new Error('Not authenticated');
+  if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    throw new Error('Not authorized');
+  }
+  return await prisma.$transaction(async tx => {
+    const promotion = await tx.promotionRequest.update({
+      where: { id },
+      data: { status: 'REJECTED' }
+    });
+
+    await tx.approvalRecord.create({
+      data: {
+        entityType: 'PromotionRequest',
+        entityId: id,
+        promotionRequestId: id,
+        approverUserId: user.id,
+        action: 'REJECTED',
+        comments
+      }
+    });
+
+    await createAuditLog({
+      prisma, ipAddress,
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'PromotionRequest', entityId: id,
+      action: 'PROMOTION_REJECTED',
+      details: 'Promotion rejected'
+    });
+
+    return promotion;
   });
 },
 offboardEmployee: async (_, {

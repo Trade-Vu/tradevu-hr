@@ -205,17 +205,52 @@ createEmployee: async (_, {
   });
 
   // Auto-generate User account for the new employee
-  const passwordHash = await hashPassword('Welcome123!');
-  await prisma.user.create({
-    data: {
-      email: employeeData.email,
-      passwordHash,
-      role: 'EMPLOYEE',
-      organizationId: user.organizationId,
-      employeeId: emp.id,
-      isActive: true
+  try {
+    const passwordHash = await hashPassword('Welcome123!');
+    await prisma.user.create({
+      data: {
+        email: employeeData.email,
+        passwordHash,
+        role: 'EMPLOYEE',
+        organizationId: user.organizationId,
+        employeeId: emp.id,
+        isActive: true
+      }
+    });
+  } catch (err) {
+    console.error("Failed to automatically create user for employee:", err);
+    // Continue even if user creation fails (e.g. duplicate email)
+  }
+
+  // Generate Onboarding Tasks based on templateId
+  if (templateId) {
+    const defaultTasks = [
+      { title: 'Submit Required Documents', category: 'documentation', description: 'Upload ID, Passport, and educational certificates.' },
+      { title: 'Sign Employment Contract', category: 'documentation', description: 'Review and sign your official contract.' },
+    ];
+    
+    if (templateId === 'developer') {
+      defaultTasks.push({ title: 'Setup Development Environment', category: 'it_setup', description: 'Request access to GitHub and setup local environment.' });
+    } else if (templateId === 'sales') {
+      defaultTasks.push({ title: 'CRM Access Setup', category: 'it_setup', description: 'Get provisioned for Salesforce/Hubspot.' });
+    } else {
+      defaultTasks.push({ title: 'IT Equipment Setup', category: 'it_setup', description: 'Receive laptop and setup basic accounts.' });
     }
-  });
+
+    for (const task of defaultTasks) {
+      await prisma.onboardingTask.create({
+        data: {
+          employeeId: emp.id,
+          title: task.title,
+          description: task.description,
+          category: task.category,
+          status: 'todo',
+          isCompleted: false,
+        }
+      });
+    }
+  }
+
   return emp;
 },
 updateEmployee: async (_, {

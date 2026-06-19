@@ -78,9 +78,26 @@ export const leaveResolvers = {
         status: 'APPROVED',
         employee: { organizationId: user.organizationId }
       };
-      if (departmentId) {
+      
+      const isAdmin = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
+      
+      if (!isAdmin) {
+        if (user.role === 'MANAGER') {
+          // Managers see their department's leave
+          const emp = await prisma.employee.findUnique({ where: { id: user.employeeId } });
+          if (emp?.departmentId) {
+            whereClause.employee.departmentId = emp.departmentId;
+          } else {
+            whereClause.employeeId = user.employeeId;
+          }
+        } else {
+          // Employees see only their own leave
+          whereClause.employeeId = user.employeeId;
+        }
+      } else if (departmentId) {
         whereClause.employee.departmentId = departmentId;
       }
+      
       return prisma.leaveRequest.findMany({
         where: whereClause,
         include: { employee: true, leaveType: true }

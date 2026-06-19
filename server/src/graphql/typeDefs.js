@@ -122,6 +122,7 @@ export const typeDefs = `#graphql
     manager: Employee
     promotionHistory: [PromotionHistory]
     statusHistory: [EmployeeStatusHistory]
+    suspensions: [Suspension!]
   }
 
   type Department {
@@ -141,6 +142,20 @@ export const typeDefs = `#graphql
     endTime: String!
     breakMinutes: Int!
     isActive: Boolean!
+  }
+
+  type Suspension {
+    id: ID!
+    employeeId: String!
+    employee: Employee!
+    startDate: String!
+    endDate: String!
+    reason: String!
+    approvedBy: String
+    status: String!
+    createdAt: String!
+    updatedAt: String!
+    approvals: [ApprovalRecord!]
   }
 
   type ApprovalWorkflowStep {
@@ -632,7 +647,6 @@ export const typeDefs = `#graphql
     endDate: String!
     reason: String
     attachmentUrl: String
-    superAdminApproved: Boolean!
   }
 
   input OffboardEmployeeInput {
@@ -743,6 +757,11 @@ export const typeDefs = `#graphql
     submitLeavePlan(year: Int!, plannedDates: [String!]!): LeavePlan!
     approveLeavePlan(planId: ID!): LeavePlan!
     rejectLeavePlan(planId: ID!): LeavePlan!
+
+    approveSuspension(id: ID!, comments: String): Suspension!
+    rejectSuspension(id: ID!, comments: String): Suspension!
+    approvePromotion(id: ID!, comments: String): PromotionRequest!
+    rejectPromotion(id: ID!, comments: String): PromotionRequest!
 
     clockIn: Attendance!
     clockOut: Attendance!

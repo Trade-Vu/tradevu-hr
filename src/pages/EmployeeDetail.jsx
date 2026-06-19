@@ -751,7 +751,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>National ID</Label>
+                      <Label>National ID Number</Label>
                       <Input
                         value={editData.personal_info?.national_id || ''}
                         onChange={(e) => setEditData(prev => ({
@@ -777,7 +777,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                     <PremiumField icon={User} label="Gender" value={employee.personal_info?.gender || 'Not set'} />
                     <PremiumField icon={User} label="Nationality" value={employee.personal_info?.nationality || 'Not set'} />
                     <PremiumField icon={User} label="Marital Status" value={employee.personal_info?.marital_status || 'Not set'} />
-                    <PremiumField icon={Shield} label="National ID" value={employee.personal_info?.national_id || 'Not set'} />
+                    <PremiumField icon={Shield} label="National ID Number" value={employee.personal_info?.national_id || 'Not set'} />
                     <PremiumField icon={Shield} label="Iqama Number" value={employee.personal_info?.iqama_number || 'Not set'} />
                   </>
                 )}

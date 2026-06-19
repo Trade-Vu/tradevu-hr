@@ -550,6 +550,8 @@ model ApprovalRecord {
   payrollRun     PayrollRun?   @relation(fields: [payrollRunId], references: [id])
   promotionRequestId String?
   promotionRequest   PromotionRequest? @relation(fields: [promotionRequestId], references: [id])
+  suspensionRequestId String?
+  suspensionRequest  Suspension? @relation(fields: [suspensionRequestId], references: [id])
 }
 
 // ─── PROMOTION REQUEST ────────────────────────────────────
@@ -637,8 +639,11 @@ model Suspension {
   endDate    DateTime
   reason     String
   approvedBy String?
+  status     ApprovalStatus @default(PENDING)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  
+  approvals  ApprovalRecord[]
 }
 
 model Offboarding {
