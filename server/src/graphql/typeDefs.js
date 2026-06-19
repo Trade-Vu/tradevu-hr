@@ -760,8 +760,6 @@ export const typeDefs = `#graphql
 
     approveSuspension(id: ID!, comments: String): Suspension!
     rejectSuspension(id: ID!, comments: String): Suspension!
-    approvePromotion(id: ID!, comments: String): PromotionRequest!
-    rejectPromotion(id: ID!, comments: String): PromotionRequest!
 
     clockIn: Attendance!
     clockOut: Attendance!
