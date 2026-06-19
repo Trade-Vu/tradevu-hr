@@ -889,7 +889,7 @@ requestPromotion: async (_, {
   } = input;
   const eDateNum = Number(effectiveDate);
   const parsedEffectiveDate = isNaN(eDateNum) ? new Date(effectiveDate) : new Date(eDateNum);
-  const isAutoApprove = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
+  const isAutoApprove = user.role === 'SUPER_ADMIN';
   const req = await prisma.promotionRequest.create({
     data: {
       employeeId,
@@ -1508,12 +1508,18 @@ processApproval: async (_, {
     previousStatus = request.status;
     let newStatus = action;
     if (action === 'APPROVED') {
-      if (user.role === 'MANAGER' && previousStatus === 'PENDING') {
-        newStatus = 'PENDING_HR';
-      } else if (['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      if (user.role === 'SUPER_ADMIN') {
         newStatus = 'APPROVED';
-      } else if (user.role === 'MANAGER' && previousStatus === 'PENDING_HR') {
-        throw new Error("Already approved by Manager, waiting for HR");
+      } else if (user.role === 'HR_ADMIN') {
+        if (previousStatus === 'PENDING_SUPER_ADMIN') {
+          throw new Error("Not authorized to approve this request (Requires Super Admin)");
+        }
+        newStatus = 'APPROVED';
+      } else if (user.role === 'MANAGER') {
+        if (previousStatus === 'PENDING_HR' || previousStatus === 'PENDING_SUPER_ADMIN') {
+          throw new Error("Already approved by Manager, waiting for higher authority");
+        }
+        newStatus = 'PENDING_HR';
       }
     }
     await prisma.leaveRequest.update({
@@ -1755,6 +1761,15 @@ submitLeaveRequest: async (_, {
       throw new Error(`This leave type requires at least ${leaveType.noticeDaysRequired} days advance notice.`);
     }
   }
+  const getInitialStatus = (role) => {
+    switch (role) {
+      case 'SUPER_ADMIN': return 'APPROVED';
+      case 'HR_ADMIN': return 'PENDING_SUPER_ADMIN';
+      case 'MANAGER': return 'PENDING_HR';
+      default: return 'PENDING';
+    }
+  };
+
   const leaveRequest = await prisma.leaveRequest.create({
     data: {
       employeeId: user.employeeId,
@@ -1765,7 +1780,8 @@ submitLeaveRequest: async (_, {
       isHalfDay: input.isHalfDay || false,
       selectedDates: input.selectedDates || null,
       reason: input.reason,
-      attachmentUrl: input.attachmentUrl
+      attachmentUrl: input.attachmentUrl,
+      status: getInitialStatus(user.role)
     }
   });
   if (employee?.manager?.user?.id) {
@@ -1836,7 +1852,7 @@ uploadDocument: async (_, args, {
     visibilityLevel
   } = args;
   let status = 'PENDING';
-  if (['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role)) {
+  if (user.role === 'SUPER_ADMIN') {
     status = 'ACTIVE';
   } else if (user.role === 'EMPLOYEE' && user.employeeId !== employeeId) {
     throw new Error("Employees can only upload their own documents");
@@ -1898,7 +1914,7 @@ replaceDocumentVersion: async (_, {
       uploadedBy: document.uploadedBy
     }
   });
-  const newStatus = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role) ? 'ACTIVE' : 'PENDING';
+  const newStatus = user.role === 'SUPER_ADMIN' ? 'ACTIVE' : 'PENDING';
   const updatedDocument = await prisma.document.update({
     where: {
       id
