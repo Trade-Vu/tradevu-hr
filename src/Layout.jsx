@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import {
   DropdownMenu,
@@ -192,11 +193,33 @@ export default function Layout({ children }) {
 
   const [manualActivePrimary, setManualActivePrimary] = useState(null);
 
-  let navItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
+  const GET_PENDING_COUNTS = gql`
+    query GetPendingCounts {
+      employees { id employmentStatus }
+      documents { id status }
+      leaveRequests { id status }
+      profileUpdateRequests { id status }
+    }
+  `;
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['pendingApprovalsCount'],
+    queryFn: () => gqlClient.request(GET_PENDING_COUNTS),
+    enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.isOrgOwner),
+  });
+
+  const pendingCount = pendingData ? 
+    (pendingData.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL').length || 0) +
+    (pendingData.documents?.filter(d => d.status === 'PENDING').length || 0) +
+    (pendingData.leaveRequests?.filter(l => l.status === 'PENDING').length || 0) +
+    (pendingData.profileUpdateRequests?.filter(p => p.status === 'PENDING').length || 0)
+    : 0;
+
+  let baseNavItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
 
   // Append settings if admin
   if (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.isOrgOwner) {
-    navItems.push({
+    baseNavItems.push({
       title: "Settings",
       icon: Settings,
       isParent: true,
@@ -209,6 +232,22 @@ export default function Layout({ children }) {
       ]
     });
   }
+
+  const navItems = baseNavItems.map(item => {
+    if (item.title === "Dashboard") {
+      return {
+        ...item,
+        badge: pendingCount > 0 ? pendingCount : undefined,
+        children: item.children.map(child => {
+          if (child.title === "Approvals") {
+            return { ...child, badge: pendingCount > 0 ? pendingCount : undefined };
+          }
+          return child;
+        })
+      };
+    }
+    return item;
+  });
 
   // Sync active primary based on URL or manual selection
   const getActivePrimaryNav = () => {
@@ -284,6 +323,11 @@ export default function Layout({ children }) {
                       }`}
                     >
                       <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
+                      {item.badge && (
+                        <div className={`absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 ${isDark ? 'border-slate-900' : 'border-slate-50'}`}>
+                          {item.badge}
+                        </div>
+                      )}
                     </motion.button>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={14} className="z-[100] font-medium bg-slate-900 text-white border-none shadow-md">
@@ -370,6 +414,11 @@ export default function Layout({ children }) {
                     )}
                     <child.icon className={`w-4 h-4 transition-transform ${isActive ? 'scale-110' : ''}`} />
                     {child.title}
+                    {child.badge && (
+                      <span className="ml-auto bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                        {child.badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
