@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import countryList from 'country-list';
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
@@ -724,13 +725,20 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                     </div>
                     <div className="space-y-2">
                       <Label>Nationality</Label>
-                      <Input
+                      <Select
                         value={editData.personal_info?.nationality || ''}
-                        onChange={(e) => setEditData(prev => ({
+                        onValueChange={(value) => setEditData(prev => ({
                           ...prev,
-                          personal_info: { ...prev.personal_info, nationality: e.target.value }
+                          personal_info: { ...prev.personal_info, nationality: value }
                         }))}
-                      />
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select nationality" /></SelectTrigger>
+                        <SelectContent>
+                          {countryList.getNames().map(country => (
+                            <SelectItem key={country} value={country}>{country}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Marital Status</Label>
