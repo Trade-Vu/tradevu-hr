@@ -27,7 +27,7 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
   });
 
   const isProbation = employee?.employmentStatus === 'PROBATION';
-  const hiddenStatuses = ['ACTIVE', 'OFFBOARDED', 'RESIGNED', 'TERMINATED', 'SUSPENDED'];
+  const hiddenStatuses = ['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'OFFBOARDED', 'RESIGNED', 'TERMINATED', 'SUSPENDED'];
   const shouldHide = hiddenStatuses.includes(employee?.employmentStatus);
 
   if (isLoading || (!isProbation && tasks.length === 0) || shouldHide) return null;
