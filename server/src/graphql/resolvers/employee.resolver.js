@@ -139,11 +139,12 @@ createEmployee: async (_, {
   ipAddress
 }) => {
   requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
-  const {
-    templateId,
-    employmentType,
-    ...employeeData
-  } = input;
+  try {
+    const {
+      templateId,
+      employmentType,
+      ...employeeData
+    } = input;
   const count = await prisma.employee.count({
     where: {
       organizationId: user.organizationId
@@ -251,7 +252,14 @@ createEmployee: async (_, {
     }
   }
 
-  return emp;
+    return emp;
+  } catch (error) {
+    console.error("Error in createEmployee:", error);
+    if (error.code === 'P2002') {
+      throw new Error(`An employee with this ${error.meta?.target?.join(', ')} already exists.`);
+    }
+    throw new Error("Failed to create employee. Please try again.");
+  }
 },
 updateEmployee: async (_, {
   id,
@@ -265,7 +273,8 @@ updateEmployee: async (_, {
   ipAddress
 }) => {
   requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
-  const existing = await prisma.employee.findFirst({
+  try {
+    const existing = await prisma.employee.findFirst({
     where: {
       id,
       organizationId: user.organizationId
@@ -453,8 +462,15 @@ updateEmployee: async (_, {
       await applyDynamicBenefits(id, updateData.employeeGrade || existing.employeeGrade, prisma);
     }
   }
-  await checkAndPromoteEmployee(id, prisma);
-  return updated;
+    await checkAndPromoteEmployee(id, prisma);
+    return updated;
+  } catch (error) {
+    console.error("Error in updateEmployee:", error);
+    if (error.code === 'P2002') {
+      throw new Error(`An employee with this ${error.meta?.target?.join(', ')} already exists.`);
+    }
+    throw new Error(error.message || "Failed to update employee. Please try again.");
+  }
 }
   },
 Employee: {

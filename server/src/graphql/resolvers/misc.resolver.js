@@ -416,7 +416,8 @@ approveEmployeeData: async (_, {
   ipAddress
 }) => {
   requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
-  const emp = await prisma.employee.findFirst({
+  try {
+    const emp = await prisma.employee.findFirst({
     where: {
       id: employeeId,
       organizationId: user.organizationId
@@ -466,7 +467,11 @@ approveEmployeeData: async (_, {
       newStatus: 'PENDING_ONBOARDING'
     }
   });
-  return updatedEmp;
+    return updatedEmp;
+  } catch (error) {
+    console.error("Error in approveEmployeeData:", error);
+    throw new Error(error.message || "Failed to approve employee data.");
+  }
 },
 startOnboarding: async (_, {
   employeeId
@@ -565,8 +570,9 @@ suspendEmployee: async (_, {
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
-  return await prisma.$transaction(async tx => {
-    const employee = await tx.employee.findUnique({ where: { id }, include: { department: true, organization: true } });
+  try {
+    return await prisma.$transaction(async tx => {
+      const employee = await tx.employee.findUnique({ where: { id }, include: { department: true, organization: true } });
     const suspension = await tx.suspension.create({
       data: {
         employeeId: id,
@@ -586,9 +592,10 @@ suspendEmployee: async (_, {
         action: 'PENDING'
       }
     });
+      return employee;
+    });
 
-    await createAuditLog({
-      prisma,
+    createAuditLog({
       ipAddress,
       userId: user.id, organizationId: user.organizationId,
       entityType: 'Employee',
@@ -597,16 +604,20 @@ suspendEmployee: async (_, {
       details: `Suspension requested from ${input.startDate} to ${input.endDate}`
     });
 
-    return employee;
-  });
+    return result;
+  } catch (error) {
+    console.error("Error in suspendEmployee:", error);
+    throw new Error(error.message || "Failed to process suspension request.");
+  }
 },
 approveSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
   if (!user) throw new Error('Not authenticated');
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
-  return await prisma.$transaction(async tx => {
-    const suspension = await tx.suspension.update({
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const suspension = await tx.suspension.update({
       where: { id },
       data: { status: 'APPROVED', approvedBy: user.id }
     });
@@ -637,23 +648,29 @@ approveSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
       }
     });
 
-    await createAuditLog({
-      prisma, ipAddress,
+      return suspension;
+    });
+
+    createAuditLog({
+      ipAddress,
       userId: user.id, organizationId: user.organizationId,
       entityType: 'Suspension', entityId: id,
       action: 'SUSPENSION_APPROVED',
       details: 'Suspension approved'
     });
 
-    return suspension;
-  });
+    return result;
+  } catch (error) {
+    console.error("Error in approveSuspension:", error);
+    throw new Error(error.message || "Failed to approve suspension.");
+  }
 },
 rejectSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
   if (!user) throw new Error('Not authenticated');
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
-  return await prisma.$transaction(async tx => {
+  const result = await prisma.$transaction(async tx => {
     const suspension = await tx.suspension.update({
       where: { id },
       data: { status: 'REJECTED', approvedBy: user.id }
@@ -670,23 +687,25 @@ rejectSuspension: async (_, { id, comments }, { prisma, user, ipAddress }) => {
       }
     });
 
-    await createAuditLog({
-      prisma, ipAddress,
+      return suspension;
+    });
+
+    createAuditLog({
+      ipAddress,
       userId: user.id, organizationId: user.organizationId,
       entityType: 'Suspension', entityId: id,
       action: 'SUSPENSION_REJECTED',
       details: 'Suspension rejected'
     });
 
-    return suspension;
-  });
+    return result;
 },
 approvePromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
   if (!user) throw new Error('Not authenticated');
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
-  return await prisma.$transaction(async tx => {
+  const result = await prisma.$transaction(async tx => {
     const promotion = await tx.promotionRequest.update({
       where: { id },
       data: { status: 'APPROVED', isExecuted: true }
@@ -713,23 +732,25 @@ approvePromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
       }
     });
 
-    await createAuditLog({
-      prisma, ipAddress,
+      return promotion;
+    });
+
+    createAuditLog({
+      ipAddress,
       userId: user.id, organizationId: user.organizationId,
       entityType: 'PromotionRequest', entityId: id,
       action: 'PROMOTION_APPROVED',
       details: 'Promotion approved and applied'
     });
 
-    return promotion;
-  });
+    return result;
 },
 rejectPromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
   if (!user) throw new Error('Not authenticated');
   if (!['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
     throw new Error('Not authorized');
   }
-  return await prisma.$transaction(async tx => {
+  const result = await prisma.$transaction(async tx => {
     const promotion = await tx.promotionRequest.update({
       where: { id },
       data: { status: 'REJECTED' }
@@ -746,16 +767,18 @@ rejectPromotion: async (_, { id, comments }, { prisma, user, ipAddress }) => {
       }
     });
 
-    await createAuditLog({
-      prisma, ipAddress,
+      return promotion;
+    });
+
+    createAuditLog({
+      ipAddress,
       userId: user.id, organizationId: user.organizationId,
       entityType: 'PromotionRequest', entityId: id,
       action: 'PROMOTION_REJECTED',
       details: 'Promotion rejected'
     });
 
-    return promotion;
-  });
+    return result;
 },
 offboardEmployee: async (_, {
   id,
@@ -937,7 +960,8 @@ requestPromotion: async (_, {
   prisma
 }) => {
   if (!user) throw new Error("Not authenticated");
-  const {
+  try {
+    const {
     employeeId,
     effectiveDate,
     ...rest
@@ -1015,6 +1039,10 @@ requestPromotion: async (_, {
     });
   }
   return req;
+  } catch (error) {
+    console.error("Error in requestPromotion:", error);
+    throw new Error(error.message || "Failed to submit promotion request.");
+  }
 },
 approvePromotion: async (_, {
   id,
@@ -1025,7 +1053,8 @@ approvePromotion: async (_, {
   prisma
 }) => {
   if (!user) throw new Error("Not authenticated");
-  const req = await prisma.promotionRequest.update({
+  try {
+    const req = await prisma.promotionRequest.update({
     where: {
       id
     },
@@ -1097,6 +1126,10 @@ approvePromotion: async (_, {
     });
   }
   return req;
+  } catch (error) {
+    console.error("Error in approvePromotion:", error);
+    throw new Error(error.message || "Failed to approve promotion.");
+  }
 },
 updateEmployeeSelf: async (_, {
   input

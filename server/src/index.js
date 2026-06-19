@@ -17,6 +17,7 @@ import { redis } from './utils/redisClient.js';
 import logger from './utils/logger.js';
 import { requestId } from './middleware/requestId.js';
 import { globalLimiter } from './middleware/rateLimiter.js';
+import './services/AuditEmitterService.js';
 
 dotenv.config();
 

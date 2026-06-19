@@ -11,6 +11,8 @@ import { prisma } from '../db.js';
  * @param {Object} [params.newValue] - The new state of the entity
  * @param {String} [params.ipAddress] - The IP address of the actor
  */
+import { AuditEmitterService } from '../services/AuditEmitterService.js';
+
 export const createAuditLog = async ({
   userId,
   organizationId,
@@ -19,24 +21,17 @@ export const createAuditLog = async ({
   action,
   details,
   ipAddress,
-  prisma: providedPrisma // Optional prisma client if passed in transactions
+  prisma: providedPrisma // Deprecated: no longer used since emitter handles DB connection independently
 }) => {
-  const db = providedPrisma || prisma;
-  try {
-    await db.auditLog.create({
-      data: {
-        userId,
-        organizationId,
-        action,
-        entityType,
-        entityId,
-        details,
-        ipAddress
-      }
-    });
-  } catch (error) {
-    console.error('Failed to create audit log:', error);
-  }
+  AuditEmitterService.emit('AUDIT_LOG_CREATED', {
+    userId,
+    organizationId,
+    action,
+    entityType,
+    entityId,
+    details,
+    ipAddress
+  });
 };
 
 /**
@@ -50,22 +45,18 @@ export const recordApprovalEvent = async ({
   comments,
   previousStatus
 }) => {
-  try {
-    const data = {
-      entityType,
-      entityId,
-      approverUserId,
-      action,
-      comments,
-      previousStatus
-    };
-    
-    // Add specific foreign keys if needed
-    if (entityType === 'LeaveRequest') data.leaveRequestId = entityId;
-    if (entityType === 'PayrollRun') data.payrollRunId = entityId;
+  const data = {
+    entityType,
+    entityId,
+    approverUserId,
+    action,
+    comments,
+    previousStatus
+  };
+  
+  // Add specific foreign keys if needed
+  if (entityType === 'LeaveRequest') data.leaveRequestId = entityId;
+  if (entityType === 'PayrollRun') data.payrollRunId = entityId;
 
-    await prisma.approvalRecord.create({ data });
-  } catch (error) {
-    console.error('Failed to create approval record:', error);
-  }
+  AuditEmitterService.emit('APPROVAL_RECORD_CREATED', data);
 };

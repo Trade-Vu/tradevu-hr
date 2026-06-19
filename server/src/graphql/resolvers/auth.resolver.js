@@ -112,11 +112,12 @@ register: async (_, {
 }, {
   prisma
 }) => {
-  const {
-    email,
-    password,
-    orgName
-  } = input;
+  try {
+    const {
+      email,
+      password,
+      orgName
+    } = input;
   const existingUser = await prisma.user.findUnique({
     where: {
       email
@@ -140,10 +141,18 @@ register: async (_, {
     }
   });
   const token = generateToken(user);
-  return {
-    token,
-    user
-  };
+    return {
+      token,
+      user
+    };
+  } catch (error) {
+    console.error("Error in register:", error);
+    if (error.message === "Email already in use") throw error;
+    if (error.code === 'P2002') {
+      throw new Error("Email already in use");
+    }
+    throw new Error("Failed to register. Please try again later.");
+  }
 },
 login: async (_, {
   email,
@@ -151,6 +160,7 @@ login: async (_, {
 }, {
   prisma
 }) => {
+  try {
   const user = await prisma.user.findUnique({
     where: {
       email
@@ -160,10 +170,15 @@ login: async (_, {
   const isValid = await comparePassword(password, user.passwordHash);
   if (!isValid) throw new Error("Invalid credentials");
   const token = generateToken(user);
-  return {
-    token,
-    user
-  };
+    return {
+      token,
+      user
+    };
+  } catch (error) {
+    console.error("Error in login:", error);
+    if (error.message === "Invalid credentials") throw error;
+    throw new Error("An error occurred during login. Please try again.");
+  }
 }
   },
 };
