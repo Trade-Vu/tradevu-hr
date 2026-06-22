@@ -482,6 +482,81 @@ approveEmployeeData: async (_, {
     throw new Error(error.message || "Failed to approve employee data.");
   }
 },
+rejectEmployeeData: async (_, {
+  employeeId,
+  reason
+}, {
+  prisma,
+  user,
+  requireRole
+}) => {
+  requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+  try {
+    const emp = await prisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        organizationId: user.organizationId
+      }
+    });
+    if (!emp) throw new Error("Employee not found");
+    if (emp.employmentStatus !== 'PENDING_APPROVAL') {
+      throw new Error("Employee is not in PENDING_APPROVAL state");
+    }
+
+    const updatedEmp = await prisma.employee.update({
+      where: {
+        id: employeeId
+      },
+      data: {
+        employmentStatus: 'DRAFT'
+      }
+    });
+
+    await prisma.employeeStatusHistory.create({
+      data: {
+        employeeId: employeeId,
+        previousStatus: emp.employmentStatus,
+        newStatus: 'DRAFT',
+        changedBy: user.id,
+        reason: reason || 'Employee data rejected'
+      }
+    });
+
+    await createAuditLog({
+      prisma,
+      userId: user.id,
+      organizationId: user.organizationId,
+      action: 'REJECT_EMPLOYEE_DATA',
+      entityType: 'Employee',
+      entityId: emp.id,
+      details: {
+        previousStatus: 'PENDING_APPROVAL',
+        newStatus: 'DRAFT',
+        reason
+      }
+    });
+
+    const empUser = await prisma.user.findFirst({
+      where: { employeeId: emp.id }
+    });
+    if (empUser) {
+      await NotificationService.notify({
+        prisma,
+        userId: empUser.id,
+        organizationId: user.organizationId,
+        title: 'Profile Activation Rejected',
+        message: `Your profile activation was rejected${reason ? `: ${reason}` : ''}. Please review your submitted information.`,
+        type: 'INFO',
+        link: '/profile-wizard'
+      });
+    }
+
+    return updatedEmp;
+  } catch (error) {
+    console.error("Error in rejectEmployeeData:", error);
+    throw new Error(error.message || "Failed to reject employee data.");
+  }
+},
 startOnboarding: async (_, {
   employeeId
 }, {
@@ -765,18 +840,16 @@ offboardEmployee: async (_, {
         reason: input.reason || `Employee offboarded (${input.exitType})`
       }
     });
-    await tx.auditLog.create({
-      data: {
-        organizationId: employee.organizationId,
-        userId: user.id,
-        action: 'OFFBOARD',
-        entityType: 'EMPLOYEE',
-        entityId: id,
-        details: {
-          type: input.exitType,
-          exitDate: input.exitDate,
-          reason: input.reason
-        }
+    await createAuditLog({
+      organizationId: employee.organizationId,
+      userId: user.id,
+      action: 'OFFBOARD',
+      entityType: 'EMPLOYEE',
+      entityId: id,
+      details: {
+        type: input.exitType,
+        exitDate: input.exitDate,
+        reason: input.reason
       }
     });
     return employee;

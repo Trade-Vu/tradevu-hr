@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { gql } from 'graphql-request';
 import { gqlClient } from '@/api/graphqlClient';
@@ -9,9 +9,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CheckCircle2, XCircle, FileText, UserCircle, Loader2, AlertCircle, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+const GET_EMPLOYEE_DETAILS = gql`
+  query GetEmployeeDetails($id: ID!) {
+    employee(id: $id) {
+      id
+      phone
+      gender
+      maritalStatus
+      nationality
+      dateOfBirth
+      privateEmail
+      nationalId
+    }
+  }
+`;
+
 const APPROVE_EMPLOYEE = gql`
   mutation ApproveEmployee($employeeId: ID!) {
     approveEmployeeData(employeeId: $employeeId) {
+      id
+      employmentStatus
+    }
+  }
+`;
+
+const REJECT_EMPLOYEE = gql`
+  mutation RejectEmployee($employeeId: ID!, $reason: String) {
+    rejectEmployeeData(employeeId: $employeeId, reason: $reason) {
       id
       employmentStatus
     }
@@ -54,13 +78,13 @@ const REJECT_PROFILE = gql`
   }
 `;
 
-const RejectInline = ({ onReject }) => {
+const RejectInline = ({ onReject, className }) => {
   const [reason, setReason] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
   if (!isOpen) {
     return (
-      <Button variant="outline" size="sm" className="text-slate-600 hover:text-red-600 hover:bg-red-50" onClick={() => setIsOpen(true)}>
+      <Button variant="outline" size="sm" className={`text-slate-600 hover:text-red-600 hover:bg-red-50 ${className || ""}`} onClick={() => setIsOpen(true)}>
         <XCircle className="w-4 h-4 mr-1" /> Reject
       </Button>
     );
@@ -101,6 +125,14 @@ export default function UnifiedProfileReviewDialog({
   const queryClient = useQueryClient();
   const [isApprovingAll, setIsApprovingAll] = useState(false);
 
+  const { data: employeeData, isLoading: loadingEmployee } = useQuery({
+    queryKey: ['employeeDetails', employeeId],
+    queryFn: () => gqlClient.request(GET_EMPLOYEE_DETAILS, { id: employeeId }),
+    enabled: !!employeeId && open,
+  });
+  
+  const empInfo = employeeData?.employee;
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -114,6 +146,12 @@ export default function UnifiedProfileReviewDialog({
   const { mutateAsync: approveEmployee } = useMutation({
     mutationFn: (variables) => gqlClient.request(APPROVE_EMPLOYEE, variables),
     onSuccess: () => { toast.success("Activation approved!"); invalidate(); },
+    onError: handleError
+  });
+
+  const { mutateAsync: rejectEmployee } = useMutation({
+    mutationFn: (variables) => gqlClient.request(REJECT_EMPLOYEE, variables),
+    onSuccess: () => { toast.success("Activation rejected."); invalidate(); onOpenChange(false); },
     onError: handleError
   });
 
@@ -180,14 +218,6 @@ export default function UnifiedProfileReviewDialog({
                 Unified review for profile activation, data updates, and documents.
               </DialogDescription>
             </div>
-            <Button 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-              onClick={handleApproveAll}
-              disabled={isApprovingAll || (!isPendingActivation && pendingDocs.length === 0 && pendingProfiles.length === 0)}
-            >
-              {isApprovingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-              Approve All Unactioned
-            </Button>
           </div>
         </DialogHeader>
 
@@ -200,16 +230,45 @@ export default function UnifiedProfileReviewDialog({
                 <div className="flex-1">
                   <h4 className="font-semibold text-amber-900">Pending Activation / Probation</h4>
                   <p className="text-sm text-amber-700 mt-1">
-                    This employee's profile is currently pending approval. Activating their account will grant them full access.
+                    This employee's profile is currently pending approval. Activating their account will change their status to onboarding.
                   </p>
                 </div>
-                <Button 
-                  size="sm" 
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                  onClick={() => approveEmployee({ employeeId })}
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-1.5" /> Activate Now
-                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Employee Information */}
+          {empInfo && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2 text-lg">
+                <UserCircle className="w-5 h-5 text-slate-500" /> 
+                Submitted Information
+              </h3>
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Phone Number</p>
+                  <p className="text-sm text-slate-900 font-medium">{empInfo.phone || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Personal Email</p>
+                  <p className="text-sm text-slate-900 font-medium">{empInfo.privateEmail || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Date of Birth</p>
+                  <p className="text-sm text-slate-900 font-medium">{empInfo.dateOfBirth ? new Date(parseInt(empInfo.dateOfBirth)).toLocaleDateString() : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Gender</p>
+                  <p className="text-sm text-slate-900 font-medium capitalize">{empInfo.gender || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nationality</p>
+                  <p className="text-sm text-slate-900 font-medium capitalize">{empInfo.nationality || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Marital Status</p>
+                  <p className="text-sm text-slate-900 font-medium capitalize">{empInfo.maritalStatus || '-'}</p>
+                </div>
               </div>
             </div>
           )}
@@ -234,9 +293,6 @@ export default function UnifiedProfileReviewDialog({
                     </div>
                     <div className="flex items-center gap-2 mt-3 sm:mt-0">
                       <RejectInline onReject={(reason) => rejectProfile({ id: update.id, reason, attachmentUrl: "" })} />
-                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => approveProfile({ id: update.id })}>
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -265,9 +321,6 @@ export default function UnifiedProfileReviewDialog({
                         </Button>
                       )}
                       <RejectInline onReject={(reason) => rejectDocument({ id: doc.id, reason, attachmentUrl: "" })} />
-                      <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => approveDocument({ id: doc.id })}>
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -283,6 +336,26 @@ export default function UnifiedProfileReviewDialog({
             </div>
           )}
         </div>
+
+        {/* Footer Action */}
+        {(isPendingActivation || pendingDocs.length > 0 || pendingProfiles.length > 0) && (
+          <div className="p-4 border-t border-slate-100 bg-white sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            {isPendingActivation && (
+              <RejectInline 
+                className="px-4 py-2 text-sm font-medium rounded-lg h-auto" 
+                onReject={(reason) => rejectEmployee({ employeeId, reason })} 
+              />
+            )}
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm px-4 py-2 text-sm font-medium rounded-lg h-auto"
+              onClick={handleApproveAll}
+              disabled={isApprovingAll}
+            >
+              {isApprovingAll ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
+              Approve All Unactioned Items
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

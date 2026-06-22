@@ -12,6 +12,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import ProfileCompletionWizard from '@/pages/ProfileCompletionWizard';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -24,7 +25,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
   const isLoginPage = window.location.pathname.toLowerCase().includes('/login');
 
   // Show loading spinner while checking app public settings or auth
@@ -51,6 +52,11 @@ const AuthenticatedApp = () => {
       navigateToLogin();
       return null;
     }
+  }
+
+  // Force profile completion for new employees
+  if (user?.mustCompleteProfile) {
+    return <ProfileCompletionWizard />;
   }
 
   // Render the main app

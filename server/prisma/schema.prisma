@@ -122,6 +122,7 @@ model User {
   avatarUrl        String?
   preferences      Json? // language, timezone, notification prefs
   isActive         Boolean      @default(true)
+  mustCompleteProfile Boolean   @default(false)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

@@ -8,8 +8,17 @@ export const AuditEmitterService = new AuditEmitter();
 // Listener for general audit logs
 AuditEmitterService.on('AUDIT_LOG_CREATED', async (payload) => {
   try {
+    const { userId, organizationId, action, entityType, entityId, details, previousValue, newValue, ipAddress } = payload;
     await prisma.auditLog.create({
-      data: payload
+      data: {
+        actorId: userId,
+        action,
+        entityType,
+        entityId,
+        ipAddress,
+        previousValue: previousValue || undefined,
+        newValue: newValue || details || undefined
+      }
     });
   } catch (error) {
     console.error('AuditEmitterService [AUDIT_LOG_CREATED] Failed to write audit log to DB:', error);

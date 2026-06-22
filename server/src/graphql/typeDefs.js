@@ -10,6 +10,7 @@ export const typeDefs = `#graphql
     isOrgOwner: Boolean
     lastLogin: String
     avatarUrl: String
+    mustCompleteProfile: Boolean
   }
 
   type AuthPayload {
@@ -82,7 +83,6 @@ export const typeDefs = `#graphql
     name: String!
     country: String
     subscriptionPlan: String
-    ownerEmail: String!
   }
 
   type Employee {
@@ -717,6 +717,8 @@ export const typeDefs = `#graphql
     createLoan(input: LoanInput!): Loan!
     register(input: RegisterInput!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
+    clearProfileGate: User!
+    uploadProfilePicture(file: String!): User!
     
     createEmployee(input: EmployeeInput!): Employee!
     
@@ -729,6 +731,7 @@ export const typeDefs = `#graphql
     deleteEmployee(id: ID!): Boolean
     startOnboarding(employeeId: ID!): Employee
     approveEmployeeData(employeeId: ID!): Employee!
+    rejectEmployeeData(employeeId: ID!, reason: String): Employee!
     
     createDepartment(name: String!, code: String, headEmployeeId: String): Department!
     updateDepartment(id: ID!, name: String, code: String, headEmployeeId: String): Department!

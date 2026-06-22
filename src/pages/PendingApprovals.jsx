@@ -305,9 +305,20 @@ export default function PendingApprovals() {
   );
 
   const pendingEmployees = data?.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL') || [];
-  const pendingDocuments = data?.documents?.filter(d => d.status === 'PENDING') || [];
+  
+  const pendingDocuments = data?.documents?.filter(d => {
+    if (d.status !== 'PENDING') return false;
+    const emp = data?.employees?.find(e => e.id === d.employeeId);
+    return emp?.employmentStatus !== 'DRAFT';
+  }) || [];
+
   const pendingLeaves = data?.leaveRequests?.filter(l => l.status === 'PENDING') || [];
-  const pendingProfiles = data?.profileUpdateRequests?.filter(p => p.status === 'PENDING') || [];
+  
+  const pendingProfiles = data?.profileUpdateRequests?.filter(p => {
+    if (p.status !== 'PENDING') return false;
+    const emp = data?.employees?.find(e => e.id === p.employeeId);
+    return emp?.employmentStatus !== 'DRAFT';
+  }) || [];
 
   const standalonePendingDocuments = pendingDocuments.filter(d => !pendingEmployees.some(e => e.id === d.employeeId));
 
@@ -377,11 +388,7 @@ export default function PendingApprovals() {
               Unified Reviews
               {unifiedEmployeeIds.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{unifiedEmployeeIds.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="onboarding" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
-              <UserCircle className="w-4 h-4" />
-              Onboarding 
-              {pendingEmployees.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingEmployees.length}</Badge>}
-            </TabsTrigger>
+
             <TabsTrigger value="documents" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
               <FileText className="w-4 h-4" />
               Documents
@@ -438,37 +445,6 @@ export default function PendingApprovals() {
                       </motion.div>
                     );
                   })}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="onboarding" className="m-0 focus-visible:outline-none">
-              {loading ? (
-                <ApprovalsSkeleton />
-              ) : pendingEmployees.length === 0 ? (
-                <EmptyState message="No pending employee onboardings." icon={UserCircle} />
-              ) : (
-                <div className="space-y-3">
-                  {pendingEmployees.map(emp => (
-                    <motion.div 
-                      key={emp.id} 
-                      whileHover={{ y: -2 }}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
-                    >
-                      <div>
-                        <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
-                        <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button 
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
-                          onClick={() => setSelectedUnifiedEmployeeId(emp.id)}
-                        >
-                          Review & Action
-                        </Button>
-                      </div>
-                    </motion.div>
-                  ))}
                 </div>
               )}
             </TabsContent>

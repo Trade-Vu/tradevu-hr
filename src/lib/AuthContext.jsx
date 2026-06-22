@@ -14,6 +14,7 @@ const ME_QUERY = gql`
       organizationId
       employeeId
       avatarUrl
+      mustCompleteProfile
     }
   }
 `;

@@ -215,7 +215,8 @@ createEmployee: async (_, {
         role: 'EMPLOYEE',
         organizationId: user.organizationId,
         employeeId: emp.id,
-        isActive: true
+        isActive: true,
+        mustCompleteProfile: true
       }
     });
   } catch (err) {

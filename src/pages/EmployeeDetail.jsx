@@ -2331,12 +2331,26 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               >
                 <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Entry Level">Entry Level</SelectItem>
-                  <SelectItem value="Team Member">Team Member</SelectItem>
-                  <SelectItem value="Mid-Level">Mid-Level</SelectItem>
-                  <SelectItem value="Senior Level">Senior Level</SelectItem>
-                  <SelectItem value="Management">Management</SelectItem>
-                  <SelectItem value="Department Head">Department Head</SelectItem>
+                  <SelectItem value="Entry Level 1">Entry Level 1</SelectItem>
+                  <SelectItem value="Entry Level 2">Entry Level 2</SelectItem>
+                  <SelectItem value="Entry Level 3">Entry Level 3</SelectItem>
+                  <SelectItem value="Entry Level 4">Entry Level 4</SelectItem>
+                  <SelectItem value="Entry Level 5">Entry Level 5</SelectItem>
+                  <SelectItem value="Mid-Level 1">Mid-Level 1</SelectItem>
+                  <SelectItem value="Mid-Level 2">Mid-Level 2</SelectItem>
+                  <SelectItem value="Mid-Level 3">Mid-Level 3</SelectItem>
+                  <SelectItem value="Mid-Level 4">Mid-Level 4</SelectItem>
+                  <SelectItem value="Mid-Level 5">Mid-Level 5</SelectItem>
+                  <SelectItem value="Senior Level 1">Senior Level 1</SelectItem>
+                  <SelectItem value="Senior Level 2">Senior Level 2</SelectItem>
+                  <SelectItem value="Senior Level 3">Senior Level 3</SelectItem>
+                  <SelectItem value="Senior Level 4">Senior Level 4</SelectItem>
+                  <SelectItem value="Senior Level 5">Senior Level 5</SelectItem>
+                  <SelectItem value="Management 1">Management 1</SelectItem>
+                  <SelectItem value="Management 2">Management 2</SelectItem>
+                  <SelectItem value="Management 3">Management 3</SelectItem>
+                  <SelectItem value="Management 4">Management 4</SelectItem>
+                  <SelectItem value="Management 5">Management 5</SelectItem>
                   <SelectItem value="CEO">CEO</SelectItem>
                 </SelectContent>
               </Select>
@@ -2344,11 +2358,19 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
             </div>
             <div className="space-y-2">
               <Label>New Class</Label>
-              <Input
+              <Select
                 value={promoteForm.employeeClass}
-                onChange={(e) => setPromoteForm({ ...promoteForm, employeeClass: e.target.value })}
-                placeholder="e.g. A, B, Professional"
-              />
+                onValueChange={(value) => setPromoteForm({ ...promoteForm, employeeClass: value })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Permanent">Permanent</SelectItem>
+                  <SelectItem value="Probationary">Probationary</SelectItem>
+                  <SelectItem value="Contract">Contract</SelectItem>
+                  <SelectItem value="Consultant">Consultant</SelectItem>
+                  <SelectItem value="Intern">Intern</SelectItem>
+                </SelectContent>
+              </Select>
               {employee.employeeClass && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeClass}</p>}
             </div>
             <div className="flex items-center space-x-2 mt-4">

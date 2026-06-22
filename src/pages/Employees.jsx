@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Upload, Grid, List, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,7 @@ export default function Employees() {
         }))
       };
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Reset page to 1 when search or status filter changes
@@ -162,6 +162,7 @@ export default function Employees() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       setShowAddForm(false);

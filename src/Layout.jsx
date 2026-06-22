@@ -36,6 +36,7 @@ const navigationStructure = [
       { title: "Overview", url: "/", icon: LayoutDashboard },
       { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
       { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
+      { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
     ]
   },
   {
@@ -45,7 +46,6 @@ const navigationStructure = [
     children: [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
       { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
-      { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
       { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
       { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
     ]
@@ -196,9 +196,9 @@ export default function Layout({ children }) {
   const GET_PENDING_COUNTS = gql`
     query GetPendingCounts {
       employees { id employmentStatus }
-      documents { id status }
+      documents { id status employeeId }
       leaveRequests { id status }
-      profileUpdateRequests { id status }
+      profileUpdateRequests { id status employeeId }
     }
   `;
 
@@ -210,9 +210,17 @@ export default function Layout({ children }) {
 
   const pendingCount = pendingData ? 
     (pendingData.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL').length || 0) +
-    (pendingData.documents?.filter(d => d.status === 'PENDING').length || 0) +
+    (pendingData.documents?.filter(d => {
+      if (d.status !== 'PENDING') return false;
+      const emp = pendingData.employees?.find(e => e.id === d.employeeId);
+      return emp?.employmentStatus !== 'DRAFT';
+    }).length || 0) +
     (pendingData.leaveRequests?.filter(l => l.status === 'PENDING').length || 0) +
-    (pendingData.profileUpdateRequests?.filter(p => p.status === 'PENDING').length || 0)
+    (pendingData.profileUpdateRequests?.filter(p => {
+      if (p.status !== 'PENDING') return false;
+      const emp = pendingData.employees?.find(e => e.id === p.employeeId);
+      return emp?.employmentStatus !== 'DRAFT';
+    }).length || 0)
     : 0;
 
   let baseNavItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
@@ -324,7 +332,7 @@ export default function Layout({ children }) {
                     >
                       <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
                       {item.badge && (
-                        <div className={`absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 ${isDark ? 'border-slate-900' : 'border-slate-50'}`}>
+                        <div className={`absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 ${isDark ? 'border-slate-900' : 'border-slate-50'}`}>
                           {item.badge}
                         </div>
                       )}

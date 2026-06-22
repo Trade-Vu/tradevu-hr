@@ -128,7 +128,12 @@ export default function NotificationBell() {
                       {notification.message}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                      {formatDistanceToNow(new Date(parseInt(notification.createdAt)), { addSuffix: true })}
+                      {formatDistanceToNow(
+                        !isNaN(Number(notification.createdAt)) 
+                          ? new Date(Number(notification.createdAt)) 
+                          : new Date(notification.createdAt), 
+                        { addSuffix: true }
+                      )}
                     </p>
                   </div>
                 </div>
