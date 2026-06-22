@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function LeaveHeatmapCalendar() {
   const { user } = useAuth();
@@ -20,9 +21,10 @@ export default function LeaveHeatmapCalendar() {
   const isAdmin = user?.role === 'admin' || user?.is_organization_owner;
 
   const [selectedDates, setSelectedDates] = useState([]);
-  const [viewMode, setViewMode] = useState("personal"); // personal or team
+  const [viewMode, setViewMode] = useState("team"); // Default to team to show holistic calendar
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("all");
 
   // Generate calendar dates by month
   const months = useMemo(() => {
@@ -50,31 +52,97 @@ export default function LeaveHeatmapCalendar() {
     }
   });
 
-  const { data: teamPlans, isLoading: teamPlansLoading } = useQuery({
-    queryKey: ['teamLeavePlans', currentYear],
+  const { data: departments } = useQuery({
+    queryKey: ['departments'],
     queryFn: async () => {
-      const QUERY = gql`
-        query GetTeamLeavePlans($year: Int!) {
-          teamLeavePlans(year: $year) { id plannedDates employee { fullName } }
-        }
-      `;
-      const data = await gqlClient.request(QUERY, { year: currentYear });
-      return data.teamLeavePlans || [];
+      const QUERY = gql`query { departments { id name } }`;
+      const data = await gqlClient.request(QUERY);
+      return data.departments || [];
     },
     enabled: isAdmin
   });
 
-  // Calculate team conflict heatmap
-  const teamDateCounts = useMemo(() => {
-    if (!teamPlans) return {};
+  const { data: teamPlans, isLoading: teamPlansLoading } = useQuery({
+    queryKey: ['teamLeavePlans', currentYear, selectedDepartment],
+    queryFn: async () => {
+      const depId = selectedDepartment === "all" ? null : selectedDepartment;
+      const QUERY = gql`
+        query GetTeamLeavePlans($year: Int!, $departmentId: ID) {
+          teamLeavePlans(year: $year, departmentId: $departmentId) { id plannedDates employee { fullName } }
+        }
+      `;
+      const data = await gqlClient.request(QUERY, { year: currentYear, departmentId: depId });
+      return data.teamLeavePlans || [];
+    }
+  });
+
+  const { data: approvedLeaves, isLoading: approvedLeavesLoading } = useQuery({
+    queryKey: ['leaveCalendar', currentYear, selectedDepartment],
+    queryFn: async () => {
+      const depId = selectedDepartment === "all" ? null : selectedDepartment;
+      const QUERY = gql`
+        query GetLeaveCalendar($year: Int!, $departmentId: ID) {
+          leaveCalendar(year: $year, departmentId: $departmentId) { 
+            id 
+            startDate 
+            endDate 
+            selectedDates 
+            employee { fullName } 
+          }
+        }
+      `;
+      const data = await gqlClient.request(QUERY, { year: currentYear, departmentId: depId });
+      return data.leaveCalendar || [];
+    }
+  });
+
+  // Calculate team conflict heatmap including approved leaves
+  const teamDateData = useMemo(() => {
     const counts = {};
-    teamPlans.forEach(plan => {
-      plan.plannedDates.forEach(date => {
-        counts[date] = (counts[date] || 0) + 1;
+    const details = {};
+
+    const addDetail = (date, name, type) => {
+      if (!details[date]) details[date] = [];
+      if (!details[date].some(d => d.name === name && d.type === type)) {
+        details[date].push({ name, type });
+      }
+    };
+
+    if (teamPlans) {
+      teamPlans.forEach(plan => {
+        plan.plannedDates.forEach(date => {
+          addDetail(date, plan.employee.fullName, 'Planned');
+        });
       });
-    });
-    return counts;
-  }, [teamPlans]);
+    }
+
+    if (approvedLeaves) {
+      approvedLeaves.forEach(leave => {
+        let dates = [];
+        if (leave.selectedDates && leave.selectedDates.length > 0) {
+          dates = leave.selectedDates;
+        } else {
+          const start = new Date(leave.startDate);
+          const end = new Date(leave.endDate);
+          const days = eachDayOfInterval({ start, end });
+          dates = days.map(d => format(d, 'yyyy-MM-dd'));
+        }
+
+        dates.forEach(date => {
+          if (!isWeekend(new Date(date))) {
+            addDetail(date, leave.employee.fullName, 'Approved');
+          }
+        });
+      });
+    }
+
+    for (const [date, info] of Object.entries(details)) {
+      const uniqueNames = [...new Set(info.map(i => i.name))];
+      counts[date] = uniqueNames.length;
+    }
+
+    return { counts, details };
+  }, [teamPlans, approvedLeaves]);
 
   // Sync selected dates from backend
   useEffect(() => {
@@ -151,11 +219,22 @@ export default function LeaveHeatmapCalendar() {
     } else {
       // Team mode - heatmap
       if (weekend) return "bg-slate-50 dark:bg-slate-800/40 text-muted-foreground/60 border border-transparent";
-      const count = teamDateCounts[dateStr] || 0;
+      const count = teamDateData.counts[dateStr] || 0;
       if (count === 0) return "bg-slate-100 dark:bg-slate-800 border border-transparent";
-      if (count === 1) return "bg-orange-300 text-orange-950 font-medium border border-orange-400";
-      if (count === 2) return "bg-orange-500 text-white font-medium border border-orange-600 shadow-sm";
-      return "bg-red-600 text-white font-medium border border-red-700 shadow-sm";
+      
+      const details = teamDateData.details[dateStr] || [];
+      const hasApproved = details.some(d => d.type === 'Approved');
+      
+      // If approved, give a stronger color like blue/indigo instead of orange
+      if (hasApproved) {
+        if (count === 1) return "bg-indigo-400 text-white font-medium border border-indigo-500";
+        if (count === 2) return "bg-indigo-600 text-white font-medium border border-indigo-700 shadow-sm";
+        return "bg-indigo-800 text-white font-medium border border-indigo-900 shadow-sm";
+      } else {
+        if (count === 1) return "bg-orange-300 text-orange-950 font-medium border border-orange-400";
+        if (count === 2) return "bg-orange-500 text-white font-medium border border-orange-600 shadow-sm";
+        return "bg-red-600 text-white font-medium border border-red-700 shadow-sm";
+      }
     }
   };
 
@@ -165,8 +244,16 @@ export default function LeaveHeatmapCalendar() {
     if (viewMode === "personal") {
       return format(day, "MMMM d, yyyy");
     } else {
-      const count = teamDateCounts[dateStr] || 0;
-      return `${format(day, "MMMM d, yyyy")}: ${count} team member(s) planned`;
+      const details = teamDateData.details[dateStr] || [];
+      if (details.length === 0) return format(day, "MMMM d, yyyy");
+      
+      const lines = details.map(d => `${d.name} (${d.type})`);
+      return (
+        <div className="flex flex-col gap-1">
+          <div className="font-bold border-b pb-1 mb-1">{format(day, "MMMM d, yyyy")}</div>
+          {lines.map((line, idx) => <div key={idx}>{line}</div>)}
+        </div>
+      );
     }
   };
 
@@ -181,15 +268,26 @@ export default function LeaveHeatmapCalendar() {
               : "Viewing aggregated team leave plans. Darker colors indicate multiple team members have planned leave on the same day."}
           </CardDescription>
         </div>
-        <div className="flex gap-3">
-          {isAdmin && (
-            <Button 
-              variant="outline" 
-              onClick={() => setViewMode(v => v === "personal" ? "team" : "personal")}
-            >
-              {viewMode === "personal" ? "View Team Conflicts" : "View Personal Plan"}
-            </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {isAdmin && viewMode === "team" && departments && departments.length > 0 && (
+            <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+              <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900">
+                <SelectValue placeholder="Filter Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Company</SelectItem>
+                {departments.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
+          <Button 
+            variant="outline" 
+            onClick={() => setViewMode(v => v === "personal" ? "team" : "personal")}
+          >
+            {viewMode === "personal" ? "View Team Calendar" : "View Personal Plan"}
+          </Button>
           {viewMode === "personal" && (
             <Button 
               onClick={() => submitMutation.mutate(selectedDates)}
@@ -287,12 +385,30 @@ export default function LeaveHeatmapCalendar() {
           <div className="flex items-center gap-3 mt-8 pt-6 border-t text-sm text-muted-foreground justify-end">
             {viewMode === "team" ? (
               <>
-                <span>Less conflicts</span>
-                <div className="w-4 h-4 rounded-sm bg-slate-100 dark:bg-slate-800"></div>
-                <div className="w-4 h-4 rounded-sm bg-orange-300 border border-orange-400"></div>
-                <div className="w-4 h-4 rounded-sm bg-orange-500 border border-orange-600 shadow-sm"></div>
-                <div className="w-4 h-4 rounded-sm bg-red-600 border border-red-700 shadow-sm"></div>
-                <span>More conflicts</span>
+                <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-sm bg-slate-100 dark:bg-slate-800"></div>
+                    <span>Available</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 border-l pl-4">
+                    <span className="font-medium mr-1">Planned:</span>
+                    <div className="w-4 h-4 rounded-sm bg-orange-300 border border-orange-400"></div>
+                    <span>1</span>
+                    <div className="w-4 h-4 rounded-sm bg-orange-500 border border-orange-600 shadow-sm ml-1"></div>
+                    <span>2</span>
+                    <div className="w-4 h-4 rounded-sm bg-red-600 border border-red-700 shadow-sm ml-1"></div>
+                    <span>3+</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 border-l pl-4">
+                    <span className="font-medium mr-1">Approved:</span>
+                    <div className="w-4 h-4 rounded-sm bg-indigo-400 border border-indigo-500 shadow-sm"></div>
+                    <span>1</span>
+                    <div className="w-4 h-4 rounded-sm bg-indigo-600 border border-indigo-700 shadow-sm ml-1"></div>
+                    <span>2</span>
+                    <div className="w-4 h-4 rounded-sm bg-indigo-800 border border-indigo-900 shadow-sm ml-1"></div>
+                    <span>3+</span>
+                  </div>
+                </div>
               </>
             ) : (
               <>

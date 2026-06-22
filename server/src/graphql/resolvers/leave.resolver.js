@@ -51,17 +51,33 @@ export const leaveResolvers = {
         where: { employeeId: employee.id, year }, include: { employee: true }
       });
     },
-    teamLeavePlans: async (_, { year }, { prisma, user, requireAuth }) => {
+    teamLeavePlans: async (_, { year, departmentId }, { prisma, user, requireAuth }) => {
       requireAuth();
-      if (['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user.role);
+      let whereClause = { year };
+
+      if (isAdmin) {
+        if (departmentId) {
+          whereClause.employee = { departmentId };
+        }
         return prisma.leavePlan.findMany({
-          where: { year }, include: { employee: true }
+          where: whereClause, include: { employee: true }
         });
       }
+
+      // For standard employees/managers, get their team's plans
       const employee = await prisma.employee.findUnique({ where: { email: user.email } });
       if (!employee) return [];
+
+      // A team is defined as employees sharing the same departmentId
+      if (employee.departmentId) {
+        whereClause.employee = { departmentId: employee.departmentId };
+      } else {
+        whereClause.employeeId = employee.id; // Fallback if no department
+      }
+
       return prisma.leavePlan.findMany({
-        where: { year, employee: { managerId: employee.id } }, include: { employee: true }
+        where: whereClause, include: { employee: true }
       });
     },
     leaveBalances: async (_, { employeeId }, { prisma, requireAuth }) => {
@@ -72,26 +88,27 @@ export const leaveResolvers = {
         include: { leaveType: true }
       });
     },
-    leaveCalendar: async (_, { month, departmentId }, { prisma, user, requireAuth }) => {
+    leaveCalendar: async (_, { year, departmentId }, { prisma, user, requireAuth }) => {
       requireAuth();
+      
+      const yearStart = new Date(`${year}-01-01`);
+      const yearEnd = new Date(`${year}-12-31T23:59:59.999Z`);
+      
       const whereClause = {
         status: 'APPROVED',
-        employee: { organizationId: user.organizationId }
+        employee: { organizationId: user.organizationId },
+        startDate: { lte: yearEnd },
+        endDate: { gte: yearStart }
       };
       
       const isAdmin = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
       
       if (!isAdmin) {
-        if (user.role === 'MANAGER') {
-          // Managers see their department's leave
-          const emp = await prisma.employee.findUnique({ where: { id: user.employeeId } });
-          if (emp?.departmentId) {
-            whereClause.employee.departmentId = emp.departmentId;
-          } else {
-            whereClause.employeeId = user.employeeId;
-          }
+        // Employees and Managers see their department's leave
+        const emp = await prisma.employee.findUnique({ where: { id: user.employeeId } });
+        if (emp?.departmentId) {
+          whereClause.employee.departmentId = emp.departmentId;
         } else {
-          // Employees see only their own leave
           whereClause.employeeId = user.employeeId;
         }
       } else if (departmentId) {

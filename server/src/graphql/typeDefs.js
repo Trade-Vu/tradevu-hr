@@ -564,10 +564,10 @@ export const typeDefs = `#graphql
     leaveRequests(employeeId: ID): [LeaveRequest]
     paginatedLeaveRequests(page: Int, limit: Int, employeeId: ID): PaginatedLeaveRequests!
     leaveBalances(employeeId: ID!): [LeaveBalance!]!
-    leaveCalendar(month: Int!, departmentId: ID): [LeaveRequest!]!
+    leaveCalendar(year: Int!, departmentId: ID): [LeaveRequest!]!
     publicHolidays(year: Int!): [PublicHoliday!]!
     myLeavePlans(year: Int!): [LeavePlan!]!
-    teamLeavePlans(year: Int!): [LeavePlan!]!
+    teamLeavePlans(year: Int!, departmentId: ID): [LeavePlan!]!
     attendanceRecords(employeeId: ID, date: String): [Attendance]
     documents(employeeId: ID, category: String): [Document]
     documentHistory(documentId: ID!): [DocumentVersion]

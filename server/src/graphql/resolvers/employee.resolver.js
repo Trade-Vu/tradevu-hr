@@ -252,6 +252,14 @@ createEmployee: async (_, {
     }
   }
 
+  // Apply initial benefits and leave balances based on grade
+  if (emp.employeeGrade) {
+    await applyDynamicBenefits(emp.id, emp.employeeGrade, prisma);
+  } else {
+    // If no grade provided, apply a default base grade to generate the initial annual leave balance
+    await applyDynamicBenefits(emp.id, 'Entry Level', prisma);
+  }
+
     return emp;
   } catch (error) {
     console.error("Error in createEmployee:", error);
