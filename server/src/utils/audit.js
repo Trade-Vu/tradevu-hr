@@ -20,7 +20,10 @@ export const createAuditLog = async ({
   entityId,
   action,
   details,
+  previousValue,
+  newValue,
   ipAddress,
+  location,
   prisma: providedPrisma // Deprecated: no longer used since emitter handles DB connection independently
 }) => {
   AuditEmitterService.emit('AUDIT_LOG_CREATED', {
@@ -30,7 +33,10 @@ export const createAuditLog = async ({
     entityType,
     entityId,
     details,
-    ipAddress
+    previousValue,
+    newValue,
+    ipAddress,
+    location
   });
 };
 

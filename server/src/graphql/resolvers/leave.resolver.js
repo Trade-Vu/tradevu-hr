@@ -258,7 +258,8 @@ export const leaveResolvers = {
         entityId: id,
         action: nextStatus,
         previousValue: JSON.stringify({ status: leave.status }),
-        newValue: JSON.stringify({ status: nextStatus })
+        newValue: JSON.stringify({ status: nextStatus }),
+        ipAddress
       });
 
       return updated;
@@ -302,7 +303,8 @@ export const leaveResolvers = {
         entityId: id,
         action: 'REJECTED',
         previousValue: JSON.stringify({ status: leave.status }),
-        newValue: JSON.stringify({ status: 'REJECTED', reason })
+        newValue: JSON.stringify({ status: 'REJECTED', reason }),
+        ipAddress
       });
 
       return updated;

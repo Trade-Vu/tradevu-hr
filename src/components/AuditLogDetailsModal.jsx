@@ -34,39 +34,85 @@ export function AuditLogDetailsModal({ isOpen, onClose, log }) {
     return formattedAction;
   };
 
-  const renderPayload = (payloadString) => {
-    if (!payloadString) return null;
+  const renderHumanReadableChanges = (prevString, nextString) => {
+    let prev = {};
+    let next = {};
+    
     try {
-      let parsed = JSON.parse(payloadString);
-      
-      // If it's doubly stringified, try parsing again
-      if (typeof parsed === 'string') {
-        try {
-          parsed = JSON.parse(parsed);
-        } catch (e) {
-          // If it fails, it's just a normal string
-        }
+      if (prevString) {
+        let p = JSON.parse(prevString);
+        if (typeof p === 'string') p = JSON.parse(p);
+        if (typeof p === 'object' && p !== null) prev = p;
       }
+    } catch(e) {}
+    
+    try {
+      if (nextString) {
+        let n = JSON.parse(nextString);
+        if (typeof n === 'string') n = JSON.parse(n);
+        if (typeof n === 'object' && n !== null) next = n;
+      }
+    } catch(e) {}
 
-      // If it's an object/array, render it nicely
-      if (typeof parsed === 'object' && parsed !== null) {
+    const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]));
+    
+    if (allKeys.length === 0) {
+      if (prevString || nextString) {
         return (
-          <div className="space-y-1 mt-1">
-            {Object.entries(parsed).map(([key, value]) => (
-              <div key={key} className="flex text-[11px] leading-tight">
-                <span className="font-semibold text-slate-600 min-w-[120px] capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                <span className="text-slate-800 break-all">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
-              </div>
-            ))}
+          <div className="text-sm text-slate-800">
+            {prevString && <div className="mb-2"><span className="text-slate-500 text-xs uppercase font-semibold">Before:</span> {prevString}</div>}
+            {nextString && <div><span className="text-slate-500 text-xs uppercase font-semibold">After:</span> {nextString}</div>}
           </div>
         );
       }
-      
-      // If it's a primitive (like a string or number), render directly
-      return <div className="text-[11px] text-slate-800 mt-1">{String(parsed)}</div>;
-    } catch (e) {
-      return <div className="text-[11px] text-slate-800 mt-1">{payloadString}</div>;
+      return null;
     }
+
+    return (
+      <div className="space-y-3 mt-2">
+        {allKeys.map(key => {
+          const pVal = prev[key];
+          const nVal = next[key];
+          
+          if (JSON.stringify(pVal) === JSON.stringify(nVal)) return null;
+          
+          const formatVal = (val) => {
+            if (val === null || val === undefined || val === '') return <span className="text-slate-400 italic">None</span>;
+            if (typeof val === 'object') return <span className="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded text-slate-600">{JSON.stringify(val)}</span>;
+            return <span className="font-semibold text-slate-900">{String(val)}</span>;
+          };
+
+          const friendlyKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+
+          if (pVal === undefined) {
+            return (
+              <div key={key} className="text-sm flex items-center gap-2 bg-green-50/50 p-2 rounded border border-green-100">
+                <span className="text-slate-600">{friendlyKey} was set to</span>
+                {formatVal(nVal)}
+              </div>
+            );
+          }
+          if (nVal === undefined) {
+            return (
+              <div key={key} className="text-sm flex items-center gap-2 bg-rose-50/50 p-2 rounded border border-rose-100">
+                <span className="text-slate-600">{friendlyKey} was removed (previously</span>
+                {formatVal(pVal)}
+                <span className="text-slate-600">)</span>
+              </div>
+            );
+          }
+          
+          return (
+            <div key={key} className="text-sm flex flex-wrap items-center gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <span className="text-slate-600">{friendlyKey} changed from</span>
+              {formatVal(pVal)}
+              <span className="text-slate-400">→</span>
+              {formatVal(nVal)}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -181,23 +227,9 @@ export function AuditLogDetailsModal({ isOpen, onClose, log }) {
             )}
 
             {(log.previousValue || log.newValue) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                {log.previousValue && (
-                  <div className="bg-rose-50/50 p-4 rounded-lg border border-rose-100">
-                    <span className="text-xs font-semibold text-rose-700 mb-2 block uppercase tracking-wider">Previous State</span>
-                    <div className="overflow-auto max-h-[200px] custom-scrollbar">
-                      {renderPayload(log.previousValue)}
-                    </div>
-                  </div>
-                )}
-                {log.newValue && (
-                  <div className="bg-green-50/50 p-4 rounded-lg border border-green-100">
-                    <span className="text-xs font-semibold text-green-700 mb-2 block uppercase tracking-wider">New State</span>
-                    <div className="overflow-auto max-h-[200px] custom-scrollbar">
-                      {renderPayload(log.newValue)}
-                    </div>
-                  </div>
-                )}
+              <div className="mt-4">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Detected Changes</h4>
+                {renderHumanReadableChanges(log.previousValue, log.newValue)}
               </div>
             )}
           </div>

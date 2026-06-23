@@ -210,6 +210,7 @@ export default function Layout({ children }) {
     queryKey: ['pendingApprovalsCount'],
     queryFn: () => gqlClient.request(GET_PENDING_COUNTS),
     enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.isOrgOwner),
+    refetchInterval: 10000,
   });
 
   const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.is_organization_owner;

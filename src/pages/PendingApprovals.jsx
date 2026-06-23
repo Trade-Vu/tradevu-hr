@@ -212,7 +212,8 @@ export default function PendingApprovals() {
   const [selectedUnifiedEmployeeId, setSelectedUnifiedEmployeeId] = useState(null);
   const { data, isLoading: loading, error } = useQuery({
     queryKey: ['pendingApprovals'],
-    queryFn: () => gqlClient.request(GET_PENDING_APPROVALS)
+    queryFn: () => gqlClient.request(GET_PENDING_APPROVALS),
+    refetchInterval: 10000,
   });
 
   const invalidate = () => {
