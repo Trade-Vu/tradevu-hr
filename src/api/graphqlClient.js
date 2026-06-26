@@ -1,10 +1,13 @@
 import { GraphQLClient } from 'graphql-request';
 import { appParams } from '@/lib/app-params';
 
+const rawGraphqlUrl = import.meta.env.VITE_GRAPHQL_URL;
 const rawAppUrl = import.meta.env.VITE_APP_URL;
-const API_URL = rawAppUrl 
-  ? (rawAppUrl.endsWith('/graphql') ? rawAppUrl : `${rawAppUrl.replace(/\/$/, '')}/graphql`)
-  : 'http://localhost:3001/graphql';
+const API_URL = rawGraphqlUrl
+  ? rawGraphqlUrl
+  : rawAppUrl
+    ? (rawAppUrl.endsWith('/graphql') ? rawAppUrl : `${rawAppUrl.replace(/\/$/, '')}/graphql`)
+    : 'http://localhost:3001/graphql';
 
 export const gqlClient = new GraphQLClient(API_URL, {
   headers: () => {
