@@ -299,11 +299,16 @@ onboardingTasks: async (_, { employeeId }, {
   user,
   requireAuth
 }) => {
-  
+  requireAuth();
   const isAdmin = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
   
   const where = {
-    employee: { organizationId: user.organizationId }
+    employee: { 
+      organizationId: user.organizationId,
+      employmentStatus: {
+        notIn: ['PENDING_APPROVAL', 'PENDING_ONBOARDING']
+      }
+    }
   };
 
   if (!isAdmin) {
@@ -474,7 +479,9 @@ approveEmployeeData: async (_, {
       id: employeeId
     },
     data: {
-      employmentStatus: 'PENDING_ONBOARDING'
+      employmentStatus: 'ONGOING_ONBOARDING',
+      onboardingStatus: 'in_progress',
+      onboardingProgress: 0
     }
   });
 
@@ -482,9 +489,9 @@ approveEmployeeData: async (_, {
     data: {
       employeeId: employeeId,
       previousStatus: emp.employmentStatus,
-      newStatus: 'PENDING_ONBOARDING',
+      newStatus: 'ONGOING_ONBOARDING',
       changedBy: user.id,
-      reason: 'Employee data approved'
+      reason: 'Employee data approved and onboarding started'
     }
   });
   await createAuditLog({
@@ -496,9 +503,57 @@ approveEmployeeData: async (_, {
     entityId: emp.id,
     details: {
       previousStatus: 'PENDING_APPROVAL',
-      newStatus: 'PENDING_ONBOARDING'
+      newStatus: 'ONGOING_ONBOARDING'
     }
   });
+
+  // Generate onboarding tasks
+  const tasks = [{
+    title: 'IT setup',
+    category: 'it_setup'
+  }, {
+    title: 'Laptop provision',
+    category: 'it_setup'
+  }, {
+    title: 'Workspace setup',
+    category: 'orientation'
+  }, {
+    title: 'System access',
+    category: 'it_setup'
+  }];
+  for (const task of tasks) {
+    await prisma.onboardingTask.create({
+      data: {
+        employeeId,
+        title: task.title,
+        description: `Please complete the ${task.title} task.`,
+        category: task.category,
+        assignedTo: emp.fullName,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        status: 'todo'
+      }
+    });
+  }
+
+  // Notify the employee
+  const empUser = await prisma.user.findFirst({
+    where: { employeeId: emp.id }
+  });
+  if (empUser) {
+    await NotificationService.notify({
+      userId: empUser.id,
+      category: 'ONBOARDING_TASK',
+      title: 'Onboarding Started',
+      message: 'Your onboarding tasks have been generated. Please review them.',
+      deepLink: '/EmployeeSelfService',
+      sendEmail: true,
+      emailProps: {
+        employeeName: `${emp.firstName} ${emp.lastName}`,
+        taskCount: tasks.length
+      }
+    });
+  }
+
     return updatedEmp;
   } catch (error) {
     console.error("Error in approveEmployeeData:", error);
@@ -580,95 +635,7 @@ rejectEmployeeData: async (_, {
     throw new Error(error.message || "Failed to reject employee data.");
   }
 },
-startOnboarding: async (_, {
-  employeeId
-}, {
-  prisma,
-  user,
-  requireRole,
-  ipAddress
-}) => {
-  requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
-  const emp = await prisma.employee.findFirst({
-    where: {
-      id: employeeId,
-      organizationId: user.organizationId
-    }
-  });
-  if (!emp) throw new Error("Employee not found");
-  if (emp.employmentStatus !== 'PENDING_ONBOARDING') {
-    throw new Error("Employee is not in PENDING_ONBOARDING state");
-  }
 
-  // Update employee status
-  const updatedEmp = await prisma.employee.update({
-    where: {
-      id: employeeId
-    },
-    data: {
-      onboardingStatus: 'in_progress',
-      employmentStatus: 'ONGOING_ONBOARDING',
-      onboardingProgress: 0
-    }
-  });
-
-  await prisma.employeeStatusHistory.create({
-    data: {
-      employeeId: employeeId,
-      previousStatus: emp.employmentStatus,
-      newStatus: 'ONGOING_ONBOARDING',
-      changedBy: user.id,
-      reason: 'Onboarding started'
-    }
-  });
-
-  // Generate onboarding tasks
-  const tasks = [{
-    title: 'IT setup',
-    category: 'it_setup'
-  }, {
-    title: 'Laptop provision',
-    category: 'it_setup'
-  }, {
-    title: 'Workspace setup',
-    category: 'orientation'
-  }, {
-    title: 'System access',
-    category: 'it_setup'
-  }];
-  for (const task of tasks) {
-    await prisma.onboardingTask.create({
-      data: {
-        employeeId: emp.id,
-        title: task.title,
-        category: task.category,
-        assignedTo: emp.fullName
-      }
-    });
-  }
-  await createAuditLog({
-    prisma,
-    ipAddress,
-    userId: user.id, organizationId: user.organizationId,
-    entityType: 'Employee',
-    entityId: emp.id,
-    action: 'START_ONBOARDING',
-    ipAddress
-  });
-
-  // Notify the employee
-  if (emp.user?.id) {
-    await NotificationService.notify({
-      userId: emp.user.id,
-      category: 'onboarding',
-      title: 'Onboarding Started',
-      message: 'Welcome! Your onboarding process has started. Please check your pending tasks.',
-      deepLink: '/EmployeeSelfService',
-      sendEmail: true
-    });
-  }
-  return updatedEmp;
-},
 suspendEmployee: async (_, {
   id,
   input
@@ -2341,50 +2308,53 @@ uploadDocument: async (_, args, {
   } else if (user.role === 'EMPLOYEE' && user.employeeId !== employeeId) {
     throw new Error("Employees can only upload their own documents");
   }
-  const document = await prisma.document.create({
-    data: {
-      employeeId,
-      name,
-      category,
-      fileUrl,
-      fileType,
-      fileSize,
-      visibilityLevel,
-      status,
-      uploadedBy: user.id
+  const document = await prisma.$transaction(async (tx) => {
+    const doc = await tx.document.create({
+      data: {
+        employeeId,
+        name,
+        category,
+        fileUrl,
+        fileType,
+        fileSize,
+        visibilityLevel,
+        status,
+        uploadedBy: user.id
+      }
+    });
+    await createAuditLog({
+      userId: user.id, organizationId: user.organizationId,
+      entityType: 'Document',
+      entityId: doc.id,
+      action: 'CREATE'
+    });
+    await checkAndPromoteEmployee(employeeId, tx);
+    
+    // Notify HR Admins
+    const hrAdmins = await tx.user.findMany({
+      where: { organizationId: user.organizationId, role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] } }
+    });
+    const uploaderEmp = await tx.employee.findUnique({ where: { id: employeeId } });
+    if (uploaderEmp) {
+      for (const admin of hrAdmins) {
+        await NotificationService.notify({
+          userId: admin.id,
+          category: 'DOCUMENT_NOTIFICATION',
+          title: 'New Document Uploaded',
+          message: `${uploaderEmp.firstName} ${uploaderEmp.lastName} uploaded a new document: ${name}`,
+          deepLink: `/employees/${employeeId}`,
+          sendEmail: true,
+          emailProps: {
+            isUpload: true,
+            employeeName: `${uploaderEmp.firstName} ${uploaderEmp.lastName}`,
+            documentName: name,
+            status: 'PENDING'
+          }
+        });
+      }
     }
+    return doc;
   });
-  await createAuditLog({
-    userId: user.id, organizationId: user.organizationId,
-    entityType: 'Document',
-    entityId: document.id,
-    action: 'CREATE'
-  });
-  await checkAndPromoteEmployee(employeeId, prisma);
-  
-  // Notify HR Admins
-  const hrAdmins = await prisma.user.findMany({
-    where: { organizationId: user.organizationId, role: { in: ['HR_ADMIN', 'SUPER_ADMIN', 'admin'] } }
-  });
-  const uploaderEmp = await prisma.employee.findUnique({ where: { id: employeeId } });
-  if (uploaderEmp) {
-    for (const admin of hrAdmins) {
-      await NotificationService.notify({
-        userId: admin.id,
-        category: 'DOCUMENT_NOTIFICATION',
-        title: 'New Document Uploaded',
-        message: `${uploaderEmp.firstName} ${uploaderEmp.lastName} uploaded a new document: ${name}`,
-        deepLink: `/employees/${employeeId}`,
-        sendEmail: true,
-        emailProps: {
-          isUpload: true,
-          employeeName: `${uploaderEmp.firstName} ${uploaderEmp.lastName}`,
-          documentName: name,
-          status: 'PENDING'
-        }
-      });
-    }
-  }
 
   return document;
 },
@@ -3049,12 +3019,128 @@ updateOnboardingTask: async (_, {
     data.isCompleted = isCompleted;
     if (isCompleted) data.completedAt = new Date();
   }
-  return prisma.onboardingTask.update({
+  const updatedTask = await prisma.onboardingTask.update({
     where: {
       id
     },
     data
   });
+
+  // We no longer automatically change employmentStatus here. 
+  // It is handled incrementally by approveCompletedTasks in PendingApprovals.
+
+  return updatedTask;
+},
+approveCompletedTasks: async (_, { employeeId, taskIds }, { prisma, user, requireRole }) => {
+  requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+  try {
+    const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!emp) throw new Error("Employee not found");
+
+    await prisma.onboardingTask.updateMany({
+      where: {
+        id: { in: taskIds },
+        employeeId: employeeId
+      },
+      data: {
+        status: 'approved'
+      }
+    });
+
+    const allTasks = await prisma.onboardingTask.findMany({
+      where: { employeeId }
+    });
+    
+    const allApproved = allTasks.every(t => t.status === 'approved');
+    
+    if (allApproved && ['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(emp.employmentStatus)) {
+      await prisma.employee.update({
+        where: { id: employeeId },
+        data: { 
+          employmentStatus: 'PENDING_APPROVAL',
+          onboardingStatus: 'probation_pending'
+        }
+      });
+      
+      // Wait, let's use employeeStatusHistory instead of statusHistory if statusHistory doesn't exist.
+      // In prisma schema it's EmployeeStatusHistory.
+      await prisma.employeeStatusHistory.create({
+        data: {
+          employeeId,
+          previousStatus: emp.employmentStatus,
+          newStatus: 'PENDING_APPROVAL',
+          reason: 'All onboarding tasks approved, pending probation setup',
+          changedBy: user.id,
+        }
+      });
+    }
+
+    return await prisma.employee.findUnique({ where: { id: employeeId } });
+  } catch (error) {
+    console.error("Error in approveCompletedTasks:", error);
+    throw new Error(error.message || "Failed to approve tasks");
+  }
+},
+approveProbationSetup: async (_, { employeeId, startDate, endDate }, { prisma, user, requireRole }) => {
+  requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+  try {
+    const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!emp) throw new Error("Employee not found");
+
+    const updatedEmp = await prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        employmentStatus: 'PROBATION',
+        onboardingStatus: 'completed',
+        probationStartDate: new Date(startDate),
+        probationEndDate: new Date(endDate)
+      }
+    });
+
+    await prisma.employeeStatusHistory.create({
+      data: {
+        employeeId,
+        previousStatus: emp.employmentStatus,
+        newStatus: 'PROBATION',
+        reason: 'Probation period set',
+        changedBy: user.id,
+      }
+    });
+
+    return updatedEmp;
+  } catch (error) {
+    console.error("Error in approveProbationSetup:", error);
+    throw new Error(error.message || "Failed to setup probation");
+  }
+},
+approveProbationEnd: async (_, { employeeId }, { prisma, user, requireRole }) => {
+  requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER']);
+  try {
+    const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!emp) throw new Error("Employee not found");
+
+    const updatedEmp = await prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        employmentStatus: 'ACTIVE'
+      }
+    });
+
+    await prisma.employeeStatusHistory.create({
+      data: {
+        employeeId,
+        previousStatus: emp.employmentStatus,
+        newStatus: 'ACTIVE',
+        reason: 'Probation period completed',
+        changedBy: user.id,
+      }
+    });
+
+    return updatedEmp;
+  } catch (error) {
+    console.error("Error in approveProbationEnd:", error);
+    throw new Error(error.message || "Failed to approve probation end");
+  }
 },
 initiateOffboarding: async (_, {
   employeeId,

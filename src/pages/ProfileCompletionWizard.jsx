@@ -11,6 +11,11 @@ import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const UPDATE_EMPLOYEE = gql`
   mutation UpdateEmployeeSelf($input: UpdateEmployeeInput!) {
@@ -58,8 +63,10 @@ export default function ProfileCompletionWizard() {
   const { user, checkAppState } = useAuth();
   const employeeId = user?.employeeId;
   const [step, setStep] = useState(1);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [identityType, setIdentityType] = useState('nationalId');
+  const [identityType, setIdentityType] = useState("nationalId");
+  const [nationalityOpen, setNationalityOpen] = useState(false);
   const [identityNumber, setIdentityNumber] = useState('');
   
   const [formData, setFormData] = useState({
@@ -240,41 +247,72 @@ export default function ProfileCompletionWizard() {
                 </div>
                 <div className="space-y-2">
                   <Label>Gender <span className="text-red-500">*</span></Label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-                    value={formData.gender}
-                    onChange={e => setFormData(p => ({...p, gender: e.target.value}))}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  <Select value={formData.gender} onValueChange={val => setFormData(p => ({...p, gender: val}))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Marital Status <span className="text-red-500">*</span></Label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-                    value={formData.maritalStatus}
-                    onChange={e => setFormData(p => ({...p, maritalStatus: e.target.value}))}
-                  >
-                    <option value="">Select Status</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                  </select>
+                  <Select value={formData.maritalStatus} onValueChange={val => setFormData(p => ({...p, maritalStatus: val}))}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Single">Single</SelectItem>
+                      <SelectItem value="Married">Married</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Nationality <span className="text-red-500">*</span></Label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-                    value={formData.nationality}
-                    onChange={e => setFormData(p => ({...p, nationality: e.target.value}))}
-                  >
-                    <option value="">Select Nationality</option>
-                    {countryList.getNames().map(country => (
-                      <option key={country} value={country}>{country}</option>
-                    ))}
-                  </select>
+                  <Popover open={nationalityOpen} onOpenChange={setNationalityOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={nationalityOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {formData.nationality || "Select Nationality"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search nationality..." />
+                        <CommandList>
+                          <CommandEmpty>No nationality found.</CommandEmpty>
+                          <CommandGroup>
+                            {countryList.getNames().sort((a, b) => a.localeCompare(b)).map((country) => (
+                              <CommandItem
+                                key={country}
+                                value={country}
+                                onSelect={(currentValue) => {
+                                  setFormData(p => ({...p, nationality: currentValue}));
+                                  setNationalityOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.nationality === country ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {country}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             )}
@@ -284,14 +322,15 @@ export default function ProfileCompletionWizard() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Document Type <span className="text-red-500">*</span></Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-                      value={identityType}
-                      onChange={e => setIdentityType(e.target.value)}
-                    >
-                      <option value="nationalId">National ID (NIN)</option>
-                      <option value="passport">Passport</option>
-                    </select>
+                    <Select value={identityType} onValueChange={setIdentityType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Document Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nationalId">National ID (NIN)</SelectItem>
+                        <SelectItem value="passport">Passport</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Document Number <span className="text-red-500">*</span></Label>

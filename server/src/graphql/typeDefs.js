@@ -129,6 +129,7 @@ export const typeDefs = `#graphql
     statusHistory: [EmployeeStatusHistory]
     suspensions: [Suspension!]
     paymentSplit: JSON
+    onboardingTasks: [OnboardingTask]
   }
 
   type Department {
@@ -788,9 +789,12 @@ export const typeDefs = `#graphql
     updateEmployeeSelf(input: UpdateEmployeeInput!): Employee!
     submitProfileForReview(employeeId: ID!): Employee!
     deleteEmployee(id: ID!): Boolean
-    startOnboarding(employeeId: ID!): Employee
+
     approveEmployeeData(employeeId: ID!): Employee!
     rejectEmployeeData(employeeId: ID!, reason: String): Employee!
+    approveCompletedTasks(employeeId: ID!, taskIds: [ID!]!): Employee!
+    approveProbationSetup(employeeId: ID!, startDate: String!, endDate: String!): Employee!
+    approveProbationEnd(employeeId: ID!): Employee!
     
     createDepartment(name: String!, code: String, headEmployeeId: String): Department!
     updateDepartment(id: ID!, name: String, code: String, headEmployeeId: String): Department!

@@ -91,23 +91,6 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
                     </div>
                   )}
                 </div>
-                {(isProbationEnd || probationDaysLeft === null) && (
-                  <div className="flex gap-3 mt-4">
-                    <Button 
-                      onClick={onSetToActive}
-                      className="flex-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                    >
-                      Set to Active
-                    </Button>
-                    <Button 
-                      onClick={onBeginOffboarding}
-                      variant="outline"
-                      className="flex-1 text-sm border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    >
-                      Begin Offboarding
-                    </Button>
-                  </div>
-                )}
               </div>
             ) : (
               <>

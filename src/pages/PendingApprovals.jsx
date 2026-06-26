@@ -22,7 +22,16 @@ const GET_PENDING_APPROVALS = gql`
       fullName
       jobTitle
       employmentStatus
+      onboardingStatus
+      probationEndDate
       hireDate
+      onboardingTasks {
+        id
+        title
+        status
+        category
+        isCompleted
+      }
       department {
         name
       }
@@ -94,6 +103,55 @@ const APPROVE_EMPLOYEE = gql`
   }
 `;
 
+const APPROVE_COMPLETED_TASKS = gql`
+  mutation ApproveCompletedTasks($employeeId: ID!, $taskIds: [ID!]!) {
+    approveCompletedTasks(employeeId: $employeeId, taskIds: $taskIds) {
+      id
+      onboardingStatus
+      employmentStatus
+    }
+  }
+`;
+
+const APPROVE_PROBATION_SETUP = gql`
+  mutation ApproveProbationSetup($employeeId: ID!, $startDate: String!, $endDate: String!) {
+    approveProbationSetup(employeeId: $employeeId, startDate: $startDate, endDate: $endDate) {
+      id
+      employmentStatus
+      onboardingStatus
+      probationStartDate
+      probationEndDate
+    }
+  }
+`;
+
+const APPROVE_PROBATION_END = gql`
+  mutation ApproveProbationEnd($employeeId: ID!) {
+    approveProbationEnd(employeeId: $employeeId) {
+      id
+      employmentStatus
+    }
+  }
+`;
+
+const REQUEST_OFFBOARDING = gql`
+  mutation RequestOffboarding($id: ID!, $input: OffboardEmployeeInput!) {
+    requestOffboarding(id: $id, input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+const UPDATE_EMPLOYEE = gql`
+  mutation UpdateEmployee($id: ID!, $input: UpdateEmployeeInput!, $auditAction: String, $auditContext: String) {
+    updateEmployee(id: $id, input: $input, auditAction: $auditAction, auditContext: $auditContext) {
+      id
+      employmentStatus
+    }
+  }
+`;
+
 const APPROVE_DOCUMENT = gql`
   mutation ApproveDocument($id: ID!) {
     approveDocument(id: $id) {
@@ -147,6 +205,7 @@ const REJECT_PROFILE = gql`
     }
   }
 `;
+
 
 const APPROVE_OFFBOARDING = gql`
   mutation ApproveOffboarding($id: ID!, $comments: String) {
@@ -259,6 +318,11 @@ export default function PendingApprovals() {
   const { user } = useAuth();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedUnifiedEmployeeId, setSelectedUnifiedEmployeeId] = useState(null);
+  
+  const [showOffboardDialog, setShowOffboardDialog] = useState(false);
+  const [offboardTargetId, setOffboardTargetId] = useState(null);
+  const [offboardForm, setOffboardForm] = useState({ type: 'RESIGNATION', exitDate: '', reason: '' });
+
   const { data, isLoading: loading, error } = useQuery({
     queryKey: ['pendingApprovals'],
     queryFn: () => gqlClient.request(GET_PENDING_APPROVALS),
@@ -283,6 +347,43 @@ export default function PendingApprovals() {
     },
     onError: handleError
   });
+  
+  const { mutate: approveCompletedTasks, isPending: isApprovingTasks } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_COMPLETED_TASKS, variables),
+    onSuccess: () => {
+      toast.success("Tasks approved successfully!");
+      invalidate();
+    },
+    onError: handleError
+  });
+  
+  const { mutate: approveProbationSetup, isPending: isApprovingProbationSetup } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_PROBATION_SETUP, variables),
+    onSuccess: () => {
+      toast.success("Probation period set successfully!");
+      invalidate();
+    },
+    onError: handleError
+  });
+  
+  const { mutate: approveProbationEnd, isPending: isApprovingProbationEnd } = useMutation({
+    mutationFn: (variables) => gqlClient.request(APPROVE_PROBATION_END, variables),
+    onSuccess: () => {
+      toast.success("Employee successfully moved to active status!");
+      invalidate();
+    },
+    onError: handleError
+  });
+
+  const { mutate: offboardEmployee, isPending: isOffboarding } = useMutation({
+    mutationFn: (id) => gqlClient.request(UPDATE_EMPLOYEE, { id, input: { employmentStatus: 'OFFBOARDED' } }),
+    onSuccess: () => {
+      toast.success("Employee offboarding initiated!");
+      invalidate();
+    },
+    onError: handleError
+  });
+
   
   const { mutate: approveDocument, isPending: isApprovingDoc, variables: docAppVars } = useMutation({
     mutationFn: (variables) => gqlClient.request(APPROVE_DOCUMENT, variables),
@@ -356,6 +457,21 @@ export default function PendingApprovals() {
     onError: handleError
   });
 
+  const { mutate: requestOffboarding, isPending: isRequestingOffboarding } = useMutation({
+    mutationFn: ({ id, data }) => gqlClient.request(REQUEST_OFFBOARDING, { id, input: data }),
+    onSuccess: () => {
+      toast.success("Offboarding request submitted for approval.");
+      setShowOffboardDialog(false);
+      setOffboardForm({ type: 'RESIGNATION', exitDate: '', reason: '' });
+      invalidate();
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err, "Failed to submit offboarding request."));
+    }
+  });
+
+
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -370,12 +486,10 @@ export default function PendingApprovals() {
   };
 
   const safeDate = (val) => {
-    if (!val) return new Date();
-    const d = new Date(val);
-    if (!isNaN(d.getTime())) return d;
-    const num = Number(val);
-    if (!isNaN(num)) return new Date(num);
-    return new Date();
+    if (!val) return '';
+    const asNum = Number(val);
+    const parsed = new Date(isNaN(asNum) ? val : asNum);
+    return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
   };
 
   if (error) return (
@@ -385,7 +499,37 @@ export default function PendingApprovals() {
     </div>
   );
 
-  const pendingEmployees = data?.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL') || [];
+  const allEmployees = data?.employees || [];
+
+  const pendingProfileReviews = allEmployees.filter(e => 
+    e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
+  );
+
+  const pendingTasksReviews = allEmployees.filter(e => {
+    // If they are in ONGOING_ONBOARDING or PENDING_ONBOARDING
+    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
+      // Show them if they have any completed tasks that aren't approved yet
+      return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
+    }
+    // Fallback for older states
+    return e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'in_progress' || e.onboardingStatus === 'tasks_completed');
+  });
+
+  const pendingProbationSetups = allEmployees.filter(e => {
+    if (e.employmentStatus === 'PENDING_APPROVAL' && e.onboardingStatus === 'probation_pending') return true;
+    
+    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
+      if (e.onboardingTasks && e.onboardingTasks.length > 0) {
+        return e.onboardingTasks.every(t => t.status === 'approved');
+      }
+    }
+    return false;
+  });
+  
+  const pendingProbationEnds = allEmployees.filter(e => 
+    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
+  );
+
   
   const pendingDocuments = data?.documents?.filter(d => {
     if (d.status !== 'PENDING') return false;
@@ -416,8 +560,9 @@ export default function PendingApprovals() {
   const standalonePendingDocuments = pendingDocuments.filter(d => !pendingEmployees.some(e => e.id === d.employeeId));
 
   // Group by Employee for Unified View
+  console.log('PendingApprovals DEBUG:', { unifiedEmployeeIdsLength: Array.from(new Set([...pendingProfileReviews.map(e => e.id), ...pendingDocuments.map(d => d.employeeId), ...pendingProfiles.map(p => p.employeeId)])).length, pendingTasksReviews: pendingTasksReviews.length, pendingProbationSetups: pendingProbationSetups.length, pendingProbationEnds: pendingProbationEnds.length, pendingProfiles: pendingProfiles.length, pendingProbations: pendingProbations.length, pendingOffboardings: pendingOffboardings.length, pendingLeaves: pendingLeaves.length });
   const unifiedEmployeeIds = Array.from(new Set([
-    ...pendingEmployees.map(e => e.id),
+    ...pendingProfileReviews.map(e => e.id),
     ...pendingDocuments.map(d => d.employeeId),
     ...pendingProfiles.map(p => p.employeeId)
   ]));
@@ -460,7 +605,7 @@ export default function PendingApprovals() {
         onOpenChange={(open) => !open && setSelectedUnifiedEmployeeId(null)}
         employeeId={selectedUnifiedEmployeeId}
         employeeName={getEmployeeName(selectedUnifiedEmployeeId)}
-        isPendingActivation={pendingEmployees.some(e => e.id === selectedUnifiedEmployeeId)}
+        isPendingActivation={pendingProfileReviews.some(e => e.id === selectedUnifiedEmployeeId)}
         pendingDocs={pendingDocuments.filter(d => d.employeeId === selectedUnifiedEmployeeId)}
         pendingProfiles={pendingProfiles.filter(p => p.employeeId === selectedUnifiedEmployeeId)}
       />
@@ -478,8 +623,8 @@ export default function PendingApprovals() {
           <TabsList className="bg-slate-50/80 border border-slate-100 p-1.5 rounded-xl flex-wrap h-auto">
             <TabsTrigger value="unified" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
               <UserCircle className="w-4 h-4" />
-              Profile Reviews
-              {(unifiedEmployeeIds.length + pendingProfiles.length + pendingProbations.length + pendingOffboardings.length) > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{unifiedEmployeeIds.length + pendingProfiles.length + pendingProbations.length + pendingOffboardings.length}</Badge>}
+              Employee Reviews
+              {(unifiedEmployeeIds.length + pendingTasksReviews.length + pendingProbationSetups.length + pendingProbationEnds.length + pendingProfiles.length + pendingProbations.length + pendingOffboardings.length) > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{unifiedEmployeeIds.length + pendingTasksReviews.length + pendingProbationSetups.length + pendingProbationEnds.length + pendingProfiles.length + pendingProbations.length + pendingOffboardings.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="leaves" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
               <CalendarRange className="w-4 h-4" />
@@ -492,14 +637,14 @@ export default function PendingApprovals() {
             <TabsContent value="unified" className="m-0 focus-visible:outline-none">
               {loading ? (
                 <ApprovalsSkeleton />
-              ) : (unifiedEmployeeIds.length === 0 && pendingProfiles.length === 0 && pendingProbations.length === 0 && pendingOffboardings.length === 0) ? (
+              ) : (unifiedEmployeeIds.length === 0 && pendingTasksReviews.length === 0 && pendingProbationSetups.length === 0 && pendingProbationEnds.length === 0 && pendingProfiles.length === 0 && pendingProbations.length === 0 && pendingOffboardings.length === 0) ? (
                 <EmptyState message="No pending reviews across the organization." icon={UserCircle} />
               ) : (
                 <div className="space-y-8">
-                  {/* Profile Completions (Unified View) */}
+                  {/* Employee Reviews (Unified View) */}
                   {unifiedEmployeeIds.length > 0 && (
                     <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Profile Completions</h3>
+                      <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Employee Reviews</h3>
                       {unifiedEmployeeIds.map(empId => {
                         const eDocs = pendingDocuments.filter(d => d.employeeId === empId).length;
                         const eProfs = pendingProfiles.filter(p => p.employeeId === empId).length;
@@ -521,16 +666,178 @@ export default function PendingApprovals() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <Button 
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
-                                onClick={() => setSelectedUnifiedEmployeeId(empId)}
-                              >
-                                Review & Action
-                              </Button>
+                                <Button 
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                                  onClick={() => setSelectedUnifiedEmployeeId(empId)}
+                                >
+                                  Review & Action
+                                </Button>
                             </div>
                           </motion.div>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Tasks Reviews */}
+                  {pendingTasksReviews.length > 0 && (
+                    <div className="space-y-3 mt-8">
+                      <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Completed Tasks</h3>
+                      {pendingTasksReviews.map(emp => {
+                        const completedTasks = emp.onboardingTasks?.filter(t => t.status === 'done') || [];
+                        if (completedTasks.length === 0) return null;
+                        
+                        return (
+                          <motion.div 
+                            key={emp.id} 
+                            whileHover={{ y: -2 }}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                          >
+                            <div>
+                              <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
+                              <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
+                              <p className="text-sm text-indigo-600 font-medium mt-2">{completedTasks.length} tasks completed and awaiting approval.</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-2 rounded-lg shadow-sm">
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      View Tasks
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                      <DialogTitle>Completed Tasks</DialogTitle>
+                                      <DialogDescription>Review the tasks completed by {emp.fullName}.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto">
+                                      {completedTasks.map(task => (
+                                        <div key={task.id} className="text-sm flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                                          <div className="flex-1">
+                                            <p className="text-slate-800 font-medium">{task.title}</p>
+                                            <Badge variant="outline" className="text-xs mt-1 bg-white">{task.category}</Badge>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="flex justify-end pt-2 border-t border-slate-100">
+                                      <Button 
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                                        onClick={() => approveCompletedTasks({ employeeId: emp.id, taskIds: completedTasks.map(t => t.id) })}
+                                        disabled={isApprovingTasks}
+                                      >
+                                        {isApprovingTasks ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                        Approve Tasks
+                                      </Button>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Probation Setup Reviews */}
+                  {pendingProbationSetups.length > 0 && (
+                    <div className="space-y-3 mt-8">
+                      <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Set Probation Period</h3>
+                      {pendingProbationSetups.map(emp => (
+                          <motion.div 
+                            key={emp.id} 
+                            whileHover={{ y: -2 }}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                          >
+                            <div>
+                              <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
+                              <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
+                              <p className="text-sm text-indigo-600 font-medium mt-2">All tasks completed. Ready for probation setup.</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm">
+                                      <CalendarRange className="w-4 h-4" />
+                                      Set Probation
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Set Probation Period</DialogTitle>
+                                      <DialogDescription>Define the probation start and end dates for {emp.fullName}.</DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={(e) => {
+                                      e.preventDefault();
+                                      const formData = new FormData(e.target);
+                                      approveProbationSetup({ 
+                                        employeeId: emp.id, 
+                                        startDate: formData.get('startDate'), 
+                                        endDate: formData.get('endDate') 
+                                      });
+                                    }} className="space-y-4 pt-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <label className="text-sm font-medium">Start Date</label>
+                                          <input type="date" name="startDate" required className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm" />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <label className="text-sm font-medium">End Date</label>
+                                          <input type="date" name="endDate" required className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm" />
+                                        </div>
+                                      </div>
+                                      <Button type="submit" disabled={isApprovingProbationSetup} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                                        {isApprovingProbationSetup ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                                      </Button>
+                                    </form>
+                                  </DialogContent>
+                                </Dialog>
+                            </div>
+                          </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Probation End Reviews */}
+                  {pendingProbationEnds.length > 0 && (
+                    <div className="space-y-3 mt-8">
+                      <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Probation Period Ended</h3>
+                      {pendingProbationEnds.map(emp => (
+                          <motion.div 
+                            key={emp.id} 
+                            whileHover={{ y: -2 }}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                          >
+                            <div>
+                              <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
+                              <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
+                              <p className="text-sm text-indigo-600 font-medium mt-2">Probation ended on {new Date(safeDate(emp.probationEndDate)).toLocaleDateString()}.</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button 
+                                  variant="outline"
+                                  className="text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2 rounded-lg shadow-sm"
+                                  onClick={() => {
+                                    setOffboardTargetId(emp.id);
+                                    setShowOffboardDialog(true);
+                                  }}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Begin Offboarding
+                                </Button>
+                                <Button 
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                                  onClick={() => approveProbationEnd({ employeeId: emp.id })}
+                                  disabled={isApprovingProbationEnd}
+                                >
+                                  {isApprovingProbationEnd ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                  Change to Active
+                                </Button>
+                            </div>
+                          </motion.div>
+                      ))}
                     </div>
                   )}
 
@@ -702,6 +1009,56 @@ export default function PendingApprovals() {
           </div>
         </Tabs>
       </motion.div>
+
+      {/* Offboard Dialog */}
+      <Dialog open={showOffboardDialog} onOpenChange={setShowOffboardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Offboard Employee</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Exit Type</Label>
+              <Select value={offboardForm.type} onValueChange={v => setOffboardForm({ ...offboardForm, type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RESIGNATION">Resigned</SelectItem>
+                  <SelectItem value="TERMINATION">Terminated / Fired</SelectItem>
+                  <SelectItem value="RETIREMENT">Retirement</SelectItem>
+                  <SelectItem value="CONTRACT_EXPIRATION">Contract Expiration</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Exit Date</Label>
+              <Input type="date" value={offboardForm.exitDate} onChange={e => setOffboardForm({ ...offboardForm, exitDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea value={offboardForm.reason} onChange={e => setOffboardForm({ ...offboardForm, reason: e.target.value })} placeholder="Reason for leaving..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOffboardDialog(false)}>Cancel</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                requestOffboarding({
+                  id: offboardTargetId,
+                  data: {
+                    exitType: offboardForm.type,
+                    exitDate: offboardForm.exitDate,
+                    reason: offboardForm.reason
+                  }
+                });
+              }}
+              disabled={isRequestingOffboarding}
+            >
+              {isRequestingOffboarding ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

@@ -1019,7 +1019,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 <PremiumField icon={FileText} label="Employment Type" value={employee.employment_type?.replace('_', ' ')} />
                 <PremiumField icon={Shield} label="Employee Class" value={employee.employeeClass || 'Permanent'} />
                 <PremiumField icon={Star} label="Employee Grade" value={employee.employeeGrade || 'Not set'} />
-                <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="bg-green-100 text-green-700 hover:bg-green-200">{employee.employment_status}</Badge>} />
+                <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="bg-green-100 text-green-700 hover:bg-green-200">{employee.employment_status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge>} />
                 <PremiumField icon={Calendar} label="Start Date" value={employee.start_date ? format(new Date(employee.start_date), 'MMM dd, yyyy') : 'Not set'} />
                 <PremiumField icon={User} label="Reports To" value={employee.manager_email || 'Not assigned'} />
               </div>
@@ -2280,42 +2280,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               </div>
             )}
 
-            {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_ONBOARDING' && (
-              <div className="mb-6">
-                <Card className="border-green-200 bg-green-50">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-green-900">Employee Actions</h3>
-                      <p className="text-sm text-green-700">This employee has been approved and is ready for onboarding.</p>
-                    </div>
-                    <Button
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={async () => {
-                        try {
-                          const START_ONBOARDING = gql`
-                              mutation StartOnboarding($employeeId: ID!) {
-                                startOnboarding(employeeId: $employeeId) {
-                                  id
-                                  employmentStatus
-                                  onboardingStatus
-                                }
-                              }
-                            `;
-                          await gqlClient.request(START_ONBOARDING, { employeeId });
-                          toast.success("Onboarding started! Tasks have been generated.");
-                          queryClient.invalidateQueries(['employee', employeeId]);
-                        } catch (err) {
-                          toast.error(extractErrorMessage(err, "Failed to start onboarding."));
-                          console.error(err);
-                        }
-                      }}
-                    >
-                      Start Onboarding
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+
 
             {renderContent()}
           </div>

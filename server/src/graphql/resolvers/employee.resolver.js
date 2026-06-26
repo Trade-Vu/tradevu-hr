@@ -565,6 +565,11 @@ Employee: {
         createdAt: 'desc'
       }
     });
+  },
+  onboardingTasks: async (parent, _, { prisma }) => {
+    return prisma.onboardingTask.findMany({
+      where: { employeeId: parent.id }
+    });
   }
 }
 };

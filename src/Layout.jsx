@@ -199,7 +199,16 @@ export default function Layout({ children }) {
 
   const GET_PENDING_COUNTS = gql`
     query GetPendingCounts {
-      employees { id employmentStatus }
+      employees { 
+        id 
+        employmentStatus 
+        onboardingStatus
+        probationEndDate
+        onboardingTasks {
+          isCompleted
+          status
+        }
+      }
       documents { id status employeeId }
       leaveRequests { id status employeeId employee { email } }
       profileUpdateRequests { id status employeeId }
@@ -217,7 +226,42 @@ export default function Layout({ children }) {
 
   const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.is_organization_owner;
   
-  const pendingEmployeesCount = pendingData?.employees?.filter(e => e.employmentStatus === 'PENDING_APPROVAL').length || 0;
+  const allEmployees = pendingData?.employees || [];
+
+  const pendingProfileReviews = allEmployees.filter(e => 
+    e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
+  ).length;
+
+  const pendingTasksReviews = allEmployees.filter(e => {
+    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
+      return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
+    }
+    return e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'in_progress' || e.onboardingStatus === 'tasks_completed');
+  }).length;
+
+  const pendingProbationSetups = allEmployees.filter(e => {
+    if (e.employmentStatus === 'PENDING_APPROVAL' && e.onboardingStatus === 'probation_pending') return true;
+    
+    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
+      if (e.onboardingTasks && e.onboardingTasks.length > 0) {
+        return e.onboardingTasks.every(t => t.status === 'approved');
+      }
+    }
+    return false;
+  }).length;
+
+  const safeDate = (val) => {
+    if (!val) return '';
+    const asNum = Number(val);
+    const parsed = new Date(isNaN(asNum) ? val : asNum);
+    return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+  };
+
+  const pendingProbationEnds = allEmployees.filter(e => 
+    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
+  ).length;
+
+  const pendingEmployeesCount = pendingProfileReviews + pendingTasksReviews + pendingProbationSetups + pendingProbationEnds;
   const pendingDocumentCount = pendingData?.documents?.filter(d => {
     if (d.status !== 'PENDING') return false;
     const emp = pendingData.employees?.find(e => e.id === d.employeeId);
@@ -237,6 +281,8 @@ export default function Layout({ children }) {
   const pendingOffboardingCount = pendingData?.allOffboardings?.filter(o => o.status === 'PENDING').length || 0;
 
   const totalApprovalsCount = pendingEmployeesCount + pendingDocumentCount + pendingLeaveCount + pendingProfilesCount + pendingProbationCount + pendingOffboardingCount;
+console.log({pendingEmployeesCount, pendingDocumentCount, pendingLeaveCount, pendingProfilesCount, pendingProbationCount, pendingOffboardingCount});
+console.log({pendingProfileReviews, pendingTasksReviews, pendingProbationSetups, pendingProbationEnds});
 
   let baseNavItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
 
@@ -479,7 +525,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-auto bg-slate-50">
+      <main className="flex-1 flex flex-col min-w-0 overflow-auto bg-slate-50 relative">
         <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
           {children}
         </div>

@@ -5,8 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, Mail, Briefcase, Calendar, FileText } from "lucide-react";
-import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+
 
 export default function AddEmployeeForm({ templates, departments, onSubmit, onCancel, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -16,7 +15,6 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
     department_id: "",
     template_id: "",
     start_date: "",
-    phone: "",
     status: "not_started",
     progress_percentage: 0,
     employment_type: "full_time",
@@ -80,18 +78,6 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
                   placeholder="john@company.com"
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="flex gap-2">
-                  <PhoneInput
-                    international
-                    defaultCountry="NG"
-                    value={formData.phone}
-                    onChange={(value) => handleChange("phone", value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="start_date" className="flex items-center gap-2">

@@ -108,6 +108,69 @@ export default function EmployeeSelfService() {
     initialData: [],
   });
 
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ['my-onboarding-tasks', employee?.id],
+    queryFn: async () => {
+      const TASKS_QUERY = gql`
+        query GetTasks($employeeId: ID) {
+          onboardingTasks(employeeId: $employeeId) {
+            id
+            isCompleted
+          }
+        }
+      `;
+      const data = await gqlClient.request(TASKS_QUERY, { employeeId: employee.id });
+      return data.onboardingTasks || [];
+    },
+    enabled: !!employee?.id
+  });
+
+  const pendingTasksCount = myTasks.filter(t => !t.isCompleted).length;
+
+  const [hideBanner, setHideBanner] = useState(() => {
+    return sessionStorage.getItem('hideOnboardingBanner') === 'true';
+  });
+
+  const completeAllMutation = useMutation({
+    mutationFn: async (taskIds) => {
+      const UPDATE_TASK = gql`
+        mutation UpdateOnboardingTask($id: ID!, $status: String!) {
+          updateOnboardingTask(id: $id, status: $status) {
+            id
+            isCompleted
+            status
+          }
+        }
+      `;
+      for (const id of taskIds) {
+        await gqlClient.request(UPDATE_TASK, { id, status: 'DONE' });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-onboarding-tasks', employeeId] });
+      setHideBanner(true);
+      toast.success("All tasks marked as completed!");
+    },
+    onError: (error) => {
+      toast.error("Failed to complete tasks: " + error.message);
+      console.error(error);
+    }
+  });
+
+  const handleCompleteAll = () => {
+    const pendingTaskIds = myTasks.filter(t => !t.isCompleted).map(t => t.id);
+    if (pendingTaskIds.length > 0) {
+      completeAllMutation.mutate(pendingTaskIds);
+    } else {
+      setHideBanner(true);
+    }
+  };
+
+  const handleRemindLater = () => {
+    sessionStorage.setItem('hideOnboardingBanner', 'true');
+    setHideBanner(true);
+  };
+
   const { data: assets = [] } = useQuery({
     queryKey: ['my-assets', employee?.email],
     queryFn: async () => [],
@@ -309,8 +372,35 @@ export default function EmployeeSelfService() {
   const hasBeenRejected = !!rejectionRecord;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4 md:p-8">
-      <motion.div 
+    <>
+      {!hideBanner && pendingTasksCount > 0 && (
+        <>
+          <div className="absolute top-0 left-0 right-0 bg-[#F4F5F7] border-b border-[#DFE1E6] py-5 px-4 md:px-8 flex flex-col xl:flex-row items-center justify-between text-base text-[#172B4D] shadow-sm z-50 rounded-none">
+            <div className="flex-1 mb-3 xl:mb-0 pr-4 font-medium">
+              You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete. Review your assigned tasks to ensure your profile and onboarding are fully set up.
+              <span className="text-[#0052CC] hover:underline cursor-pointer ml-2" onClick={() => navigate(createPageUrl("TaskManager"))}>View task list</span>
+            </div>
+            <div className="flex items-center gap-2 whitespace-nowrap font-medium text-sm">
+              <button className="px-4 py-2 rounded text-[#5E6C84] hover:text-[#172B4D] hover:bg-slate-200/50 transition-colors" onClick={handleRemindLater}>
+                Remind me later
+              </button>
+              <button className="px-4 py-2 rounded border border-[#DFE1E6] text-[#172B4D] hover:bg-slate-200/50 transition-colors bg-transparent" onClick={() => navigate(createPageUrl("TaskManager"))}>
+                Only view tasks
+              </button>
+              <button 
+                className="px-4 py-2 rounded bg-white border border-[#DFE1E6] text-[#172B4D] hover:bg-slate-100 transition-colors shadow-sm disabled:opacity-50" 
+                onClick={handleCompleteAll}
+                disabled={completeAllMutation.isPending}
+              >
+                {completeAllMutation.isPending ? "Completing..." : "Accept & Complete all"}
+              </button>
+            </div>
+          </div>
+          <div className="h-28 xl:h-20 w-full" />
+        </>
+      )}
+      <div className="-m-4 md:-m-8 min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-8 md:p-12 border-0 rounded-none">
+        <motion.div 
         className="max-w-7xl mx-auto space-y-8"
         variants={containerVariants}
         initial="hidden"
@@ -359,6 +449,29 @@ export default function EmployeeSelfService() {
             <p className="mt-1 text-sm">
               Your profile is complete and your onboarding tasks are currently in review.
             </p>
+          </motion.div>
+        )}
+
+        {employee.employment_status === 'ONBOARDING' && (
+          <motion.div 
+            variants={itemVariants} 
+            className="bg-indigo-50/80 backdrop-blur-md border border-indigo-200/60 text-indigo-800 rounded-2xl p-4 mb-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+          >
+            <div>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full inline-block animate-pulse"></span>
+                Action Required: Onboarding Tasks
+              </h3>
+              <p className="mt-1 text-sm">
+                You have onboarding tasks to complete. Please review and complete them to finalize your onboarding process.
+              </p>
+            </div>
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+              onClick={() => navigate(createPageUrl("TaskManager"))}
+            >
+              View My Tasks
+            </Button>
           </motion.div>
         )}
 
@@ -1069,7 +1182,8 @@ export default function EmployeeSelfService() {
           </TabsContent>
         </Tabs>
         </motion.div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
+    </>
   );
 }

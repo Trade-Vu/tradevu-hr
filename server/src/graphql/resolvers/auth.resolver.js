@@ -217,61 +217,62 @@ clearProfileGate: async (_, __, {
   ipAddress
 }) => {
   requireAuth();
-  const updatedUser = await prisma.user.update({
-    where: {
-      id: user.id
-    },
-    data: {
-      mustCompleteProfile: false,
-      lastLogin: new Date()
-    }
-  });
+  return await prisma.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        mustCompleteProfile: false,
+        lastLogin: new Date()
+      }
+    });
 
-  if (user.employeeId) {
-    const employee = await prisma.employee.findUnique({ where: { id: user.employeeId } });
-    if (employee && employee.employmentStatus === 'DRAFT') {
-      await prisma.employee.update({
-        where: { id: user.employeeId },
-        data: { employmentStatus: 'PENDING_APPROVAL' }
-      });
+    if (user.employeeId) {
+      const employee = await tx.employee.findUnique({ where: { id: user.employeeId } });
+      if (employee && employee.employmentStatus === 'DRAFT') {
+        await tx.employee.update({
+          where: { id: user.employeeId },
+          data: { employmentStatus: 'PENDING_APPROVAL' }
+        });
 
-      // Audit Log
-      await prisma.auditLog.create({
-        data: {
-          organizationId: user.organizationId,
-          userId: user.id,
-          action: 'SUBMIT_PROFILE',
-          entityType: 'Employee',
-          entityId: user.employeeId,
-          ipAddress,
-          details: { message: 'Employee submitted profile for review' }
+        // Audit Log
+        await tx.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: 'SUBMIT_PROFILE',
+            entityType: 'Employee',
+            entityId: user.employeeId,
+            ipAddress,
+            details: { message: 'Employee submitted profile for review' }
+          }
+        });
+
+        // Notify HR Admins and Super Admins
+        const hrAdmins = await tx.user.findMany({
+          where: { 
+            organizationId: user.organizationId, 
+            role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] }
+          }
+        });
+        
+        const notifications = hrAdmins.map(hr => ({
+          userId: hr.id,
+          category: 'approval',
+          title: 'New Employee Profile Review',
+          message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
+          channel: 'IN_APP',
+          deepLink: `/approvals`
+        }));
+        
+        if (notifications.length > 0) {
+          await tx.notification.createMany({ data: notifications });
         }
-      });
-
-      // Notify HR Admins and Super Admins
-      const hrAdmins = await prisma.user.findMany({
-        where: { 
-          organizationId: user.organizationId, 
-          role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] }
-        }
-      });
-      
-      const notifications = hrAdmins.map(hr => ({
-        userId: hr.id,
-        category: 'approval',
-        title: 'New Employee Profile Review',
-        message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
-        channel: 'IN_APP',
-        deepLink: `/approvals`
-      }));
-      
-      if (notifications.length > 0) {
-        await prisma.notification.createMany({ data: notifications });
       }
     }
-  }
 
-  return updatedUser;
+    return updatedUser;
+  });
 }
   },
 };

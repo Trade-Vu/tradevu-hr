@@ -153,8 +153,7 @@ export default function Employees() {
           basicSalary: parseFloat(employeeData.basic_salary) || 0,
           templateId: employeeData.template_id,
           employeeClass: employeeData.employeeClass,
-          employeeGrade: employeeData.employeeGrade,
-          phone: employeeData.phone
+          employeeGrade: employeeData.employeeGrade
         }
       });
 
