@@ -6,7 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { setupIframeMessaging } from './lib/iframe-messaging';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -30,7 +30,8 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
-  const currentPath = window.location.pathname.toLowerCase();
+  const location = useLocation();
+  const currentPath = location.pathname.toLowerCase();
   const isLoginPage = currentPath.includes('/login');
   const isPublicPage = (!isAuthenticated && currentPath === '/') || currentPath.includes('/forgot-password') || currentPath.includes('/resetpassword') || currentPath.includes('/accept-invite') || currentPath.includes('/register');
 
