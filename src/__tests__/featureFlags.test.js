@@ -42,6 +42,8 @@ describe('featureFlags — isFeatureEnabled', () => {
 
   it('DEV_ONLY flags are true by default in DEV', async () => {
     vi.stubEnv('DEV', true);
+    // Remove the CI env var override if it exists so we test the default behavior
+    delete process.env.VITE_FEATURE_MOCK_CEO_LOGIN;
     const isFeatureEnabled = await getFlags();
     expect(isFeatureEnabled('MOCK_CEO_LOGIN')).toBe(true);
   });
