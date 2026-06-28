@@ -118,7 +118,6 @@ jobs:
           wait-on-timeout: 60
           spec: cypress/e2e/onboarding-flow.cy.js
           browser: chrome
-          headless: true
         env:
           CYPRESS_BASE_URL: 'http://localhost:5173'
 
@@ -129,14 +128,7 @@ jobs:
           name: cypress-screenshots-onboarding
           path: cypress/screenshots/
           retention-days: 3
-
-      - name: Upload Cypress videos
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cypress-videos-onboarding
-          path: cypress/videos/
-          retention-days: 3
+          if-no-files-found: ignore
 
   # ─── Job 5: Full E2E Suite (non-blocking on feature branches) ─────────────────
   e2e-full:
@@ -167,7 +159,6 @@ jobs:
           wait-on: 'http://localhost:5173'
           wait-on-timeout: 60
           browser: chrome
-          headless: true
         env:
           CYPRESS_BASE_URL: 'http://localhost:5173'
 
@@ -178,6 +169,7 @@ jobs:
           name: cypress-screenshots-full
           path: cypress/screenshots/
           retention-days: 3
+          if-no-files-found: ignore
 
   # ─── Job Summary: Gate for deployment ────────────────────────────────────────
   # This job is the single "all-green" gate that your deployment pipeline
