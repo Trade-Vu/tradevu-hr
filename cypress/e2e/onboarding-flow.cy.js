@@ -134,14 +134,14 @@ describe('CEO → HR Onboarding Critical Path', () => {
 
       cy.loginAsCEO(); // custom command (see commands.js)
       cy.visit('/employees');
-      cy.contains('button', /Invite User/i).click();
+      cy.contains('button', /Invite User/i).first().click();
       
       cy.get('input[id="email"]').type(HR_EMAIL);
       
-      cy.get('button[role="combobox"]').click();
+      cy.get('button[role="combobox"]').first().click();
       cy.contains('div[role="option"]', 'HR Manager').click();
 
-      cy.contains('button', /send invite/i).click();
+      cy.contains('button', /send invite/i).first().click();
 
       cy.wait('@inviteHR');
       cy.contains(/invitation sent/i).should('be.visible');
