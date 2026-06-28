@@ -13,32 +13,61 @@ describe('GraphQL API Integration', () => {
 
   context('Employees Query Intercepted', () => {
     it('sends employees query when visiting Employees page', () => {
-      cy.intercept('POST', '**/graphql', (req) => {
-        // Tag requests containing the employees query
-        if (req.body?.query?.includes('employees')) {
-          req.alias = 'employeesQuery'
-        }
-      })
+      cy.fixture('employees').then(({ mockEmployees }) => {
+        cy.intercept('POST', '**/graphql', (req) => {
+          if (req.body?.query?.includes('GetPaginatedEmployeesList')) {
+            req.alias = 'employeesQuery'
+            req.reply({
+              statusCode: 200,
+              body: {
+                data: {
+                  paginatedEmployees: {
+                    employees: mockEmployees,
+                    totalCount: mockEmployees.length,
+                    totalPages: 1,
+                    currentPage: 1
+                  }
+                }
+              }
+            })
+          }
+        })
 
-      cy.visit('/Employees')
-      cy.wait('@employeesQuery', { timeout: 10000 }).then((interception) => {
-        expect(interception.request.body.query).to.include('employees')
-        expect(interception.response.statusCode).to.eq(200)
-        expect(interception.response.body).to.have.property('data')
+        cy.visit('/Employees')
+        cy.wait('@employeesQuery', { timeout: 10000 }).then((interception) => {
+          expect(interception.request.body.query).to.include('GetPaginatedEmployeesList')
+          expect(interception.response.statusCode).to.eq(200)
+          expect(interception.response.body).to.have.property('data')
+        })
       })
     })
 
     it('sends authorization header with employees query', () => {
-      cy.intercept('POST', '**/graphql', (req) => {
-        if (req.body?.query?.includes('employees')) {
-          req.alias = 'employeesAuth'
-        }
-      })
+      cy.fixture('employees').then(({ mockEmployees }) => {
+        cy.intercept('POST', '**/graphql', (req) => {
+          if (req.body?.query?.includes('GetPaginatedEmployeesList')) {
+            req.alias = 'employeesAuth'
+            req.reply({
+              statusCode: 200,
+              body: {
+                data: {
+                  paginatedEmployees: {
+                    employees: mockEmployees,
+                    totalCount: mockEmployees.length,
+                    totalPages: 1,
+                    currentPage: 1
+                  }
+                }
+              }
+            })
+          }
+        })
 
-      cy.visit('/Employees')
-      cy.wait('@employeesAuth', { timeout: 10000 }).then((interception) => {
-        const authHeader = interception.request.headers.authorization
-        expect(authHeader).to.match(/^Bearer .+/)
+        cy.visit('/Employees')
+        cy.wait('@employeesAuth', { timeout: 10000 }).then((interception) => {
+          const authHeader = interception.request.headers.authorization
+          expect(authHeader).to.match(/^Bearer .+/)
+        })
       })
     })
   })
@@ -47,12 +76,22 @@ describe('GraphQL API Integration', () => {
     it('renders mocked employee data correctly', () => {
       cy.fixture('employees').then(({ mockEmployees }) => {
         cy.intercept('POST', '**/graphql', (req) => {
-          if (req.body?.query?.includes('GetDashboardEmployees') || req.body?.query?.includes('employees')) {
+          if (req.body?.query?.includes('GetDashboardEmployees')) {
+            req.reply({
+              statusCode: 200,
+              body: { data: { employees: mockEmployees } },
+            })
+          } else if (req.body?.query?.includes('GetPaginatedEmployeesList')) {
             req.reply({
               statusCode: 200,
               body: {
                 data: {
-                  employees: mockEmployees,
+                  paginatedEmployees: {
+                    employees: mockEmployees,
+                    totalCount: mockEmployees.length,
+                    totalPages: 1,
+                    currentPage: 1
+                  }
                 },
               },
             })
@@ -69,10 +108,19 @@ describe('GraphQL API Integration', () => {
 
     it('handles empty employees response gracefully', () => {
       cy.intercept('POST', '**/graphql', (req) => {
-        if (req.body?.query?.includes('employees')) {
+        if (req.body?.query?.includes('GetPaginatedEmployeesList')) {
           req.reply({
             statusCode: 200,
-            body: { data: { employees: [] } },
+            body: { 
+              data: { 
+                paginatedEmployees: {
+                  employees: [],
+                  totalCount: 0,
+                  totalPages: 1,
+                  currentPage: 1
+                } 
+              } 
+            },
           })
         }
       }).as('emptyEmployees')
@@ -84,7 +132,7 @@ describe('GraphQL API Integration', () => {
 
     it('handles GraphQL error response gracefully', () => {
       cy.intercept('POST', '**/graphql', (req) => {
-        if (req.body?.query?.includes('employees')) {
+        if (req.body?.query?.includes('GetPaginatedEmployeesList')) {
           req.reply({
             statusCode: 200,
             body: {

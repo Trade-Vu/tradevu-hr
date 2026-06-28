@@ -368,10 +368,10 @@ console.log({pendingProfileReviews, pendingTasksReviews, pendingProbationSetups,
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex w-full bg-slate-50 font-sans">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 font-sans overflow-hidden">
       
       {/* Mobile Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 md:hidden sticky top-0 z-30 flex items-center gap-4">
+      <header className="bg-white border-b border-slate-200 px-6 py-4 md:hidden shrink-0 z-30 flex items-center gap-4">
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -ml-2 rounded-lg hover:bg-slate-100">
           <Menu className="w-6 h-6 text-slate-700" />
         </button>

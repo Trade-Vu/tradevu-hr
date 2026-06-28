@@ -5,36 +5,41 @@
 
 describe('Employees', () => {
   beforeEach(() => {
-    cy.interceptGQL('GetEmployeesList', {
+    cy.interceptGQL('GetPaginatedEmployeesList', {
       data: {
-        employees: [
-          { 
-            id: '1', 
-            employeeCode: 'E001',
-            fullName: 'Alice Smith', 
-            email: 'alice@example.com', 
-            jobTitle: 'Developer', 
-            department: { name: 'Engineering' }, 
-            employmentStatus: 'active',
-            onboardingStatus: 'COMPLETED',
-            onboardingProgress: 100,
-            hireDate: '2023-01-01'
-          },
-          { 
-            id: '2', 
-            employeeCode: 'E002',
-            fullName: 'Bob Jones', 
-            email: 'bob@example.com', 
-            jobTitle: 'Designer', 
-            department: { name: 'Design' }, 
-            employmentStatus: 'active',
-            onboardingStatus: 'COMPLETED',
-            onboardingProgress: 100,
-            hireDate: '2023-05-15'
-          }
-        ]
+        paginatedEmployees: {
+          totalCount: 2,
+          totalPages: 1,
+          currentPage: 1,
+          employees: [
+            { 
+              id: '1', 
+              employeeCode: 'E001',
+              fullName: 'Alice Smith', 
+              email: 'alice@example.com', 
+              jobTitle: 'Developer', 
+              department: { name: 'Engineering' }, 
+              employmentStatus: 'active',
+              onboardingStatus: 'COMPLETED',
+              onboardingProgress: 100,
+              hireDate: '2023-01-01'
+            },
+            { 
+              id: '2', 
+              employeeCode: 'E002',
+              fullName: 'Bob Jones', 
+              email: 'bob@example.com', 
+              jobTitle: 'Designer', 
+              department: { name: 'Design' }, 
+              employmentStatus: 'active',
+              onboardingStatus: 'COMPLETED',
+              onboardingProgress: 100,
+              hireDate: '2023-05-15'
+            }
+          ]
+        }
       }
-    }).as('GetEmployeesList')
+    }).as('GetPaginatedEmployeesList')
     
     cy.interceptGQL('GetDepartments', {
       data: { departments: [{ id: 'd1', name: 'Engineering' }, { id: 'd2', name: 'Design' }] }
@@ -42,16 +47,16 @@ describe('Employees', () => {
 
     cy.loginByApi()
     cy.visit('/Employees')
-    cy.wait('@GetEmployeesList')
+    cy.wait('@GetPaginatedEmployeesList')
   })
 
   context('Page Rendering', () => {
     it('loads the employees page without errors', () => {
-      cy.contains(/employees/i).should('be.visible')
+      cy.contains(/manage your/i).should('be.visible')
     })
 
     it('renders the page header with title', () => {
-      cy.contains('h1', /employees|team/i).should('be.visible')
+      cy.contains('Directory').should('be.visible')
     })
 
     it('renders the Add Employee / Hire button', () => {
@@ -89,8 +94,23 @@ describe('Employees', () => {
     })
 
     it('filters results when typing a search term', () => {
-      cy.get('input[placeholder*="search" i]').type('xxxxnonexistent')
-      cy.contains(/no.*found|no employees|0 employees|empty/i, { timeout: 5000 }).should('be.visible')
+      cy.intercept('POST', '**/graphql', (req) => {
+        if (req.body?.query?.includes('GetPaginatedEmployeesList') && req.body?.variables?.search) {
+          req.alias = 'SearchEmployees'
+          req.reply({
+            statusCode: 200,
+            body: { 
+              data: { 
+                paginatedEmployees: { employees: [], totalCount: 0, totalPages: 1, currentPage: 1 } 
+              } 
+            }
+          })
+        }
+      })
+
+      cy.get('input[placeholder*="search" i]').type('test-nonexistent-xyz')
+      cy.wait('@SearchEmployees')
+      cy.contains(/no.*found|no employees|empty/i).should('be.visible')
     })
 
     it('clears filter and shows all employees', () => {
@@ -132,14 +152,32 @@ describe('Employees', () => {
   })
 
   context('Employee Detail Navigation', () => {
-    it('clicking on an employee navigates to detail view', () => {
-      cy.get('[class*="skeleton"]', { timeout: 8000 }).should('not.exist')
-      cy.get('body').then(($body) => {
-        // Only test navigation if employees exist
-        if (!$body.text().match(/no employees|empty/i)) {
-          cy.get('[class*="card"], tr, [class*="employee-row"]').first().click()
-          cy.url({ timeout: 8000 }).should('match', /employeedetail/i)
+    it('clicking on an employee opens the detail dialog', () => {
+      // Intercept the EmployeeDetail query
+      cy.interceptGQL('GetEmployee', {
+        data: {
+          employee: {
+            id: '1',
+            fullName: 'Alice Smith',
+            email: 'alice@example.com',
+            jobTitle: 'Developer',
+            department: { name: 'Engineering' },
+            employmentStatus: 'active',
+            onboardingStatus: 'COMPLETED',
+            onboardingProgress: 100,
+            hireDate: '2023-01-01',
+            employeeCode: 'E001'
+          }
         }
+      }).as('GetEmployee')
+
+      // Since viewMode is 'cards' by default, we click the card
+      cy.get('.cursor-pointer').first().click()
+      // Wait for the detail query if it triggers
+      cy.wait('@GetEmployee', { timeout: 10000 }).then(() => {
+         // The dialog content should be visible
+         cy.get('[role="dialog"]').should('be.visible')
+         cy.get('[role="dialog"]').contains('Alice Smith').should('be.visible')
       })
     })
   })
