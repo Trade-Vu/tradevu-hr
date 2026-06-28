@@ -24,4 +24,7 @@ export default defineConfig({
       exclude: ['src/__tests__/**', 'src/lib/VisualEditAgent.jsx'],
     },
   },
+  preview: {
+    allowedHosts: ['staging.hr.tradevu.co'],
+  },
 });
