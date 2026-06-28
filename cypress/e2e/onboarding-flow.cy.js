@@ -136,12 +136,14 @@ describe('CEO → HR Onboarding Critical Path', () => {
       cy.visit('/employees');
       cy.contains('button', /Invite User/i).first().click();
       
-      cy.get('input[id="email"]').type(HR_EMAIL);
-      
-      cy.get('button[role="combobox"]').first().click();
+      cy.get('[role="dialog"]').within(() => {
+        cy.get('input[id="email"]').type(HR_EMAIL);
+        cy.get('button[role="combobox"]').first().click();
+      });
+      // The select popover is usually appended to body, not inside the dialog, so we keep this outside within()
       cy.contains('div[role="option"]', 'HR Manager').click();
 
-      cy.contains('button', /send invite/i).first().click();
+      cy.get('[role="dialog"]').contains('button', /send invite/i).first().click();
 
       cy.wait('@inviteHR');
       cy.contains(/invitation sent/i).should('be.visible');
