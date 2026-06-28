@@ -557,7 +557,7 @@ export default function PendingApprovals() {
   const pendingOffboardings = data?.allOffboardings?.filter(o => o.status === 'PENDING') || [];
   const pendingProbations = data?.allProbationRequests?.filter(p => p.status === 'PENDING') || [];
 
-  const standalonePendingDocuments = pendingDocuments.filter(d => !pendingEmployees.some(e => e.id === d.employeeId));
+  const standalonePendingDocuments = pendingDocuments.filter(d => !pendingProfileReviews.some(e => e.id === d.employeeId));
 
   // Group by Employee for Unified View
   console.log('PendingApprovals DEBUG:', { unifiedEmployeeIdsLength: Array.from(new Set([...pendingProfileReviews.map(e => e.id), ...pendingDocuments.map(d => d.employeeId), ...pendingProfiles.map(p => p.employeeId)])).length, pendingTasksReviews: pendingTasksReviews.length, pendingProbationSetups: pendingProbationSetups.length, pendingProbationEnds: pendingProbationEnds.length, pendingProfiles: pendingProfiles.length, pendingProbations: pendingProbations.length, pendingOffboardings: pendingOffboardings.length, pendingLeaves: pendingLeaves.length });
@@ -648,7 +648,7 @@ export default function PendingApprovals() {
                       {unifiedEmployeeIds.map(empId => {
                         const eDocs = pendingDocuments.filter(d => d.employeeId === empId).length;
                         const eProfs = pendingProfiles.filter(p => p.employeeId === empId).length;
-                        const ePendingOnboarding = pendingEmployees.some(e => e.id === empId);
+                        const ePendingOnboarding = pendingProfileReviews.some(e => e.id === empId);
 
                         return (
                           <motion.div 

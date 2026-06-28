@@ -16,7 +16,7 @@ env:
   VITE_FEATURE_CSV_IMPORT: 'false'
   VITE_FEATURE_MOCK_CEO_LOGIN: 'false'
   VITE_FEATURE_ORG_SETUP_BYPASS: 'false'
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   # ─── Job 1: Lint & Typecheck ──────────────────────────────────────────────────
