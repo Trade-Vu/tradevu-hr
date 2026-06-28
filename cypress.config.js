@@ -6,6 +6,7 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx}',
     supportFile: 'cypress/support/e2e.js',
     fixturesFolder: 'cypress/fixtures',
+    video: true,
     videosFolder: 'cypress/videos',
     screenshotsFolder: 'cypress/screenshots',
     viewportWidth: 1280,
