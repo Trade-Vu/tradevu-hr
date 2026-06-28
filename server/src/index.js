@@ -44,7 +44,7 @@ app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'https://staging.hr.tradevu.co', 'https://trade-hriscp.vercel.app'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'http://localhost:5174', 'https://staging.hr.tradevu.co', 'https://trade-hriscp.vercel.app'];
 app.use(cors({ 
   origin: allowedOrigins,
   credentials: true 

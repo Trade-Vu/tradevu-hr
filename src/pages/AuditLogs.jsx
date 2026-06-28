@@ -9,26 +9,31 @@ import { Button } from '@/components/ui/button';
 import { AuditLogDetailsModal } from '@/components/AuditLogDetailsModal';
 
 const GET_AUDIT_LOGS = gql`
-  query GetAuditLogs($entityType: String, $action: String, $limit: Int) {
-    auditLogs(entityType: $entityType, action: $action, limit: $limit) {
-      id
-      actor {
-        email
-        role
-        employee {
-          fullName
-          phone
+  query GetAuditLogs($entityType: String, $action: String, $page: Int, $limit: Int) {
+    auditLogs(entityType: $entityType, action: $action, page: $page, limit: $limit) {
+      data {
+        id
+        actor {
+          email
+          role
+          employee {
+            fullName
+            phone
+          }
         }
+        entityType
+        entityId
+        action
+        previousValue
+        newValue
+        details
+        ipAddress
+        location
+        createdAt
       }
-      entityType
-      entityId
-      action
-      previousValue
-      newValue
-      details
-      ipAddress
-      location
-      createdAt
+      total
+      page
+      limit
     }
   }
 `;
@@ -37,15 +42,22 @@ export default function AuditLogs() {
   const [entityTypeFilter, setEntityTypeFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
-  const { data: { auditLogs = [] } = {}, isLoading } = useQuery({
-    queryKey: ['auditLogs', entityTypeFilter, actionFilter],
+  const { data: { auditLogs } = {}, isLoading } = useQuery({
+    queryKey: ['auditLogs', entityTypeFilter, actionFilter, page],
     queryFn: () => gqlClient.request(GET_AUDIT_LOGS, {
       entityType: entityTypeFilter || null,
       action: actionFilter || null,
-      limit: 100
+      page,
+      limit
     }),
   });
+
+  const logs = auditLogs?.data || [];
+  const total = auditLogs?.total || 0;
+  const totalPages = Math.ceil(total / limit);
 
   const formatAction = (action, entityType) => {
     if (!action) return 'Unknown Action';
@@ -106,7 +118,7 @@ export default function AuditLogs() {
       <div className="flex items-center justify-between">
         <div>
           
-          <p className="text-slate-500 mt-1">Platform-wide historical tracking and compliance records.</p>
+          <p className="text-slate-500 mt-1">Organization-wide historical tracking and compliance records.</p>
         </div>
       </div>
 
@@ -130,7 +142,7 @@ export default function AuditLogs() {
             onChange={(e) => setActionFilter(e.target.value)}
           />
         </div>
-        <Button variant="outline" onClick={() => { setEntityTypeFilter(''); setActionFilter(''); }}>
+        <Button variant="outline" onClick={() => { setEntityTypeFilter(''); setActionFilter(''); setPage(1); }}>
           Reset Filters
         </Button>
       </div>
@@ -152,70 +164,93 @@ export default function AuditLogs() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Loading audit logs...</td>
+                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Loading audit logs...</td>
                 </tr>
-              ) : auditLogs.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                     <Shield className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                     <p>No audit logs match your filters.</p>
                   </td>
                 </tr>
               ) : (
-                auditLogs.map(log => {
-                  const actorName = log.actor?.employee ? log.actor.employee.fullName : (log.actor?.email || 'System');
-                  return (
-                  <tr 
-                    key={log.id} 
-                    className="hover:bg-slate-50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedLog(log)}
-                  >
-                    <td className="px-6 py-3">
-                      <div className="text-slate-900 font-medium">
-                        {format(new Date(parseInt(log.createdAt)), 'MMM d, yyyy')}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {format(new Date(parseInt(log.createdAt)), 'h:mm:ss a')}
-                      </div>
+                logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setSelectedLog(log)}>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-slate-900">{format(new Date(parseInt(log.createdAt)), 'MMM d, yyyy')}</div>
+                      <div className="text-xs text-slate-500">{format(new Date(parseInt(log.createdAt)), 'h:mm:ss a')}</div>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="text-slate-900 font-medium">{actorName}</div>
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">{log.actor?.role || 'SYSTEM'}</div>
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="text-indigo-700 font-semibold">{log.entityType}</div>
-                      <div className="text-[10px] text-slate-400 font-mono" title={log.entityId}>
-                        {log.entityId.split('-')[0]}...
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 border border-indigo-100">
+                          {log.actor?.employee?.fullName?.charAt(0) || log.actor?.email?.charAt(0).toUpperCase() || 'S'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">{log.actor?.employee?.fullName || 'System'}</div>
+                          <div className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit mt-0.5">
+                            {log.actor?.role?.replace('_', ' ') || 'SYSTEM'}
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold uppercase tracking-wider">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-indigo-600">{log.entityType}</div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-[100px]">{log.entityId}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md tracking-wider">
                         {formatAction(log.action, log.entityType)}
                       </span>
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-6 py-4">
                       {renderChanges(log)}
                     </td>
-                    <td className="px-6 py-3">
-                      {log.ipAddress ? (
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
-                            <Monitor className="w-3 h-3 text-slate-400" />
-                            {log.ipAddress}
-                          </div>
-                          {log.location && <div className="text-[10px] text-slate-400">{log.location}</div>}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Not tracked</span>
-                      )}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        {log.ipAddress ? (
+                          <>
+                            <Monitor className="w-3.5 h-3.5" />
+                            <span className="text-xs font-mono">{log.ipAddress}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs italic">Not tracked</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                );
-                })
+                ))
               )}
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+            <span className="text-sm text-slate-500">
+              Showing <span className="font-medium text-slate-900">{((page - 1) * limit) + 1}</span> to <span className="font-medium text-slate-900">{Math.min(page * limit, total)}</span> of <span className="font-medium text-slate-900">{total}</span> results
+            </span>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <div className="text-sm font-medium px-2">Page {page} of {totalPages}</div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
       
       <AuditLogDetailsModal 

@@ -60,6 +60,16 @@ const CLEAR_PROFILE_GATE = gql`
   }
 `;
 
+const GET_DEPARTMENTS = gql`
+  query GetDepartments {
+    departments {
+      id
+      name
+      code
+    }
+  }
+`;
+
 const BULK_IMPORT_EMPLOYEES = gql`
   mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
     bulkImportEmployees(employees: $employees) {
@@ -74,7 +84,7 @@ const BULK_IMPORT_EMPLOYEES = gql`
  * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
  * Returns array of parsed employee objects.
  */
-function parseEmployeeCSV(csvText) {
+function parseEmployeeCSV(csvText, departments = []) {
   const lines = csvText.trim().split('\n');
   if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
@@ -88,11 +98,27 @@ function parseEmployeeCSV(csvText) {
     if (!row.fullName || !row.email || !row.jobTitle || !row.hireDate) {
       throw new Error(`Row is missing required fields: ${JSON.stringify(row)}`);
     }
+
+    let departmentId = undefined;
+    if (row.department) {
+      const match = departments.find(d => 
+        d.name.toLowerCase() === row.department.trim().toLowerCase() ||
+        (d.code && d.code.toLowerCase() === row.department.trim().toLowerCase())
+      );
+      if (match) {
+        departmentId = match.id;
+      } else {
+        throw new Error(`Department '${row.department}' not found. Please use an exact existing department name or code.`);
+      }
+    } else if (row.departmentId) {
+      departmentId = row.departmentId;
+    }
+
     return {
       fullName: row.fullName,
       email: row.email,
       jobTitle: row.jobTitle,
-      departmentId: row.departmentId || undefined,
+      departmentId,
       employmentType: row.employmentType || 'FULL_TIME',
       hireDate: row.hireDate,
       basicSalary: row.basicSalary ? parseFloat(row.basicSalary) : undefined,
@@ -138,6 +164,13 @@ export default function ProfileCompletionWizard() {
     queryFn: () => gqlClient.request(GET_EMPLOYEE, { id: employeeId }),
     enabled: !!employeeId
   });
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => gqlClient.request(GET_DEPARTMENTS),
+    enabled: hasCSVStep
+  });
+  const departments = departmentsData?.departments || [];
 
   React.useEffect(() => {
     if (employeeDataObj?.employee) {
@@ -200,7 +233,7 @@ export default function ProfileCompletionWizard() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const parsed = parseEmployeeCSV(event.target.result);
+        const parsed = parseEmployeeCSV(event.target.result, departments);
         setCsvPreview(parsed.slice(0, 5)); // Show first 5 rows as preview
       } catch (err) {
         setCsvError(err.message);
@@ -216,7 +249,7 @@ export default function ProfileCompletionWizard() {
     try {
       setIsImporting(true);
       const text = await csvFile.text();
-      const employees = parseEmployeeCSV(text);
+      const employees = parseEmployeeCSV(text, departments);
       const result = await gqlClient.request(BULK_IMPORT_EMPLOYEES, { employees });
       setImportResults(result.bulkImportEmployees);
       toast.success(`Successfully imported ${result.bulkImportEmployees.length} employees!`);
@@ -496,9 +529,39 @@ export default function ProfileCompletionWizard() {
                 ) : (
                   <>
                     <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
-                      <p className="font-semibold mb-1">Required CSV columns:</p>
-                      <code className="text-xs bg-white/60 px-2 py-0.5 rounded">fullName, email, jobTitle, hireDate</code>
-                      <p className="mt-1 text-xs opacity-75">Optional: departmentId, employmentType, basicSalary</p>
+                      <p><strong>Required columns:</strong> fullName, email, jobTitle, hireDate</p>
+                      <p><strong>Optional columns:</strong> department, employmentType, basicSalary</p>
+                    </div>
+
+                    {/* CSV Format Table */}
+                    <div className="border rounded-lg overflow-hidden bg-white">
+                      <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">fullName</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">email</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">jobTitle</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">department</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">hireDate</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 font-mono text-xs text-slate-600">
+                          <tr>
+                            <td className="px-4 py-2">Jane Smith</td>
+                            <td className="px-4 py-2">jane@example.com</td>
+                            <td className="px-4 py-2">Engineering Manager</td>
+                            <td className="px-4 py-2">Engineering</td>
+                            <td className="px-4 py-2">2024-03-01</td>
+                          </tr>
+                          <tr>
+                            <td className="px-4 py-2">John Doe</td>
+                            <td className="px-4 py-2">john@example.com</td>
+                            <td className="px-4 py-2">Marketing Lead</td>
+                            <td className="px-4 py-2">Marketing</td>
+                            <td className="px-4 py-2">2024-03-15</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
                     <div

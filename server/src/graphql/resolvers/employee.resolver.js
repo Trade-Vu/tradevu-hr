@@ -300,8 +300,8 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
           employmentType: empData.employmentType ? empData.employmentType.toUpperCase() : 'FULL_TIME',
           hireDate: empData.hireDate ? new Date(empData.hireDate) : new Date(),
           basicSalary: empData.basicSalary || 0,
-          employmentStatus: 'DRAFT',
-          onboardingStatus: 'not_started'
+          employmentStatus: 'ACTIVE',
+          onboardingStatus: 'completed'
         }
       });
 

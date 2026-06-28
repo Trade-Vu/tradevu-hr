@@ -8,8 +8,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
-import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye, Inbox, Loader2, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '../components/ui/dialog';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye, Inbox, Loader2, AlertCircle, Building2 } from 'lucide-react';
 import { extractErrorMessage } from '../lib/utils';
 import { motion } from 'framer-motion';
 import EmployeeDetail from './EmployeeDetail';
@@ -36,6 +40,7 @@ const GET_PENDING_APPROVALS = gql`
         name
       }
     }
+
     documents {
       id
       name
@@ -94,11 +99,31 @@ const GET_PENDING_APPROVALS = gql`
   }
 `;
 
+const GET_PENDING_DEPARTMENTS = gql`
+  query GetPendingDepartments {
+    departments {
+      id
+      name
+      code
+      status
+    }
+  }
+`;
+
 const APPROVE_EMPLOYEE = gql`
   mutation ApproveEmployee($employeeId: ID!) {
     approveEmployeeData(employeeId: $employeeId) {
       id
       employmentStatus
+    }
+  }
+`;
+
+const APPROVE_DEPARTMENT = gql`
+  mutation ApproveDepartment($id: ID!) {
+    approveDepartment(id: $id) {
+      id
+      status
     }
   }
 `;
@@ -325,8 +350,14 @@ export default function PendingApprovals() {
 
   const { data, isLoading: loading, error } = useQuery({
     queryKey: ['pendingApprovals'],
-    queryFn: () => gqlClient.request(GET_PENDING_APPROVALS),
-    refetchInterval: 10000,
+    queryFn: async () => await gqlClient.request(GET_PENDING_APPROVALS),
+    enabled: !!user
+  });
+
+  const { data: deptData, isLoading: deptLoading } = useQuery({
+    queryKey: ['pendingDepartments'],
+    queryFn: async () => await gqlClient.request(GET_PENDING_DEPARTMENTS),
+    enabled: !!user && (user.role === 'SUPER_ADMIN' || user.is_organization_owner)
   });
 
   const invalidate = () => {
@@ -472,6 +503,18 @@ export default function PendingApprovals() {
 
 
 
+  const approveDepartmentMutation = useMutation({
+    mutationFn: async (id) => await gqlClient.request(APPROVE_DEPARTMENT, { id }),
+    onSuccess: () => {
+      toast.success("Department approved successfully.");
+      queryClient.invalidateQueries({ queryKey: ['pendingDepartments'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err, "Failed to approve department."));
+    }
+  });
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -499,7 +542,8 @@ export default function PendingApprovals() {
     </div>
   );
 
-  const allEmployees = data?.employees || [];
+  // Filter out the logged in user so they don't approve their own profile/tasks
+  const allEmployees = (data?.employees || []).filter(e => e.id !== user?.employeeId);
 
   const pendingProfileReviews = allEmployees.filter(e => 
     e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
@@ -532,6 +576,8 @@ export default function PendingApprovals() {
 
   
   const pendingDocuments = data?.documents?.filter(d => {
+    // Exclude own documents
+    if (d.employeeId === user?.employeeId) return false;
     if (d.status !== 'PENDING') return false;
     const emp = data?.employees?.find(e => e.id === d.employeeId);
     return emp?.employmentStatus !== 'DRAFT';
@@ -556,6 +602,8 @@ export default function PendingApprovals() {
 
   const pendingOffboardings = data?.allOffboardings?.filter(o => o.status === 'PENDING') || [];
   const pendingProbations = data?.allProbationRequests?.filter(p => p.status === 'PENDING') || [];
+  
+  const pendingDepartments = deptData?.departments?.filter(d => d.status === 'PENDING') || [];
 
   const standalonePendingDocuments = pendingDocuments.filter(d => !pendingProfileReviews.some(e => e.id === d.employeeId));
 
@@ -631,6 +679,13 @@ export default function PendingApprovals() {
               Leave Requests
               {pendingLeaves.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingLeaves.length}</Badge>}
             </TabsTrigger>
+            {(user?.role === 'SUPER_ADMIN' || user?.is_organization_owner) && (
+              <TabsTrigger value="departments" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+                <Building2 className="w-4 h-4" />
+                Departments
+                {pendingDepartments.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingDepartments.length}</Badge>}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <div className="pt-2">
@@ -1001,6 +1056,50 @@ export default function PendingApprovals() {
                         </Button>
                       </div>
                     </motion.div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="departments" className="m-0 focus-visible:outline-none">
+              {deptLoading ? (
+                <ApprovalsSkeleton />
+              ) : pendingDepartments.length === 0 ? (
+                <EmptyState message="No pending departments across the organization." icon={Building2} />
+              ) : (
+                <div className="space-y-4">
+                  {pendingDepartments.map(dept => (
+                    <Card key={dept.id} className="overflow-hidden border-slate-200">
+                      <CardContent className="p-0">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between p-4 md:p-6 gap-4">
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                              <Building2 className="w-5 h-5 text-slate-500" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-slate-900">{dept.name}</h3>
+                                <Badge variant="outline" className="text-orange-600 bg-orange-50 border-orange-200">New Department</Badge>
+                              </div>
+                              <p className="text-sm text-slate-500 mb-1">Code: {dept.code || 'N/A'}</p>
+                            </div>
+                          </div>
+                          
+                          {isAdmin && (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button 
+                                onClick={() => approveDepartmentMutation.mutate(dept.id)}
+                                disabled={approveDepartmentMutation.isPending}
+                                className="bg-green-600 hover:bg-green-700 text-white w-full md:w-auto"
+                              >
+                                {approveDepartmentMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                                Approve
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}

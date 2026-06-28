@@ -1,0 +1,44 @@
+name: Database Schema Sync
+
+on:
+  # Automatically run when the schema or migrations change on the main branches
+  push:
+    branches: [main, develop, staging]
+    paths:
+      - 'server/prisma/schema.prisma'
+      - 'server/prisma/migrations/**'
+  
+  # Allow manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync-database:
+    name: Apply Prisma Migrations
+    runs-on: ubuntu-latest
+    
+    # Optional: ensure we only run this if CI passed first
+    # needs: [your-ci-job-name]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          # Tell GitHub where the lockfile is since it's in the server/ folder
+          cache-dependency-path: 'server/package-lock.json'
+
+      - name: Install Server Dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Deploy Prisma Migrations
+        working-directory: ./server
+        env:
+          # This pulls the DATABASE_URL from your GitHub repository secrets
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        # migrate deploy applies pending migrations to your production/staging DB
+        run: npx prisma migrate deploy

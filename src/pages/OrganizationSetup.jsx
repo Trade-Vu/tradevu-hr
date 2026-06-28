@@ -7,10 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Users, Rocket, CheckCircle } from "lucide-react";
-import { Country, City } from 'country-state-city';
+import { Country, State } from 'country-state-city';
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+
+const UPDATE_ORGANIZATION_MUTATION = `
+  mutation UpdateOrganization($input: UpdateOrganizationInput!) {
+    updateOrganization(input: $input) {
+      id
+      industry
+      size
+      country
+      state
+      phone
+      email
+    }
+  }
+`;
 
 export default function OrganizationSetup({ asModal = false, onComplete }) {
   const navigate = useNavigate();
@@ -22,42 +36,25 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
     industry: 'technology',
     size: '1-10',
     country: 'Saudi Arabia',
-    city: 'Riyadh',
+    state: 'Riyadh',
     phone: '',
     email: user?.email || '',
     subscription_plan: 'trial',
   });
 
-  const createOrganizationMutation = useMutation({
+  const updateOrganizationMutation = useMutation({
     mutationFn: async (data) => {
-      console.log("Mock create organization", data);
+      const input = {
+        industry: data.industry,
+        size: data.size,
+        country: data.country,
+        state: data.state,
+        phone: data.phone,
+        email: data.email,
+      };
       
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
-      const features_enabled = {
-        attendance: true,
-        payroll: true,
-        recruitment: true,
-        lms: true,
-        surveys: true,
-        expenses: true,
-        zkteco: false,
-        whatsapp: false,
-        ai_features: true,
-      };
-
-      const org = {
-        ...data,
-        id: `org_${Date.now()}`,
-        owner_email: user.email,
-        subscription_status: 'trial',
-        trial_ends_at: trialEndsAt.toISOString().split('T')[0],
-        max_employees: 50,
-        features_enabled,
-      };
-
-      return org;
+      const result = await gqlClient.request(UPDATE_ORGANIZATION_MUTATION, { input });
+      return result.updateOrganization;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] });
@@ -81,16 +78,16 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
     window.location.href = '/dashboard';
   };
 
-  const countries = Country.getAllCountries();
+  const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
   const selectedCountryCode = countries.find(c => c.name === formData.country)?.isoCode;
-  const cities = selectedCountryCode ? City.getCitiesOfCountry(selectedCountryCode) : [];
+  const states = selectedCountryCode ? State.getStatesOfCountry(selectedCountryCode).sort((a, b) => a.name.localeCompare(b.name)) : [];
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
-      createOrganizationMutation.mutate(formData);
+      updateOrganizationMutation.mutate(formData);
     }
   };
 
@@ -185,7 +182,7 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="country" className="text-sm font-semibold text-slate-700">Country</Label>
-                        <Select value={formData.country} onValueChange={(value) => setFormData(prev => ({ ...prev, country: value, city: '' }))}>
+                        <Select value={formData.country} onValueChange={(value) => setFormData(prev => ({ ...prev, country: value, state: '' }))}>
                           <SelectTrigger className="bg-white border-slate-200 h-12 rounded-xl text-slate-900 font-medium shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 focus:border-indigo-500">
                             <SelectValue placeholder="Select Country" />
                           </SelectTrigger>
@@ -198,14 +195,14 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="city" className="text-sm font-semibold text-slate-700">City</Label>
-                        <Select value={formData.city} onValueChange={(value) => setFormData(prev => ({ ...prev, city: value }))} disabled={!formData.country || cities.length === 0}>
-                          <SelectTrigger className="bg-white border-slate-200 h-12 rounded-xl text-slate-900 font-medium shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 focus:border-indigo-500">
-                            <SelectValue placeholder={!formData.country ? "Select Country First" : cities.length === 0 ? "No Cities Found" : "Select City"} />
+                        <Label htmlFor="state" className="text-sm font-semibold text-slate-700">State</Label>
+                        <Select value={formData.state} onValueChange={(value) => setFormData(prev => ({ ...prev, state: value }))} disabled={!formData.country || states.length === 0}>
+                          <SelectTrigger className="w-full bg-white border-slate-200 h-12 rounded-xl text-slate-900 font-medium shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 focus:border-indigo-500">
+                            <SelectValue placeholder={!formData.country ? "Select Country First" : states.length === 0 ? "No States Found" : "Select State"} />
                           </SelectTrigger>
                           <SelectContent>
-                            {cities.map(c => (
-                              <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                            {states.map(state => (
+                              <SelectItem key={state.isoCode} value={state.name}>{state.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -257,12 +254,12 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
                       Back
                     </Button>
                   )}
-                  <Button
-                    type="submit"
+                  <Button 
+                    type="submit" 
                     className="ml-auto h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
-                    isLoading={createOrganizationMutation.isPending}
+                    isLoading={updateOrganizationMutation.isPending}
                   >
-                    {step === 1 ? 'Continue to Details' : createOrganizationMutation.isPending ? 'Creating...' : 'Complete Setup'}
+                    {step === 1 ? 'Continue to Details' : updateOrganizationMutation.isPending ? 'Creating...' : 'Complete Setup'}
                   </Button>
                 </div>
               </form>

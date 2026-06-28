@@ -76,7 +76,7 @@ import Organogram from './pages/Organogram';
 import Payroll from './pages/Payroll';
 import PayrollAI from './pages/PayrollAI';
 import PayrollReports from './pages/PayrollReports';
-import Profile from './pages/Profile';
+
 import Recruitment from './pages/Recruitment';
 import Settings from './pages/Settings';
 import SettingsApprovalWorkflows from './pages/Settings/SettingsApprovalWorkflows';
@@ -94,6 +94,7 @@ import KnowledgeBank from './pages/KnowledgeBank';
 import Login from './pages/Login';
 import PendingApprovals from './pages/PendingApprovals';
 import Register from './pages/Register';
+import RoleSelection from './pages/RoleSelection';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -126,7 +127,7 @@ export const PAGES = {
     "Organogram": Organogram,
     "Payroll": Payroll,
     "PayrollAI": PayrollAI,
-    "Profile": Profile,
+
     "Recruitment": Recruitment,
     "Settings": Settings,
     "SettingsApprovalWorkflows": SettingsApprovalWorkflows,
@@ -144,6 +145,7 @@ export const PAGES = {
     "Login": Login,
     "PendingApprovals": PendingApprovals,
     "Register": Register,
+    "RoleSelection": RoleSelection,
 }
 
 export const pagesConfig = {

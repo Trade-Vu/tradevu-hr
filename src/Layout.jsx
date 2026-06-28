@@ -13,6 +13,7 @@ import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,10 +46,10 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
-      { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
       { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
-    ]
+    ].filter(Boolean)
   },
   {
     title: "Payroll",
@@ -83,7 +84,7 @@ const navigationStructure = [
       { title: "Evaluations", url: createPageUrl("Evaluations"), icon: ClipboardCheck },
     ]
   },
-  {
+  isFeatureEnabled('PERFORMANCE_MODULE') && {
     title: "Performance",
     icon: Target,
     isParent: true,
@@ -113,7 +114,7 @@ const navigationStructure = [
       { title: "Organogram", url: createPageUrl("Organogram"), icon: Users },
     ]
   },
-];
+].filter(Boolean);
 
 const employeeNavigation = [
   {
@@ -123,8 +124,8 @@ const employeeNavigation = [
     children: [
       { title: "My Portal", url: createPageUrl("EmployeeSelfService"), icon: Briefcase },
       { title: "My Tasks", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
-    ]
+      isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+    ].filter(Boolean)
   },
   {
     title: "HR & Finance",
@@ -145,12 +146,12 @@ const employeeNavigation = [
       { title: "My Training", url: createPageUrl("Training"), icon: Video },
     ]
   }
-];
+].filter(Boolean);
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, viewMode, changeViewMode } = useAuth();
   const [organization, setOrganization] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("sidebarTheme") || "dark");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -224,7 +225,7 @@ export default function Layout({ children }) {
     refetchInterval: 10000,
   });
 
-  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.is_organization_owner;
+  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.isOrgOwner;
   
   const allEmployees = pendingData?.employees || [];
 
@@ -281,13 +282,20 @@ export default function Layout({ children }) {
   const pendingOffboardingCount = pendingData?.allOffboardings?.filter(o => o.status === 'PENDING').length || 0;
 
   const totalApprovalsCount = pendingEmployeesCount + pendingDocumentCount + pendingLeaveCount + pendingProfilesCount + pendingProbationCount + pendingOffboardingCount;
-console.log({pendingEmployeesCount, pendingDocumentCount, pendingLeaveCount, pendingProfilesCount, pendingProbationCount, pendingOffboardingCount});
-console.log({pendingProfileReviews, pendingTasksReviews, pendingProbationSetups, pendingProbationEnds});
 
-  let baseNavItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner;
+  const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
+  
+  // Determine if the user has dual roles
+  const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
+  
+  // Determine if the user is allowed to see admin views
+  const canSeeAdminViews = hasDualRoles && viewMode === 'ADMIN';
 
-  // Append settings if admin
-  if (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.is_organization_owner) {
+  let baseNavItems = canSeeAdminViews ? [...navigationStructure] : employeeNavigation;
+
+  // Append settings if admin and allowed to see admin views
+  if (canSeeAdminViews) {
     baseNavItems.push({
       title: "Settings",
       icon: Settings,
@@ -460,10 +468,23 @@ console.log({pendingProfileReviews, pendingTasksReviews, pendingProbationSetups,
                 <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</p>
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
-              <DropdownMenuItem onClick={() => navigate('/Profile')}>
+              <DropdownMenuItem onClick={() => {
+                changeViewMode('EMPLOYEE');
+                navigate('/employeeselfservice');
+              }}>
                 <UserCircle className="w-4 h-4 mr-2" />
                 My Profile
               </DropdownMenuItem>
+              {hasDualRoles && (
+                <DropdownMenuItem onClick={() => {
+                  const newMode = viewMode === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
+                  changeViewMode(newMode);
+                  navigate(newMode === 'ADMIN' ? '/' : '/employeeselfservice');
+                }}>
+                  {viewMode === 'ADMIN' ? <Briefcase className="w-4 h-4 mr-2" /> : <Users className="w-4 h-4 mr-2" />}
+                  Switch to {viewMode === 'ADMIN' ? 'Employee Portal' : 'Admin Panel'}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:bg-red-50">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout

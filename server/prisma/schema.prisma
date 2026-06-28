@@ -27,8 +27,11 @@ model User {
   notifications       Notification[]
   promotionRequests   PromotionRequest[]
   probationRequests   ProbationRequest[]
+  invitesSent         InviteToken[]      @relation("InvitesSent")
   employee            Employee?          @relation(fields: [employeeId], references: [id])
   organization        Organization       @relation(fields: [organizationId], references: [id])
+
+  @@index([email])
 }
 
 model Organization {
@@ -37,7 +40,7 @@ model Organization {
   industry               String?
   size                   String?
   country                String                  @default("Nigeria")
-  city                   String?
+  state                  String?
   address                String?
   phone                  String?
   email                  String?
@@ -67,6 +70,7 @@ model Organization {
   publicHolidays         PublicHoliday[]
   shifts                 Shift[]
   users                  User[]
+  invites                InviteToken[]
 }
 
 model Department {
@@ -897,4 +901,20 @@ enum ExitType {
   TERMINATION
   RETIREMENT
   CONTRACT_EXPIRATION
+}
+
+model InviteToken {
+  id              String       @id @default(uuid())
+  email           String
+  role            String
+  token           String       @unique
+  organizationId  String
+  invitedByUserId String
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  invitedByUser   User         @relation("InvitesSent", fields: [invitedByUserId], references: [id])
 }

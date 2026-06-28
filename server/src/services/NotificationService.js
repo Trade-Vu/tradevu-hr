@@ -35,28 +35,38 @@ export class NotificationService {
    * @param {boolean} [params.sendEmail=false] - Whether to also send an email
    * @param {Object} [params.emailProps={}] - Specific props for customized email templates
    */
-  static async notify({ userId, category, title, message, deepLink, sendEmail = false, emailProps = {} }) {
+  static async notify({ userId, targetEmail, category, title, message, deepLink, sendEmail = false, emailProps = {} }) {
     try {
-      // 1. Create the in-app notification record
-      const notification = await prisma.notification.create({
-        data: {
-          userId,
-          category,
-          title,
-          message,
-          deepLink,
-          channel: 'IN_APP',
-        }
-      });
+      // 1. Create the in-app notification record if userId is provided
+      let notification = null;
+      if (userId) {
+        notification = await prisma.notification.create({
+          data: {
+            userId,
+            category,
+            title,
+            message,
+            deepLink,
+            channel: 'IN_APP',
+          }
+        });
+      }
 
       // 2. Send email via Resend if requested
       if (sendEmail) {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { email: true, employee: { select: { fullName: true } } }
-        });
+        let recipientEmail = targetEmail;
+        let recipientName = 'there';
+        
+        if (userId && !recipientEmail) {
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true, employee: { select: { fullName: true } } }
+          });
+          recipientEmail = user?.email;
+          recipientName = user?.employee?.fullName || 'there';
+        }
 
-        if (user?.email) {
+        if (recipientEmail) {
           if (resend) {
             // Note: Railway provided domains (.up.railway.app) cannot be verified on Resend
             // because you don't control their DNS records.
@@ -103,7 +113,7 @@ export class NotificationService {
                 htmlContent = await render(React.createElement(BaseTemplate, { previewText: title }, 
                   React.createElement('div', { style: { fontFamily: 'sans-serif' } },
                     React.createElement('h2', { className: "text-2xl font-bold text-slate-900 mb-4 mt-0" }, title),
-                    React.createElement('p', { className: "text-base text-slate-700 leading-relaxed mb-4" }, `Hi ${user.employee?.fullName || 'there'},`),
+                    React.createElement('p', { className: "text-base text-slate-700 leading-relaxed mb-4" }, `Hi ${recipientName},`),
                     React.createElement('p', { className: "text-base text-slate-700 leading-relaxed mb-6" }, message),
                     deepLink && React.createElement('a', { href: `${frontendUrl}${deepLink}`, className: "bg-purple-600 text-white font-semibold rounded-lg px-6 py-3 no-underline text-center inline-block" }, "View Details")
                   )
@@ -114,15 +124,28 @@ export class NotificationService {
               htmlContent = `<p>${message}</p>`; // Fallback
             }
 
-            await resend.emails.send({
-              from: `TradeVu HR <${fromEmail}>`,
-              to: [user.email],
+            const { data, error } = await resend.emails.send({
+              from: fromEmail.includes('<') ? fromEmail : `TradeVu HR <${fromEmail}>`,
+              to: [recipientEmail],
               subject: title,
               html: htmlContent
             });
-            console.log(`[NotificationService] Email dispatched to ${user.email} via Resend.`);
+            
+            if (error) {
+              console.error(`[NotificationService] Resend API Error:`, error);
+              
+              // Fallback to mocking if we hit the Resend free tier limitation
+              if (error.statusCode === 403 && error.name === 'validation_error') {
+                console.log(`[NotificationService] Falling back to mock email due to unverified domain restriction.`);
+                console.log(`Subject: ${title}`);
+                console.log(`Body: ${message}`);
+                console.log(`Link: ${deepLink ? `${frontendUrl}${deepLink}` : frontendUrl}`);
+              }
+            } else {
+              console.log(`[NotificationService] Email dispatched to ${recipientEmail} via Resend. ID: ${data?.id}`);
+            }
           } else {
-            console.log(`[NotificationService] Resend API Key missing. Mocking email to ${user.email}`);
+            console.log(`[NotificationService] Resend API Key missing. Mocking email to ${recipientEmail}`);
             console.log(`Subject: ${title}`);
             console.log(`Body: ${message}`);
           }

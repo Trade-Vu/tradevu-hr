@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 import OrganizationSetup from "@/pages/OrganizationSetup";
+import InviteHRModal from "./InviteHRModal";
 import { Link } from "react-router-dom";
+import { useMutation } from '@tanstack/react-query';
+import { gqlClient } from '../../api/graphqlClient';
+
+const UPDATE_PREFERENCES_MUTATION = `
+  mutation UpdateUserPreferences($preferences: JSON!) {
+    updateUserPreferences(preferences: $preferences) {
+      id
+      preferences
+    }
+  }
+`;
 import { 
   Building2, 
   Users, 
@@ -18,28 +30,58 @@ import {
 } from "lucide-react";
 
 export default function DashboardEmptyState({ user }) {
-  const isCEO = user?.role === 'super_admin';
+  const isCEO = user?.role === 'SUPER_ADMIN';
   const firstName = user?.full_name?.split(' ')[0] || 'there';
 
-  // We use local state for this mockup, but normally we'd pull these from the backend
-  const [completedSteps, setCompletedSteps] = useState([]);
+  // Use database preferences first, then fallback to localStorage
+  const storageKey = `dashboard_completed_steps_${user?.id || 'default'}`;
+  const [completedSteps, setCompletedSteps] = useState(() => {
+    if (user?.preferences?.dashboard_completed_steps) {
+      return user.preferences.dashboard_completed_steps;
+    }
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [isOrgSetupOpen, setIsOrgSetupOpen] = useState(false);
+  const [isInviteHROpen, setIsInviteHROpen] = useState(false);
+
+  const { mutate: updatePreferences } = useMutation({
+    mutationFn: async (preferences) => {
+      const newPreferences = {
+        ...user?.preferences,
+        ...preferences
+      };
+      return await gqlClient.request(UPDATE_PREFERENCES_MUTATION, { preferences: newPreferences });
+    },
+    onError: (err) => console.error("Failed to sync preferences", err)
+  });
 
   const toggleStep = (stepId) => {
-    setCompletedSteps(prev => 
-      prev.includes(stepId) 
+    setCompletedSteps(prev => {
+      const newSteps = prev.includes(stepId) 
         ? prev.filter(id => id !== stepId)
-        : [...prev, stepId]
-    );
+        : [...prev, stepId];
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newSteps));
+      } catch (e) {}
+      
+      updatePreferences({ dashboard_completed_steps: newSteps });
+      
+      return newSteps;
+    });
   };
 
   const ceoSteps = [
     { id: 'org', title: 'Complete Organization Profile', description: 'Add your company logo, legal name, and industry details.', icon: Building2, isModal: true },
-    { id: 'hr', title: 'Invite your HR Manager', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, link: '/employees' },
+    { id: 'hr', title: 'Invite your HR Manager', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, isHRModal: true },
   ];
 
   const hrSteps = [
-    { id: 'prof', title: 'Complete your Profile', description: 'Add your photo and personal details.', icon: Users, link: '/profile' },
+    { id: 'prof', title: 'Complete your Profile', description: 'Add your photo and personal details.', icon: Users, link: '/employeeselfservice' },
     { id: 'invite', title: 'Invite your team members', description: 'Send out invites to the rest of the company.', icon: UserPlus, link: '/employees' },
     { id: 'dept', title: 'Define Departments & Roles', description: 'Structure your organization for better reporting.', icon: Settings, link: '/settingsdepartments' },
     { id: 'policy', title: 'Review Company Policies', description: 'Familiarize yourself with the existing setup.', icon: FileText, link: '/settingsstatutory' },
@@ -150,6 +192,7 @@ export default function DashboardEmptyState({ user }) {
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-3xl p-0 border-0 bg-transparent shadow-none [&>button]:hidden overflow-visible" hideCloseButton={true}>
+                            <DialogTitle className="sr-only">Organization Setup</DialogTitle>
                             <div className="flex w-full items-center justify-center max-h-[95vh] overflow-y-auto px-2 py-4">
                               <OrganizationSetup asModal={true} onComplete={() => {
                                 setIsOrgSetupOpen(false);
@@ -158,6 +201,14 @@ export default function DashboardEmptyState({ user }) {
                             </div>
                           </DialogContent>
                         </Dialog>
+                      ) : step.isHRModal ? (
+                        <Button 
+                          onClick={() => setIsInviteHROpen(true)}
+                          variant="secondary" 
+                          className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm rounded-xl px-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300"
+                        >
+                          Take Action <ArrowRight className="w-4 h-4 ml-2 text-indigo-500" />
+                        </Button>
                       ) : (
                         <Button asChild variant="secondary" className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm rounded-xl px-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
                           <Link to={step.link}>
@@ -179,7 +230,7 @@ export default function DashboardEmptyState({ user }) {
           
           <Link to="/employees" className="block">
             <Card className="border-0 shadow-lg shadow-indigo-100/50 hover:shadow-xl hover:shadow-indigo-200/60 transition-all duration-300 group overflow-hidden relative rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+              <div className="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
               <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
               <CardContent className="p-8 relative z-10 flex flex-col gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-110 transition-transform duration-300 shadow-inner">
@@ -187,7 +238,7 @@ export default function DashboardEmptyState({ user }) {
                 </div>
                 <div className="mt-2">
                   <h4 className="font-bold text-xl text-white mb-1">
-                    {isCEO ? "Invite HR Manager" : "Invite Team Member"}
+                    Invite Team Member
                   </h4>
                   <p className="text-indigo-100 font-medium">Send secure access instantly.</p>
                 </div>
@@ -210,6 +261,11 @@ export default function DashboardEmptyState({ user }) {
           </Link>
         </div>
       </div>
+      <InviteHRModal 
+        open={isInviteHROpen} 
+        onOpenChange={setIsInviteHROpen} 
+        onSuccess={() => toggleStep('hr')}
+      />
     </div>
   );
 }

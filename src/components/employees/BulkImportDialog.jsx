@@ -28,9 +28,9 @@ export default function BulkImportDialog({ open, onClose, onImport, isImporting,
   };
 
   const downloadTemplate = () => {
-    const csvContent = `full_name,email,job_title,department_id,template_id,start_date,phone,status
-John Doe,john@example.com,Software Engineer,dept_001,template_001,2024-01-15,+966501234567,not_started
-Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+966501234568,not_started`;
+    const csvContent = `full_name,email,job_title,department,start_date,basic_salary
+John Doe,john@example.com,Software Engineer,Engineering,2024-01-15,120000
+Jane Smith,jane@example.com,HR Manager,Human Resources,2024-02-01,95000`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -64,6 +64,12 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
       rowErrors.push(`Row ${index + 1}: Start date is required`);
     }
     
+    if (!employee.department || employee.department.trim() === '') {
+      rowErrors.push(`Row ${index + 1}: Department is required`);
+    } else if (employee.department_error) {
+      rowErrors.push(`Row ${index + 1}: ${employee.department_error}`);
+    }
+    
     return rowErrors;
   };
 
@@ -93,6 +99,18 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
         headers.forEach((header, index) => {
           emp[header] = values[index] || '';
         });
+
+        if (emp.department) {
+          const match = departments?.find(d => 
+            d.name.toLowerCase() === emp.department.trim().toLowerCase() ||
+            (d.code && d.code.toLowerCase() === emp.department.trim().toLowerCase())
+          );
+          if (match) {
+            emp.department_id = match.id;
+          } else {
+            emp.department_error = `Department '${emp.department}' not found. Please use an exact existing department name or code.`;
+          }
+        }
 
         const empErrors = validateEmployee(emp, i);
         if (empErrors.length > 0) {
@@ -153,7 +171,7 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
                 <p className="font-medium">How to import employees:</p>
                 <ol className="list-decimal list-inside space-y-1 text-sm">
                   <li>Download the CSV template below</li>
-                  <li>Fill in employee information (required: full_name, email, job_title, start_date)</li>
+                  <li>Fill in employee information (required: full_name, email, job_title, department, start_date)</li>
                   <li>Upload the completed CSV file</li>
                   <li>Review the data and click Import</li>
                 </ol>
@@ -245,8 +263,8 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
                         <TableHead>Full Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Job Title</TableHead>
+                        <TableHead>Department</TableHead>
                         <TableHead>Start Date</TableHead>
-                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -255,10 +273,8 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
                           <TableCell className="font-medium">{employee.full_name}</TableCell>
                           <TableCell>{employee.email}</TableCell>
                           <TableCell>{employee.job_title}</TableCell>
+                          <TableCell>{employee.department}</TableCell>
                           <TableCell>{employee.start_date}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{employee.status}</Badge>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

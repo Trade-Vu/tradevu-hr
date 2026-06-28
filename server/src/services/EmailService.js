@@ -1,45 +1,23 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { render } from '@react-email/render';
 
-let transporter = null;
+let resendClient = null;
 
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  // Use configured SMTP if available
-  if (process.env.SMTP_HOST) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 587,
-      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  } else {
-    // Fallback to Ethereal for local development / testing
-    console.log('[EmailService] No SMTP_HOST found, generating Ethereal test account...');
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: testAccount.user, // generated ethereal user
-        pass: testAccount.pass, // generated ethereal password
-      },
-    });
-    console.log(`[EmailService] Ethereal account ready. Emails will be logged with preview URLs.`);
+function getResendClient() {
+  if (!resendClient) {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[EmailService] RESEND_API_KEY is not set. Emails will not be sent.');
+    } else {
+      resendClient = new Resend(process.env.RESEND_API_KEY);
+    }
   }
-
-  return transporter;
+  return resendClient;
 }
 
-const getFromAddress = () => process.env.EMAIL_FROM || '"TradeVu HR" <onboarding@tradevu.co>';
+const getFromAddress = () => process.env.EMAIL_FROM || 'TradeVu HR <onboarding@resend.dev>';
 
 /**
- * Send a transactional email using Nodemailer.
+ * Send a transactional email using Resend.
  *
  * @param {object} opts
  * @param {string|string[]} opts.to - Recipient email address(es)
@@ -50,28 +28,24 @@ const getFromAddress = () => process.env.EMAIL_FROM || '"TradeVu HR" <onboarding
  */
 export async function sendEmail({ to, subject, template, replyTo }) {
   try {
-    const t = await getTransporter();
+    const client = getResendClient();
+    if (!client) return;
 
     const html = await render(template);
-    
-    const mailOptions = {
+    const result = await client.emails.send({
       from: getFromAddress(),
-      to: Array.isArray(to) ? to.join(', ') : to,
+      to: Array.isArray(to) ? to : [to],
       subject,
       html,
       ...(replyTo ? { replyTo } : {}),
-    };
+    });
 
-    const info = await t.sendMail(mailOptions);
-    
-    console.log(`[EmailService] Sent "${subject}" to ${mailOptions.to}`);
-    console.log(`[EmailService] Message ID: ${info.messageId}`);
-    
-    // Preview only available when sending through an Ethereal account
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      console.log(`[EmailService] Preview URL: ${previewUrl}`);
+    if (result.error) {
+      console.error('[EmailService] Resend error:', result.error);
+      throw new Error(`Failed to send email: ${result.error.message}`);
     }
+
+    console.log(`[EmailService] Sent "${subject}" to ${Array.isArray(to) ? to.join(', ') : to}`);
   } catch (err) {
     // Log but don't crash the resolver — email failure should never block a
     // business operation (e.g. approving leave should still work even if

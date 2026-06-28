@@ -93,20 +93,30 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
 
 export const authResolvers = {
   Query: {
-me: async (_, __, {
-  prisma,
-  user,
-  requireAuth
-}) => {
-  requireAuth();
-  return prisma.user.findUnique({
-    where: {
-      id: user.id
+    me: async (_, __, {
+      prisma,
+      user,
+      requireAuth
+    }) => {
+      requireAuth();
+      return prisma.user.findUnique({
+        where: {
+          id: user.id
+        },
+        include: {
+          employee: true
+        }
+      });
     }
-  });
-}
   },
   Mutation: {
+    updateUserPreferences: async (_, { preferences }, { prisma, user, requireAuth }) => {
+      requireAuth();
+      return prisma.user.update({
+        where: { id: user.id },
+        data: { preferences }
+      });
+    },
 register: async (_, {
   input
 }, {
@@ -134,6 +144,15 @@ register: async (_, {
       ownerEmail: email
     }
   });
+
+  // Auto-create HR Department
+  await prisma.department.create({
+    data: {
+      name: 'Human Resources',
+      code: 'HR',
+      organizationId: organization.id
+    }
+  });
   const user = await prisma.user.create({
     data: {
       email,
@@ -142,6 +161,28 @@ register: async (_, {
       organizationId: organization.id,
       isOrgOwner: true
     }
+  });
+
+  // Auto-create Employee profile for the CEO
+  const employeeCode = 'EMP-000001';
+  const employee = await prisma.employee.create({
+    data: {
+      email,
+      jobTitle: 'CEO',
+      fullName: 'CEO / Founder', // Will be updated during profile completion
+      employeeCode,
+      organizationId: organization.id,
+      employmentStatus: 'DRAFT',
+      onboardingStatus: 'not_started',
+      employmentType: 'FULL_TIME',
+      hireDate: new Date()
+    }
+  });
+
+  // Link the employee to the user
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { employeeId: employee.id }
   });
   const token = generateToken(user);
     return {

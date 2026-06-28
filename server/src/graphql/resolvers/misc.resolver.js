@@ -2308,6 +2308,9 @@ uploadDocument: async (_, args, {
   } else if (user.role === 'EMPLOYEE' && user.employeeId !== employeeId) {
     throw new Error("Employees can only upload their own documents");
   }
+  // Collect notification data during the transaction
+  let notificationData = null;
+
   const document = await prisma.$transaction(async (tx) => {
     const doc = await tx.document.create({
       data: {
@@ -2330,31 +2333,49 @@ uploadDocument: async (_, args, {
     });
     await checkAndPromoteEmployee(employeeId, tx);
     
-    // Notify HR Admins
+    // Prepare data for HR Admins notification (excluding the uploader themselves)
     const hrAdmins = await tx.user.findMany({
-      where: { organizationId: user.organizationId, role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] } }
+      where: { 
+        organizationId: user.organizationId, 
+        role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] },
+        id: { not: user.id }
+      }
     });
     const uploaderEmp = await tx.employee.findUnique({ where: { id: employeeId } });
     if (uploaderEmp) {
-      for (const admin of hrAdmins) {
+      notificationData = {
+        hrAdmins,
+        uploaderEmp,
+        documentName: name
+      };
+    }
+    return doc;
+  });
+
+  // Notify HR Admins outside the transaction to prevent timeout
+  if (notificationData) {
+    const { hrAdmins, uploaderEmp, documentName } = notificationData;
+    for (const admin of hrAdmins) {
+      try {
         await NotificationService.notify({
           userId: admin.id,
           category: 'DOCUMENT_NOTIFICATION',
           title: 'New Document Uploaded',
-          message: `${uploaderEmp.firstName} ${uploaderEmp.lastName} uploaded a new document: ${name}`,
+          message: `${uploaderEmp.fullName} uploaded a new document: ${documentName}`,
           deepLink: `/employees/${employeeId}`,
           sendEmail: true,
           emailProps: {
             isUpload: true,
-            employeeName: `${uploaderEmp.firstName} ${uploaderEmp.lastName}`,
-            documentName: name,
+            employeeName: uploaderEmp.fullName,
+            documentName: documentName,
             status: 'PENDING'
           }
         });
+      } catch (err) {
+        console.error(`Failed to send notification to ${admin.email}:`, err);
       }
     }
-    return doc;
-  });
+  }
 
   return document;
 },

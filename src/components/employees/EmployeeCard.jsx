@@ -25,10 +25,10 @@ const getStatusColors = (status) => {
 
 export default function EmployeeCard({ employee, onOpenDetail }) {
   return (
-    <motion.div whileHover={{ y: -2 }}>
-      <div onClick={() => onOpenDetail ? onOpenDetail(employee.id) : null} className="block h-full cursor-pointer">
-        <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-shadow group bg-white rounded-2xl overflow-hidden">
-          <CardContent className="p-6">
+    <motion.div whileHover={{ y: -2 }} className="h-full">
+      <div onClick={() => onOpenDetail ? onOpenDetail(employee.id) : null} className="block h-full cursor-pointer flex flex-col">
+        <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-shadow group bg-white rounded-2xl overflow-hidden flex flex-col">
+          <CardContent className="p-6 flex flex-col flex-1">
             <div className="flex items-start gap-4 mb-5">
               {employee.avatar_url ? (
                 <img src={employee.avatar_url} alt={employee.full_name} className="w-14 h-14 rounded-full object-cover shadow-sm border border-slate-100" />
@@ -87,7 +87,7 @@ export default function EmployeeCard({ employee, onOpenDetail }) {
             </div>
 
             {employee.employment_type && (
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
                   Employment Type
                 </span>

@@ -12,6 +12,7 @@ export const typeDefs = `#graphql
     lastLogin: String
     avatarUrl: String
     mustCompleteProfile: Boolean
+    preferences: JSON
   }
 
   type AuthPayload {
@@ -83,6 +84,11 @@ export const typeDefs = `#graphql
     id: ID!
     name: String!
     country: String
+    state: String
+    industry: String
+    size: String
+    phone: String
+    email: String
     subscriptionPlan: String
     subscriptionStatus: String
     featuresEnabled: JSON
@@ -565,10 +571,17 @@ export const typeDefs = `#graphql
   }
 
   type PaginatedLoans {
-    loans: [Loan!]!
-    totalCount: Int!
-    totalPages: Int!
-    currentPage: Int!
+    data: [Loan!]!
+    total: Int!
+    page: Int!
+    limit: Int!
+  }
+
+  type PaginatedAuditLogs {
+    data: [AuditLog!]!
+    total: Int!
+    page: Int!
+    limit: Int!
   }
 
   input InviteUserInput {
@@ -636,7 +649,7 @@ export const typeDefs = `#graphql
     upcomingCelebrations(month: Int!): [Celebration]
     profileUpdateRequests: [ProfileUpdateRequest]
     allProbationRequests: [ProbationRequest]
-    auditLogs(entityType: String, action: String, limit: Int): [AuditLog]
+    auditLogs(entityType: String, action: String, page: Int, limit: Int): PaginatedAuditLogs!
   }
 
   type ApprovalRecord {
@@ -660,6 +673,15 @@ export const typeDefs = `#graphql
     reviewedBy: String
     createdAt: String!
     employee: Employee!
+  }
+
+  input UpdateOrganizationInput {
+    industry: String
+    size: String
+    country: String
+    state: String
+    phone: String
+    email: String
   }
 
   input RegisterInput {
@@ -782,7 +804,7 @@ export const typeDefs = `#graphql
     fullName: String!
     email: String!
     jobTitle: String!
-    departmentId: String
+    departmentId: String!
     employmentType: String
     hireDate: String
     basicSalary: Float
@@ -806,6 +828,10 @@ export const typeDefs = `#graphql
     requestOffboarding(id: ID!, input: OffboardEmployeeInput!): Offboarding!
     approveOffboarding(id: ID!, comments: String): Offboarding!
     rejectOffboarding(id: ID!, comments: String): Offboarding!
+    
+    updateUserPreferences(preferences: JSON!): User!
+    updateOrganization(input: UpdateOrganizationInput!): Organization!
+
     requestProbation(input: RequestProbationInput!): ProbationRequest!
     approveProbation(id: ID!, status: String!, comments: String): ProbationRequest!
 

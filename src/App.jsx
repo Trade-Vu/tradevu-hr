@@ -6,7 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { setupIframeMessaging } from './lib/iframe-messaging';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -29,7 +29,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin, viewMode } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
   const isLoginPage = currentPath.includes('/login');
@@ -74,11 +74,30 @@ const AuthenticatedApp = () => {
     return <ProfileCompletionWizard />;
   }
 
+  // Intercept for Role Selection if user has admin privileges but hasn't picked a view
+  if (user && !viewMode) {
+    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.is_organization_owner;
+    const isAdmin = user.role?.includes('ADMIN') || user.role === 'admin' || isSuperAdmin;
+    const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
+    const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
+    
+    if (hasDualRoles && Pages.RoleSelection) {
+      return <Pages.RoleSelection />;
+    }
+  }
+
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner;
+  const isAdmin = user?.role?.includes('ADMIN') || user?.role === 'admin' || isSuperAdmin;
+  const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
+  const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
+  
+  const effectiveViewMode = viewMode || (hasDualRoles ? 'ADMIN' : 'EMPLOYEE');
+
   // Render the main app
   return (
     <LayoutWrapper currentPageName={mainPageKey}>
       <Routes>
-        <Route path="/" element={<MainPage />} />
+        <Route path="/" element={effectiveViewMode === 'EMPLOYEE' ? <Navigate to="/employeeselfservice" replace /> : <MainPage />} />
         {Object.entries(Pages).map(([path, Page]) => (
           <Route key={path} path={`/${path.toLowerCase()}`} element={<Page />} />
         ))}

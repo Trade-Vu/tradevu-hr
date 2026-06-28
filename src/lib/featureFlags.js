@@ -48,6 +48,16 @@ const FLAG_DEFINITIONS = {
     default: true,
     envVar: 'VITE_FEATURE_ORG_SETUP_BYPASS',
   },
+  CHAT_MODULE: {
+    devOnly: true,
+    default: true,
+    envVar: 'VITE_FEATURE_CHAT_MODULE',
+  },
+  PERFORMANCE_MODULE: {
+    devOnly: true,
+    default: true,
+    envVar: 'VITE_FEATURE_PERFORMANCE_MODULE',
+  },
 };
 
 /**

@@ -372,6 +372,7 @@ export default function LeaveOverview() {
               Request time off and manage approvals
             </p>
           </div>
+          {leaveTypes.length > 0 && (
             <Button 
               onClick={() => setShowForm(!showForm)}
               className="bg-gradient-to-r from-blue-600 to-indigo-600"
@@ -379,37 +380,61 @@ export default function LeaveOverview() {
               <Plus className="w-4 h-4 mr-2" />
               New Leave Request
             </Button>
+          )}
         </div>
 
         {/* Leave Balances */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {leaveBalances.length > 0 ? (
-            leaveBalances.map(balance => {
-              const type = leaveTypes.find(t => t.id === balance.leaveTypeId) || { name: 'Unknown' };
-              return (
-                <Card key={balance.id} className="border-slate-200">
+        {leaveBalances.length === 0 && leaveTypes.length === 0 ? (
+          <Card className="border-slate-200">
+            <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+              <Calendar className="w-12 h-12 text-slate-300 mb-4" />
+              <p className="text-lg font-medium text-slate-700">No Leave Types Configured</p>
+              <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
+                {isAdmin 
+                  ? "You haven't defined any leave types for your organization yet. Leave balances cannot be initialized until leave types are created." 
+                  : "Your organization hasn't configured leave policies yet."}
+              </p>
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  className="mt-6"
+                  onClick={() => window.location.href = '/settings'}
+                >
+                  Configure Leave Types in Settings
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {leaveBalances.length > 0 ? (
+              leaveBalances.map(balance => {
+                const type = leaveTypes.find(t => t.id === balance.leaveTypeId) || { name: 'Unknown' };
+                return (
+                  <Card key={balance.id} className="border-slate-200">
+                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                      <p className="text-sm font-medium text-slate-500 uppercase">{type.name}</p>
+                      <p className="text-3xl font-bold text-blue-600 my-2">{balance.available}</p>
+                      <p className="text-xs text-slate-400">
+                        Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending: {balance.pending}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              leaveTypes.map(type => (
+                <Card key={type.id} className="border-slate-200 opacity-50">
                   <CardContent className="p-4 flex flex-col items-center justify-center text-center">
                     <p className="text-sm font-medium text-slate-500 uppercase">{type.name}</p>
-                    <p className="text-3xl font-bold text-blue-600 my-2">{balance.available}</p>
-                    <p className="text-xs text-slate-400">
-                      Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending: {balance.pending}
-                    </p>
+                    <p className="text-3xl font-bold text-slate-400 my-2">-</p>
+                    <p className="text-xs text-slate-400">Balance not initialized</p>
                   </CardContent>
                 </Card>
-              );
-            })
-          ) : (
-            leaveTypes.map(type => (
-              <Card key={type.id} className="border-slate-200 opacity-50">
-                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-                  <p className="text-sm font-medium text-slate-500 uppercase">{type.name}</p>
-                  <p className="text-3xl font-bold text-slate-400 my-2">-</p>
-                  <p className="text-xs text-slate-400">Balance not initialized</p>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Request Form */}
         {showForm && (

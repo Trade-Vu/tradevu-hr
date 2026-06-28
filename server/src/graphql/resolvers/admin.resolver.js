@@ -96,7 +96,8 @@ export const adminResolvers = {
 auditLogs: async (_, {
   entityType,
   action,
-  limit
+  page = 1,
+  limit = 20
 }, {
   prisma,
   user,
@@ -104,29 +105,44 @@ auditLogs: async (_, {
   ipAddress
 }) => {
   requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
-  const where = {};
+  const where = {
+    organizationId: user.organizationId
+  };
   if (entityType) where.entityType = entityType;
   if (action) where.action = action;
-  const logs = await prisma.auditLog.findMany({
-    where,
-    orderBy: {
-      createdAt: 'desc'
-    },
-    take: limit || 100,
-    include: {
-      actor: {
-        include: {
-          employee: true
+  
+  const skip = (page - 1) * limit;
+  
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit,
+      include: {
+        actor: {
+          include: {
+            employee: true
+          }
         }
       }
-    }
-  });
-  return logs.map(log => ({
-    ...log,
-    previousValue: log.previousValue ? JSON.stringify(log.previousValue) : null,
-    newValue: log.newValue ? JSON.stringify(log.newValue) : null,
-    details: log.details ? JSON.stringify(log.details) : null
-  }));
+    }),
+    prisma.auditLog.count({ where })
+  ]);
+  
+  return {
+    data: logs.map(log => ({
+      ...log,
+      previousValue: log.previousValue ? JSON.stringify(log.previousValue) : null,
+      newValue: log.newValue ? JSON.stringify(log.newValue) : null,
+      details: log.details ? JSON.stringify(log.details) : null
+    })),
+    total,
+    page,
+    limit
+  };
 },
 compensationBands: async (_, __, {
   user,

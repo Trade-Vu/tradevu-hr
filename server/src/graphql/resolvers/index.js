@@ -15,7 +15,10 @@ import { miscResolvers } from './misc.resolver.js';
 import { compensationResolvers } from './compensation.resolver.js';
 import { inviteResolvers } from './invite.resolver.js';
 
+import GraphQLJSON from 'graphql-type-json';
+
 export const resolvers = merge(
+  { JSON: GraphQLJSON },
   authResolvers,
   orgResolvers,
   adminResolvers,

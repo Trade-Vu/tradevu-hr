@@ -15,6 +15,11 @@ const ME_QUERY = gql`
       employeeId
       avatarUrl
       mustCompleteProfile
+      preferences
+      isOrgOwner
+      employee {
+        employmentStatus
+      }
     }
   }
 `;
@@ -30,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [viewMode, setViewMode] = useState(localStorage.getItem('tradevu_view_mode') || null);
 
   useEffect(() => {
     checkUserAuth();
@@ -101,6 +107,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('token');
+    localStorage.removeItem('tradevu_view_mode');
     
     if (shouldRedirect) {
       window.location.href = '/login';
@@ -111,6 +118,11 @@ export const AuthProvider = ({ children }) => {
     if (!window.location.pathname.toLowerCase().includes('/login')) {
       window.location.href = '/Login';
     }
+  };
+
+  const changeViewMode = (mode) => {
+    localStorage.setItem('tradevu_view_mode', mode);
+    setViewMode(mode);
   };
 
   // Mocking the checkAppState function since we don't use base44 app state anymore
@@ -128,7 +140,9 @@ export const AuthProvider = ({ children }) => {
       appPublicSettings: null,
       logout,
       navigateToLogin,
-      checkAppState
+      checkAppState,
+      viewMode,
+      changeViewMode
     }}>
       {children}
     </AuthContext.Provider>

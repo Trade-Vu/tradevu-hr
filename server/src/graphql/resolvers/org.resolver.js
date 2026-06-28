@@ -108,6 +108,22 @@ organization: async (_, {
 }
   },
   Mutation: {
+    updateOrganization: async (_, { input }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN']);
+      
+      const updatedOrg = await prisma.organization.update({
+        where: { id: user.organizationId },
+        data: {
+          industry: input.industry,
+          size: input.size,
+          country: input.country,
+          state: input.state,
+          phone: input.phone,
+          email: input.email
+        }
+      });
+      return updatedOrg;
+    },
     updateStatutoryConfig: async (_, { config }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN', 'FINANCE_ADMIN']);
       return prisma.organization.update({

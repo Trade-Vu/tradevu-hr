@@ -30,10 +30,26 @@ export const inviteResolvers = {
         }
       });
 
+      if (role === 'HR_ADMIN') {
+        const hrDept = await prisma.department.findFirst({
+          where: { organizationId: user.organizationId, name: 'Human Resources' }
+        });
+        
+        if (!hrDept) {
+          await prisma.department.create({
+            data: {
+              name: 'Human Resources',
+              code: 'HR',
+              organizationId: user.organizationId
+            }
+          });
+        }
+      }
+
       const inviteLink = `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/accept-invite?token=${token}`;
 
       await NotificationService.notify({
-        userId: user.id, // For audit purposes
+        targetEmail: email,
         category: 'invite',
         title: `You've been invited to join TradeVu HR`,
         message: `You've been invited to join your organization on TradeVu HR.`,
