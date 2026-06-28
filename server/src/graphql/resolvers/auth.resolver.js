@@ -119,11 +119,7 @@ register: async (_, {
       orgName
     } = input;
     
-    // Auth Hardening: Only allow the very first registration (the CEO)
-    const orgCount = await prisma.organization.count();
-    if (orgCount > 0) {
-      throw new Error("Registration is closed. Please use an invite link to join your organization.");
-    }
+    // Auth Hardening check removed to allow multiple organizations
 
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -154,7 +150,9 @@ register: async (_, {
     };
   } catch (error) {
     console.error("Error in register:", error);
-    if (error.message === "Email already in use") throw error;
+    if (error.message === "Email already in use" || error.message === "Registration is closed. Please use an invite link to join your organization.") {
+      throw error;
+    }
     if (error.code === 'P2002') {
       throw new Error("Email already in use");
     }
