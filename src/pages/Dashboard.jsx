@@ -23,6 +23,7 @@ import EmployeeList from "../components/dashboard/EmployeeList";
 import RecentActivity from "../components/dashboard/RecentActivity";
 import QuickActions from "../components/dashboard/QuickActions";
 import CelebrationsWidget from "../components/dashboard/CelebrationsWidget";
+import DashboardEmptyState from "../components/dashboard/DashboardEmptyState";
 import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EmployeeDetail from "./EmployeeDetail";
@@ -157,6 +158,28 @@ export default function Dashboard() {
 
   if (user?.role === 'EMPLOYEE') {
     return <Navigate to="/employeeselfservice" />;
+  }
+
+  if (loadingEmployees) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto space-y-6 animate-pulse">
+        <div className="h-8 bg-slate-200 rounded w-1/4"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>)}
+        </div>
+        <div className="h-96 bg-slate-200 rounded-xl"></div>
+      </div>
+    );
+  }
+
+  // Check if this is an empty organization (1 or fewer employees)
+  // For standard accounts without seed data, the CEO is the only employee (length 1) or length 0.
+  if (employees.length <= 1) {
+    return (
+      <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+        <DashboardEmptyState user={user} />
+      </div>
+    );
   }
 
   return (

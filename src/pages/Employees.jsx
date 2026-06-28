@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import EmployeeList from "../components/dashboard/EmployeeList";
 import AddEmployeeForm from "../components/employees/AddEmployeeForm";
 import BulkImportDialog from "../components/employees/BulkImportDialog";
+import InviteEmployeeDialog from "../components/employees/InviteEmployeeDialog";
 import EmployeeCard from "../components/employees/EmployeeCard";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EmployeeDetail from "./EmployeeDetail";
@@ -49,6 +50,7 @@ export default function Employees() {
   const action = urlParams.get('action');
   const [showAddForm, setShowAddForm] = useState(action === 'add');
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [viewMode, setViewMode] = useState('cards');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -171,32 +173,31 @@ export default function Employees() {
 
   const bulkCreateEmployeesMutation = useMutation({
     mutationFn: async (employeesData) => {
-      const createdEmployees = [];
       const mutation = gql`
-        mutation CreateEmployee($input: EmployeeInput!) {
-          createEmployee(input: $input) { id }
+        mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
+          bulkImportEmployees(employees: $employees) { id }
         }
       `;
-      for (const employeeData of employeesData) {
-        const { createEmployee } = await gqlClient.request(mutation, {
-          input: {
-            fullName: employeeData.full_name,
-            email: employeeData.email,
-            jobTitle: employeeData.job_title,
-            departmentId: employeeData.department_id,
-            hireDate: employeeData.start_date,
-            basicSalary: parseFloat(employeeData.basic_salary) || 0
-          }
-        });
-        createdEmployees.push(createEmployee);
-      }
-      return createdEmployees;
+      const { bulkImportEmployees } = await gqlClient.request(mutation, {
+        employees: employeesData.map(emp => ({
+          fullName: emp.full_name,
+          email: emp.email,
+          jobTitle: emp.job_title,
+          departmentId: emp.department_id || null,
+          employmentType: 'FULL_TIME',
+          hireDate: emp.start_date,
+          basicSalary: parseFloat(emp.basic_salary) || 0
+        }))
+      });
+      return bulkImportEmployees;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       setShowImportDialog(false);
     },
   });
+
 
   const currentEmployees = paginatedData?.employees || [];
   const totalEmployees = paginatedData?.totalCount || 0;
@@ -255,6 +256,14 @@ export default function Employees() {
         </div>
         {!showAddForm && (
           <div className="flex gap-3 shrink-0">
+            <Button 
+              onClick={() => setShowInviteDialog(true)}
+              variant="outline"
+              className="rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Invite User
+            </Button>
             <Button 
               onClick={() => setShowImportDialog(true)}
               variant="outline"
@@ -417,6 +426,11 @@ export default function Employees() {
         isImporting={bulkCreateEmployeesMutation.isPending}
         templates={templates}
         departments={departments}
+      />
+
+      <InviteEmployeeDialog
+        open={showInviteDialog}
+        onClose={() => setShowInviteDialog(false)}
       />
 
       <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && setSelectedEmployeeId(null)}>

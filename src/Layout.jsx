@@ -220,7 +220,7 @@ export default function Layout({ children }) {
   const { data: pendingData } = useQuery({
     queryKey: ['pendingApprovalsCount'],
     queryFn: () => gqlClient.request(GET_PENDING_COUNTS),
-    enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.isOrgOwner),
+    enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.is_organization_owner || user?.role === 'MANAGER'),
     refetchInterval: 10000,
   });
 
@@ -287,7 +287,7 @@ console.log({pendingProfileReviews, pendingTasksReviews, pendingProbationSetups,
   let baseNavItems = isEmployee && !user?.role?.includes('ADMIN') && user?.role !== 'admin' ? employeeNavigation : [...navigationStructure];
 
   // Append settings if admin
-  if (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.isOrgOwner) {
+  if (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.is_organization_owner) {
     baseNavItems.push({
       title: "Settings",
       icon: Settings,

@@ -274,6 +274,77 @@ createEmployee: async (_, {
     throw new Error("Failed to create employee. Please try again.");
   }
 },
+bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAddress }) => {
+  requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
+  
+  try {
+    const count = await prisma.employee.count({
+      where: { organizationId: user.organizationId }
+    });
+
+    const importedEmployees = [];
+    let currentCount = count;
+
+    for (const empData of employees) {
+      currentCount++;
+      const employeeCode = `EMP-${currentCount.toString().padStart(6, '0')}`;
+      
+      const newEmployee = await prisma.employee.create({
+        data: {
+          organizationId: user.organizationId,
+          employeeCode,
+          fullName: empData.fullName,
+          email: empData.email,
+          jobTitle: empData.jobTitle,
+          departmentId: empData.departmentId || null,
+          employmentType: empData.employmentType ? empData.employmentType.toUpperCase() : 'FULL_TIME',
+          hireDate: empData.hireDate ? new Date(empData.hireDate) : new Date(),
+          basicSalary: empData.basicSalary || 0,
+          employmentStatus: 'DRAFT',
+          onboardingStatus: 'not_started'
+        }
+      });
+
+      await createAuditLog({
+        prisma,
+        ipAddress,
+        userId: user.id,
+        organizationId: user.organizationId,
+        entityType: 'Employee',
+        entityId: newEmployee.id,
+        action: 'BULK_IMPORT',
+        newValue: newEmployee
+      });
+
+      importedEmployees.push(newEmployee);
+      
+      // Attempt to send welcome email
+      try {
+        const { NotificationService } = await import('../../services/NotificationService.js');
+        await NotificationService.notify({
+          userId: user.id,
+          category: 'welcome',
+          title: `Welcome to TradeVu HR`,
+          message: `A welcome email has been sent to ${empData.fullName}.`,
+          sendEmail: true,
+          emailProps: {
+            to: empData.email,
+            name: empData.fullName,
+            loginUrl: `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`
+          }
+        });
+      } catch (err) {
+        console.error("Failed to send welcome email during bulk import:", err);
+      }
+    }
+
+    return importedEmployees;
+  } catch (error) {
+    console.error("Error in bulkImportEmployees:", error);
+    throw new Error("Failed to bulk import employees.");
+  }
+},
+
 updateEmployee: async (_, {
   id,
   input,

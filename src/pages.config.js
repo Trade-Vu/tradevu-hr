@@ -93,6 +93,7 @@ import Performance from './pages/Performance';
 import KnowledgeBank from './pages/KnowledgeBank';
 import Login from './pages/Login';
 import PendingApprovals from './pages/PendingApprovals';
+import Register from './pages/Register';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -142,6 +143,7 @@ export const PAGES = {
     "KnowledgeBank": KnowledgeBank,
     "Login": Login,
     "PendingApprovals": PendingApprovals,
+    "Register": Register,
 }
 
 export const pagesConfig = {

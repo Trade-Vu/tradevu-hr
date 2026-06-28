@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import countryList from 'country-list';
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload } from "lucide-react";
+import { Upload, Clock, CheckCircle2, AlertCircle, FileSpreadsheet, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -59,10 +60,62 @@ const CLEAR_PROFILE_GATE = gql`
   }
 `;
 
+const BULK_IMPORT_EMPLOYEES = gql`
+  mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
+    bulkImportEmployees(employees: $employees) {
+      id
+      fullName
+      email
+    }
+  }
+`;
+
+/**
+ * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
+ * Returns array of parsed employee objects.
+ */
+function parseEmployeeCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const required = ['fullName', 'email', 'jobTitle', 'hireDate'];
+  const missing = required.filter(r => !headers.includes(r));
+  if (missing.length) throw new Error(`CSV is missing required columns: ${missing.join(', ')}`);
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+    const row = {};
+    headers.forEach((h, i) => { row[h] = values[i] || ''; });
+    if (!row.fullName || !row.email || !row.jobTitle || !row.hireDate) {
+      throw new Error(`Row is missing required fields: ${JSON.stringify(row)}`);
+    }
+    return {
+      fullName: row.fullName,
+      email: row.email,
+      jobTitle: row.jobTitle,
+      departmentId: row.departmentId || undefined,
+      employmentType: row.employmentType || 'FULL_TIME',
+      hireDate: row.hireDate,
+      basicSalary: row.basicSalary ? parseFloat(row.basicSalary) : undefined,
+    };
+  });
+}
+
 export default function ProfileCompletionWizard() {
   const { user, checkAppState } = useAuth();
   const employeeId = user?.employeeId;
+  const isHRAdmin = user?.role === 'HR_ADMIN';
+  // HR admins get an extra Step 3 for CSV import (if feature is enabled)
+  const hasCSVStep = isHRAdmin && isFeatureEnabled('CSV_IMPORT');
+  const totalSteps = hasCSVStep ? 3 : 2;
   const [step, setStep] = useState(1);
+
+  // CSV Import state (HR Step 3)
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [csvError, setCsvError] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+  const csvInputRef = useRef(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [identityType, setIdentityType] = useState("nationalId");
@@ -123,7 +176,7 @@ export default function ProfileCompletionWizard() {
   });
 
   const handleNext = () => {
-    // Validate step 1
+    // Validate step 1: personal info
     if (step === 1) {
       if (!formData.phone || !formData.privateEmail || !formData.dateOfBirth || !formData.gender || !formData.maritalStatus || !formData.nationality) {
         toast.error("Please fill in all personal information fields");
@@ -131,10 +184,48 @@ export default function ProfileCompletionWizard() {
       }
       setStep(2);
     }
+    // Step 2 -> Step 3 (HR CSV) is handled by handleSubmit advancing to step 3
   };
 
   const handleBack = () => {
     setStep(prev => prev - 1);
+  };
+
+  const handleCSVFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCsvFile(file);
+    setCsvError('');
+    setImportResults(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = parseEmployeeCSV(event.target.result);
+        setCsvPreview(parsed.slice(0, 5)); // Show first 5 rows as preview
+      } catch (err) {
+        setCsvError(err.message);
+        setCsvPreview([]);
+        setCsvFile(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCSVImport = async () => {
+    if (!csvFile) { toast.error("Please select a CSV file first"); return; }
+    try {
+      setIsImporting(true);
+      const text = await csvFile.text();
+      const employees = parseEmployeeCSV(text);
+      const result = await gqlClient.request(BULK_IMPORT_EMPLOYEES, { employees });
+      setImportResults(result.bulkImportEmployees);
+      toast.success(`Successfully imported ${result.bulkImportEmployees.length} employees!`);
+    } catch (err) {
+      console.error('CSV import error:', err);
+      toast.error(err.message || 'Failed to import employees. Please check your CSV format.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -176,17 +267,34 @@ export default function ProfileCompletionWizard() {
         visibilityLevel: 'employee'
       });
       
-      // 4. Clear the gate
-      await gqlClient.request(CLEAR_PROFILE_GATE);
-      
-      toast.success("Profile completed successfully!");
-      
-      // Re-fetch user data so App.jsx redirects to Dashboard
-      await checkAppState();
-      
+      // 4. Clear the gate — or if HR with CSV step, advance to step 3 instead
+      if (hasCSVStep) {
+        toast.success("Identity verified! Now let's import your employees.");
+        setStep(3);
+      } else {
+        await gqlClient.request(CLEAR_PROFILE_GATE);
+        toast.success("Profile completed successfully!");
+        // Re-fetch user data so App.jsx redirects to Dashboard
+        await checkAppState();
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to complete profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // After CSV import, clear the profile gate and go to dashboard
+  const handleFinishAfterCSV = async () => {
+    try {
+      setIsSubmitting(true);
+      await gqlClient.request(CLEAR_PROFILE_GATE);
+      toast.success("Setup complete! Taking you to your dashboard...");
+      await checkAppState();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to finalize setup. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -203,17 +311,20 @@ export default function ProfileCompletionWizard() {
         <Card className="border-slate-200 shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-slate-500">Step {step} of 2</span>
+              <span className="text-sm font-medium text-slate-500">Step {step} of {totalSteps}</span>
               <div className="flex gap-1">
-                {[1, 2].map(i => (
+                {Array.from({ length: totalSteps }, (_, i) => i + 1).map(i => (
                   <div key={i} className={`h-2 w-16 rounded-full ${i <= step ? 'bg-indigo-600' : 'bg-slate-200'}`} />
                 ))}
               </div>
             </div>
-            <CardTitle>{step === 1 ? 'Personal Information' : 'Identity Verification'}</CardTitle>
+            <CardTitle>
+              {step === 1 ? 'Personal Information' : step === 2 ? 'Identity Verification' : 'Import Employees'}
+            </CardTitle>
             <CardDescription>
-              {step === 1 ? 'Please provide your basic contact and demographic details.' 
-               : 'Please select an identity document type, provide its number, and upload a clear copy.'}
+              {step === 1 && 'Please provide your basic contact and demographic details.'}
+              {step === 2 && 'Please select an identity document type, provide its number, and upload a clear copy.'}
+              {step === 3 && 'Upload a CSV file to bulk-import your existing employees into the system.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -371,20 +482,116 @@ export default function ProfileCompletionWizard() {
               </div>
             )}
 
+            {/* STEP 3 — HR Admin CSV Import (feature-flagged) */}
+            {step === 3 && hasCSVStep && (
+              <div className="space-y-6">
+                {importResults ? (
+                  <div className="text-center py-6 space-y-4">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">Import successful!</h3>
+                    <p className="text-slate-600 text-sm">{importResults.length} employees imported into the system.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
+                      <p className="font-semibold mb-1">Required CSV columns:</p>
+                      <code className="text-xs bg-white/60 px-2 py-0.5 rounded">fullName, email, jobTitle, hireDate</code>
+                      <p className="mt-1 text-xs opacity-75">Optional: departmentId, employmentType, basicSalary</p>
+                    </div>
+
+                    <div
+                      className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => csvInputRef.current?.click()}
+                    >
+                      <input
+                        ref={csvInputRef}
+                        type="file"
+                        className="hidden"
+                        accept=".csv"
+                        onChange={handleCSVFileChange}
+                        data-testid="csv-file-input"
+                      />
+                      <FileSpreadsheet className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-slate-700">
+                        {csvFile ? csvFile.name : 'Click to select a CSV file'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">CSV format only</p>
+                    </div>
+
+                    {csvError && (
+                      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-sm">
+                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                        {csvError}
+                      </div>
+                    )}
+
+                    {csvPreview.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-slate-700">Preview (first {csvPreview.length} rows):</p>
+                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                          <table className="w-full text-xs">
+                            <thead className="bg-slate-50">
+                              <tr>
+                                {Object.keys(csvPreview[0]).map(col => (
+                                  <th key={col} className="px-3 py-2 text-left font-medium text-slate-600">{col}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreview.map((row, i) => (
+                                <tr key={i} className="border-t border-slate-100">
+                                  {Object.values(row).map((val, j) => (
+                                    <td key={j} className="px-3 py-2 text-slate-700 truncate max-w-[120px]">{val}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between pt-6 border-t border-slate-100">
-              {step > 1 ? (
-                <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>
+              {step > 1 && !importResults ? (
+                <Button variant="outline" onClick={handleBack} disabled={isSubmitting || isImporting}>
                   Back
                 </Button>
               ) : <div></div>}
               
-              {step < 2 ? (
+              {step < 2 && (
                 <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleNext}>
                   Continue
                 </Button>
-              ) : (
+              )}
+              {step === 2 && (
                 <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSubmit} disabled={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Complete Profile"}
+                  {isSubmitting ? "Submitting..." : hasCSVStep ? "Continue to Import" : "Complete Profile"}
+                </Button>
+              )}
+              {step === 3 && !importResults && (
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={handleFinishAfterCSV} disabled={isSubmitting || isImporting}>
+                    Skip &amp; Finish
+                  </Button>
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={handleCSVImport}
+                    disabled={!csvFile || isImporting || !!csvError}
+                    data-testid="csv-import-btn"
+                  >
+                    {isImporting ? "Importing..." : "Import Employees"}
+                  </Button>
+                </div>
+              )}
+              {step === 3 && importResults && (
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleFinishAfterCSV} disabled={isSubmitting}>
+                  {isSubmitting ? "Finishing..." : "Go to Dashboard"}
                 </Button>
               )}
             </div>

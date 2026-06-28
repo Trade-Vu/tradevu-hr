@@ -1,80 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
-import { visualEditPlugin } from './vite-plugins/visual-edit-plugin.js'
-import { errorOverlayPlugin } from './vite-plugins/error-overlay-plugin.js'
+/// <reference types="vitest" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  return {
-    plugins: [
-      mode === 'development' && visualEditPlugin(),
-      react(),
-      errorOverlayPlugin(),
-      {
-        name: 'iframe-hmr',
-        configureServer(server) {
-          server.middlewares.use((req, res, next) => {
-            // Allow iframe embedding
-            res.setHeader('X-Frame-Options', 'ALLOWALL');
-            res.setHeader('Content-Security-Policy', "frame-ancestors *;");
-            next();
-          });
-        }
-      }
-    ].filter(Boolean),
-    build: {
-      chunkSizeWarningLimit: 2000,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            react: ['react', 'react-dom', 'react-router-dom'],
-            recharts: ['recharts'],
-            icons: ['lucide-react'],
-          }
-        },
-        onwarn(warning, warn) {
-          // Treat import errors as fatal errors
-          if (
-            warning.code === "UNRESOLVED_IMPORT" ||
-            warning.code === "MISSING_EXPORT"
-          ) {
-            throw new Error(`Build failed: ${warning.message}`);
-          }
-          // Use default for other warnings
-          warn(warning);
-        },
-      },
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
     },
-    server: {
-      host: '0.0.0.0', // Bind to all interfaces for container access
-      port: 5173,
-      strictPort: true,
-      // Allow all hosts - essential for Modal tunnel URLs
-      allowedHosts: true,
-      watch: {
-        // Enable polling for better file change detection in containers
-        usePolling: true,
-        interval: 100, // Check every 100ms for responsive HMR
-      },
-      hmr: {
-        protocol: 'wss',
-        clientPort: 443
-      }
+  },
+  test: {
+    name: 'unit',
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/__tests__/setup.js'],
+    include: ['src/__tests__/**/*.test.{js,jsx}'],
+    exclude: ['node_modules', 'cypress'],
+    coverage: {
+      reporter: ['text', 'json', 'html'],
+      include: ['src/lib/**', 'src/pages/**', 'src/components/**'],
+      exclude: ['src/__tests__/**', 'src/lib/VisualEditAgent.jsx'],
     },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-      },
-      extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
-    },
-    optimizeDeps: {
-      include: ['react', 'react-dom'],
-      esbuildOptions: {
-        loader: {
-          '.js': 'jsx',
-        },
-      },
-    }
-  }
+  },
 });

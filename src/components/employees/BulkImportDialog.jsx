@@ -74,54 +74,45 @@ Jane Smith,jane@example.com,HR Manager,dept_002,template_002,2024-02-01,+9665012
     setErrors([]);
 
     try {
-      // Upload file first
-      const file_url = URL.createObjectURL(file);
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      if (lines.length < 2) {
+        setErrors(['File appears to be empty or missing headers.']);
+        setProcessing(false);
+        return;
+      }
 
-      // Extract data using the integration
-      const result = {
-        status: "success",
-        output: {
-          employees: [
-            {
-              full_name: "Mock Employee 1",
-              email: "mock1@example.com",
-              job_title: "Software Engineer",
-              department_id: "dept_1",
-              template_id: "tpl_1",
-              start_date: "2024-01-01",
-              phone: "+1234567890",
-              status: "not_started"
-            }
-          ]
-        }
-      };
+      const headers = lines[0].split(',').map(h => h.trim());
+      const employees = [];
+      const allErrors = [];
 
-      if (result.status === "success" && result.output?.employees) {
-        const employees = result.output.employees;
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const emp = {};
         
-        // Validate each employee
-        const allErrors = [];
-        employees.forEach((emp, index) => {
-          const empErrors = validateEmployee(emp, index);
-          allErrors.push(...empErrors);
+        headers.forEach((header, index) => {
+          emp[header] = values[index] || '';
         });
 
-        if (allErrors.length > 0) {
-          setErrors(allErrors);
+        const empErrors = validateEmployee(emp, i);
+        if (empErrors.length > 0) {
+          allErrors.push(...empErrors);
         } else {
-          // Set defaults for missing fields
-          const processedEmployees = employees.map(emp => ({
+          employees.push({
             ...emp,
             status: emp.status || 'not_started',
             progress_percentage: 0,
             welcome_sent: false,
-          }));
-          
-          setParsedData(processedEmployees);
+          });
         }
-      } else {
-        setErrors(['Failed to parse CSV file. Please check the format.']);
       }
+
+      if (allErrors.length > 0) {
+        setErrors(allErrors);
+      } else {
+        setParsedData(employees);
+      }
+
     } catch (error) {
       console.error("Error processing file:", error);
       setErrors([`Error processing file: ${error.message}`]);

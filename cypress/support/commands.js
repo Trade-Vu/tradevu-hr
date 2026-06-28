@@ -128,3 +128,53 @@ Cypress.Commands.add('interceptGQL', (operationName, responseOverride) => {
     }
   })
 })
+
+/**
+ * Simulate a logged-in CEO (SUPER_ADMIN) session.
+ * Sets localStorage token and intercepts the Me query.
+ * Usage: cy.loginAsCEO()
+ */
+Cypress.Commands.add('loginAsCEO', () => {
+  const token = 'test-ceo-token';
+  const user = {
+    id: 'ceo-1',
+    email: 'ceo@tradevu.com',
+    role: 'SUPER_ADMIN',
+    organizationId: 'org-1',
+    mustCompleteProfile: false,
+    employee: null,
+  };
+
+  cy.on('window:before:load', (win) => {
+    win.localStorage.setItem('token', token);
+  });
+
+  cy.interceptGQL('Me', { data: { me: user } });
+  Cypress.env('currentUser', user);
+});
+
+/**
+ * Simulate a logged-in HR Admin session.
+ * Sets localStorage token and intercepts the Me query.
+ * Usage: cy.loginAsHR()
+ * Usage (with profile gate): cy.loginAsHR({ mustCompleteProfile: true })
+ */
+Cypress.Commands.add('loginAsHR', (overrides = {}) => {
+  const token = 'test-hr-token';
+  const user = {
+    id: 'hr-1',
+    email: 'hr@tradevu.com',
+    role: 'HR_ADMIN',
+    organizationId: 'org-1',
+    mustCompleteProfile: overrides.mustCompleteProfile ?? false,
+    employee: { id: 'emp-hr-1' },
+    ...overrides,
+  };
+
+  cy.on('window:before:load', (win) => {
+    win.localStorage.setItem('token', token);
+  });
+
+  cy.interceptGQL('Me', { data: { me: user } });
+  Cypress.env('currentUser', user);
+});

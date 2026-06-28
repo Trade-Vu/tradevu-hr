@@ -118,6 +118,13 @@ register: async (_, {
       password,
       orgName
     } = input;
+    
+    // Auth Hardening: Only allow the very first registration (the CEO)
+    const orgCount = await prisma.organization.count();
+    if (orgCount > 0) {
+      throw new Error("Registration is closed. Please use an invite link to join your organization.");
+    }
+
   const existingUser = await prisma.user.findUnique({
     where: {
       email
@@ -273,6 +280,76 @@ clearProfileGate: async (_, __, {
 
     return updatedUser;
   });
+},
+
+requestPasswordReset: async (_, { email }, { prisma }) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    // Return true even if user not found to prevent email enumeration
+    return true; 
+  }
+
+  const { randomUUID } = await import('crypto');
+  const token = randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiry
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt
+    }
+  });
+
+  const resetLink = `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/resetpassword?token=${token}`;
+  
+  await NotificationService.notify({
+    userId: user.id,
+    category: 'password_reset',
+    title: 'Password Reset Request',
+    message: 'We received a request to reset your password.',
+    sendEmail: true,
+    emailProps: {
+      userName: user.employee?.fullName || '',
+      resetLink
+    }
+  });
+
+  return true;
+},
+
+resetPassword: async (_, { token, newPassword }, { prisma }) => {
+  const resetRecord = await prisma.passwordResetToken.findUnique({
+    where: { token }
+  });
+
+  if (!resetRecord) {
+    throw new Error('Invalid or expired token.');
+  }
+
+  if (resetRecord.usedAt) {
+    throw new Error('This token has already been used.');
+  }
+
+  if (new Date() > resetRecord.expiresAt) {
+    throw new Error('This token has expired.');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: resetRecord.userId },
+      data: { passwordHash }
+    }),
+    prisma.passwordResetToken.update({
+      where: { token },
+      data: { usedAt: new Date() }
+    })
+  ]);
+
+  return true;
 }
   },
 };

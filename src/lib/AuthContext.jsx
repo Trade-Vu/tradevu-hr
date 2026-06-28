@@ -51,6 +51,22 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
+      // DEV-ONLY: mock token bypass for local development.
+      // This code path is completely dead in production builds.
+      if (import.meta.env.DEV && token === 'mock_ceo_token') {
+        setUser({
+          id: 'mock_ceo',
+          email: 'ceo@tradevu.com',
+          role: 'super_admin',
+          organizationId: 'org_1',
+          full_name: 'CEO',
+          mustCompleteProfile: false
+        });
+        setIsAuthenticated(true);
+        setIsLoadingAuth(false);
+        return;
+      }
+
       // Fetch current user from GraphQL backend
       const data = await gqlClient.request(ME_QUERY);
       

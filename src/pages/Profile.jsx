@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { UserCircle, Upload, Lock, Share2, Settings, Save, Check, Linkedin, Twitter, Github, Facebook } from "lucide-react";
+import { UserCircle, Upload, Lock, Share2, Settings, Save, Check, Linkedin, Twitter, Github, Facebook, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Profile() {
@@ -22,6 +22,9 @@ export default function Profile() {
   });
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [profileData, setProfileData] = useState({
     full_name: '',
@@ -322,34 +325,64 @@ export default function Profile() {
                 <form onSubmit={handlePasswordChange} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="current_password">Current Password</Label>
-                    <Input
-                      id="current_password"
-                      type="password"
-                      value={passwordData.current_password}
-                      onChange={(e) => setPasswordData(prev => ({ ...prev, current_password: e.target.value }))}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="current_password"
+                        type={showCurrentPassword ? "text" : "password"}
+                        className="pr-10"
+                        value={passwordData.current_password}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, current_password: e.target.value }))}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="new_password">New Password</Label>
-                    <Input
-                      id="new_password"
-                      type="password"
-                      value={passwordData.new_password}
-                      onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="new_password"
+                        type={showNewPassword ? "text" : "password"}
+                        className="pr-10"
+                        value={passwordData.new_password}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <p className="text-xs text-slate-500">Must be at least 8 characters long</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input
-                      id="confirm_password"
-                      type="password"
-                      value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="pr-10"
+                        value={passwordData.confirm_password}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex justify-end">

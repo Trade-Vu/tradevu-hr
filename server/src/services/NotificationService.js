@@ -16,6 +16,9 @@ import ProfileUpdateEmail from '../emails/ProfileUpdateEmail.jsx';
 import ProbationOffboardingEmail from '../emails/ProbationOffboardingEmail.jsx';
 import ExpenseAssetEmail from '../emails/ExpenseAssetEmail.jsx';
 import DocumentNotificationEmail from '../emails/DocumentNotificationEmail.jsx';
+import InviteEmail from '../emails/InviteEmail.jsx';
+import PasswordResetEmail from '../emails/PasswordResetEmail.jsx';
+import PayslipReadyEmail from '../emails/PayslipReadyEmail.jsx';
 
 // Initialize Resend only if the API key is present
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -90,6 +93,12 @@ export class NotificationService {
                 htmlContent = await render(React.createElement(ExpenseAssetEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
               } else if (category === 'DOCUMENT_NOTIFICATION') {
                 htmlContent = await render(React.createElement(DocumentNotificationEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
+              } else if (category === 'invite') {
+                htmlContent = await render(React.createElement(InviteEmail, { ...emailProps }));
+              } else if (category === 'password_reset') {
+                htmlContent = await render(React.createElement(PasswordResetEmail, { ...emailProps }));
+              } else if (category === 'payslip_ready') {
+                htmlContent = await render(React.createElement(PayslipReadyEmail, { fullName: user.employee?.fullName, ...emailProps }));
               } else {
                 htmlContent = await render(React.createElement(BaseTemplate, { previewText: title }, 
                   React.createElement('div', { style: { fontFamily: 'sans-serif' } },

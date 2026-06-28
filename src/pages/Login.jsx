@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { gqlClient } from '@/api/graphqlClient';
 import { gql } from 'graphql-request';
-import { Mail, Lock, Loader2, ArrowRight, UserCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, UserCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Link } from 'react-router-dom';
 
 const LOGIN_MUTATION = gql`
   mutation Login($email: String!, $password: String!) {
@@ -25,6 +26,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { checkAppState } = useAuth();
 
   const handleLogin = async (e) => {
@@ -37,6 +39,14 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError('');
+      
+      // DEV-ONLY: bypass real auth with a mock token for local testing.
+      if (import.meta.env.DEV && email.toLowerCase() === 'ceo@tradevu.com') {
+        localStorage.setItem('token', 'mock_ceo_token');
+        await checkAppState();
+        window.location.href = '/';
+        return;
+      }
       
       const data = await gqlClient.request(LOGIN_MUTATION, {
         email,
@@ -104,14 +114,21 @@ export default function Login() {
                     <Lock className="h-5 w-5 text-slate-400" />
                   </div>
                   <Input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     data-testid="password-input"
                     placeholder="••••••••"
-                    className="pl-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900 transition-colors"
+                    className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900 transition-colors"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -129,9 +146,9 @@ export default function Login() {
                 </label>
               </div>
               <div className="text-sm">
-                <a href="#" className="font-medium text-slate-900 hover:text-slate-700 hover:underline">
+                <Link to="/forgot-password" className="font-medium text-slate-900 hover:text-slate-700 hover:underline">
                   Forgot password?
-                </a>
+                </Link>
               </div>
             </div>
 

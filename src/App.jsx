@@ -14,6 +14,10 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import ProfileCompletionWizard from '@/pages/ProfileCompletionWizard';
 
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import AcceptInvite from './pages/AcceptInvite';
+
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -26,7 +30,9 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
-  const isLoginPage = window.location.pathname.toLowerCase().includes('/login');
+  const currentPath = window.location.pathname.toLowerCase();
+  const isLoginPage = currentPath.includes('/login');
+  const isPublicPage = (!isAuthenticated && currentPath === '/') || currentPath.includes('/forgot-password') || currentPath.includes('/resetpassword') || currentPath.includes('/accept-invite') || currentPath.includes('/register');
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -37,10 +43,18 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // If we are on the login page, render it without layout
-  if (isLoginPage) {
-    const LoginPage = Pages['Login'] || (() => <div>Login component missing</div>);
-    return <LoginPage />;
+  // If we are on the login or public pages, render them without layout
+  if (isLoginPage || isPublicPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={Pages.Login ? <Pages.Login /> : <div>Login component missing</div>} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/resetpassword" element={<ResetPassword />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/register" element={Pages.Register ? <Pages.Register /> : <div>Register missing</div>} />
+        <Route path="/" element={Pages.Home ? <Pages.Home /> : <MainPage />} />
+      </Routes>
+    );
   }
 
   // Handle authentication errors

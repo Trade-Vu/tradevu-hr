@@ -571,6 +571,18 @@ export const typeDefs = `#graphql
     currentPage: Int!
   }
 
+  input InviteUserInput {
+    email: String!
+    role: String!
+  }
+
+  type InviteTokenValidation {
+    valid: Boolean!
+    email: String
+    role: String
+    organizationName: String
+  }
+
   type Query {
     loans: [Loan!]!
     paginatedLoans(page: Int, limit: Int, employeeId: ID): PaginatedLoans!
@@ -766,6 +778,16 @@ export const typeDefs = `#graphql
     reason: String!
   }
 
+  input BulkImportEmployeeInput {
+    fullName: String!
+    email: String!
+    jobTitle: String!
+    departmentId: String
+    employmentType: String
+    hireDate: String
+    basicSalary: Float
+  }
+
   type Mutation {
     createLoan(input: LoanInput!): Loan!
     register(input: RegisterInput!): AuthPayload!
@@ -775,6 +797,7 @@ export const typeDefs = `#graphql
     uploadProfilePicture(file: String!): User!
     
     createEmployee(input: EmployeeInput!): Employee!
+    bulkImportEmployees(employees: [BulkImportEmployeeInput!]!): [Employee!]!
     
     updateOrganizationFeatures(strictLeaveNotice: Boolean!): Organization!
     updateStatutoryConfig(config: JSON!): Organization!
@@ -799,6 +822,13 @@ export const typeDefs = `#graphql
     createDepartment(name: String!, code: String, headEmployeeId: String): Department!
     updateDepartment(id: ID!, name: String, code: String, headEmployeeId: String): Department!
     approveDepartment(id: ID!): Department!
+    requestPasswordReset(email: String!): Boolean!
+    resetPassword(token: String!, newPassword: String!): Boolean!
+    
+    inviteUser(input: InviteUserInput!): Boolean!
+    validateInviteToken(token: String!): InviteTokenValidation!
+    acceptInvite(token: String!, password: String!, firstName: String!, lastName: String!): AuthPayload!
+
     deleteDepartment(id: ID!): Boolean
 
     createShift(name: String!, startTime: String!, endTime: String!, breakMinutes: Int): Shift!
