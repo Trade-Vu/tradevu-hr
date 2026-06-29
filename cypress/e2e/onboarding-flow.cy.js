@@ -131,6 +131,15 @@ describe('CEO → HR Onboarding Critical Path', () => {
       interceptGQL('InviteUser', 'inviteHR', {
         inviteUser: true
       });
+      interceptGQL('GetPaginatedEmployees', 'getPaginatedEmployees', {
+        paginatedEmployees: {
+          employees: [],
+          totalCount: 0,
+          totalPages: 1,
+          currentPage: 1
+        }
+      });
+      interceptGQL('GetDepartments', 'getDepartments', { departments: [] });
 
       cy.loginAsCEO(); // custom command (see commands.js)
       cy.visit('/employees');
