@@ -24,7 +24,7 @@ describe('PRD 04 - Payroll & Compensation', () => {
     })
 
     it('renders the Payroll page and displays history', () => {
-      cy.contains('Payroll Administration').should('be.visible')
+      cy.contains('Generate and manage monthly payroll runs').should('be.visible')
       cy.contains('Generate Payroll Run').should('be.visible')
       cy.contains('2026-05').should('be.visible')
       cy.contains('DRAFT').should('be.visible')
@@ -60,8 +60,8 @@ describe('PRD 04 - Payroll & Compensation', () => {
         }
       })
 
-      // Click on the View Details button
-      cy.contains('View Details').click()
+      // Click on the View Records button
+      cy.contains('View Records').click()
       cy.wait('@GetRecords')
 
       cy.contains('Payroll Records for 2026-05').should('be.visible')
@@ -82,7 +82,7 @@ describe('PRD 04 - Payroll & Compensation', () => {
         data: { generatePayslip: 'https://example.com/payslip.pdf' }
       })
 
-      cy.contains('View Details').click()
+      cy.contains('View Records').click()
       cy.wait('@GetRecords')
 
       cy.contains('Payslip').click()

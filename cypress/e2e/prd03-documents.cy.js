@@ -22,11 +22,11 @@ describe('PRD 03 - Document Management', () => {
     })
 
     it('renders the knowledge bank with folders and policies', () => {
-      cy.contains('Knowledge Bank').should('be.visible')
+      cy.contains('Knowledge & Policies').should('be.visible')
       cy.get('input[placeholder*="Search documents"]').should('be.visible')
       
       // Look for upload button or specific folder
-      cy.contains('Publish Document').should('be.visible')
+      cy.contains('Create Document').should('be.visible')
     })
 
     it('can search for a document', () => {

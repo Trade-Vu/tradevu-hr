@@ -25,9 +25,9 @@ describe('PRD 01 - Platform Governance', () => {
         }
       }).as('GetDept')
       cy.visit('/Settings')
-      cy.wait('@GetDepartmentsAndEmployees')
       // Switch to Departments tab
       cy.contains('Departments').click()
+      cy.wait('@GetDepartmentsAndEmployees')
     })
 
     it('renders the departments list', () => {
@@ -137,7 +137,8 @@ describe('PRD 01 - Platform Governance', () => {
       
       // We rely on the frontend mock for shifts currently defined in Settings.jsx
       cy.get('input').eq(0).type('Night Shift')
-      cy.get('input').eq(1).type('N')
+      cy.get('input[type="time"]').eq(0).type('22:00')
+      cy.get('input[type="time"]').eq(1).type('06:00')
       
       cy.get('form').contains('Create').click()
       
