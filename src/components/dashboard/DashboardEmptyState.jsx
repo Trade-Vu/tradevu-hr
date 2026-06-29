@@ -67,7 +67,9 @@ export default function DashboardEmptyState({ user }) {
         : [...prev, stepId];
       try {
         localStorage.setItem(storageKey, JSON.stringify(newSteps));
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to save to localStorage', e);
+      }
       
       updatePreferences({ dashboard_completed_steps: newSteps });
       
