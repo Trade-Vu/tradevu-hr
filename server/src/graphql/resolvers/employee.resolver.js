@@ -278,32 +278,72 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
   requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
   
   try {
-    const count = await prisma.employee.count({
-      where: { organizationId: user.organizationId }
+    // Pre-check: find which emails already exist in this org
+    const incomingEmails = employees.map(e => e.email.toLowerCase().trim());
+    const existingEmployees = await prisma.employee.findMany({
+      where: {
+        organizationId: user.organizationId,
+        email: { in: incomingEmails }
+      },
+      select: { email: true }
     });
+    const existingEmailSet = new Set(existingEmployees.map(e => e.email.toLowerCase().trim()));
+
+    const toImport = employees.filter(e => !existingEmailSet.has(e.email.toLowerCase().trim()));
+    const skippedCount = employees.length - toImport.length;
+
+    if (skippedCount > 0) {
+      console.log(`[BulkImport] Skipping ${skippedCount} duplicate employee(s), importing ${toImport.length} new.`);
+    }
+
+    // Find the true numeric max of all existing codes (not lexicographic sort)
+    const allCodes = await prisma.employee.findMany({
+      where: { organizationId: user.organizationId },
+      select: { employeeCode: true }
+    });
+    let currentCount = allCodes.reduce((max, emp) => {
+      const match = emp.employeeCode?.match(/(\d+)$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
 
     const importedEmployees = [];
-    let currentCount = count;
-
-    for (const empData of employees) {
-      currentCount++;
-      const employeeCode = `EMP-${currentCount.toString().padStart(6, '0')}`;
-      
-      const newEmployee = await prisma.employee.create({
-        data: {
-          organizationId: user.organizationId,
-          employeeCode,
-          fullName: empData.fullName,
-          email: empData.email,
-          jobTitle: empData.jobTitle,
-          departmentId: empData.departmentId || null,
-          employmentType: empData.employmentType ? empData.employmentType.toUpperCase() : 'FULL_TIME',
-          hireDate: empData.hireDate ? new Date(empData.hireDate) : new Date(),
-          basicSalary: empData.basicSalary || 0,
-          employmentStatus: 'ACTIVE',
-          onboardingStatus: 'completed'
+    for (const empData of toImport) {
+      // Retry loop in case another concurrent request grabbed the same code
+      let newEmployee = null;
+      let attempts = 0;
+      while (!newEmployee && attempts < 20) {
+        currentCount++;
+        attempts++;
+        const employeeCode = `EMP-${currentCount.toString().padStart(6, '0')}`;
+        try {
+          newEmployee = await prisma.employee.create({
+            data: {
+              organizationId: user.organizationId,
+              employeeCode,
+              fullName: empData.fullName,
+              email: empData.email,
+              jobTitle: empData.jobTitle,
+              departmentId: empData.departmentId || null,
+              employmentType: empData.employmentType ? empData.employmentType.toUpperCase() : 'FULL_TIME',
+              hireDate: empData.hireDate ? new Date(empData.hireDate) : new Date(),
+              basicSalary: empData.basicSalary || 0,
+              employmentStatus: 'ACTIVE',
+              onboardingStatus: 'completed'
+            }
+          });
+        } catch (createErr) {
+          // Any P2002 inside this loop must be an employeeCode collision
+          // (email duplicates were already filtered out above)
+          if (createErr.code === 'P2002') {
+            console.warn(`[BulkImport] Code ${employeeCode} taken, retrying with next number...`);
+            newEmployee = null; // ensure we loop again
+            continue;
+          }
+          throw createErr; // Re-throw non-P2002 errors
         }
-      });
+      }
+
+      if (!newEmployee) throw new Error('Could not assign a unique employee code after 20 attempts.');
 
       await createAuditLog({
         prisma,
@@ -318,30 +358,37 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
 
       importedEmployees.push(newEmployee);
       
-      // Attempt to send welcome email
-      try {
-        const { NotificationService } = await import('../../services/NotificationService.js');
-        await NotificationService.notify({
-          userId: user.id,
-          category: 'welcome',
-          title: `Welcome to TradeVu HR`,
-          message: `A welcome email has been sent to ${empData.fullName}.`,
+      // Fire-and-forget welcome email — do NOT await so the loop isn't blocked
+      import('../../services/NotificationService.js').then(({ NotificationService }) => {
+        NotificationService.notify({
+          // No userId — we use targetEmail directly so it goes to the new employee,
+          // not to the HR admin who triggered the import
+          targetEmail: empData.email,
+          category: 'employee_created',
+          title: `Welcome to TradeVu HR, ${empData.fullName}!`,
+          message: `Your account has been created. You can log in at ${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`,
           sendEmail: true,
           emailProps: {
-            to: empData.email,
-            name: empData.fullName,
-            loginUrl: `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`
+            fullName: empData.fullName,
+            loginLink: `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`
           }
         });
-      } catch (err) {
+      }).catch(err => {
         console.error("Failed to send welcome email during bulk import:", err);
-      }
+      });
     }
 
     return importedEmployees;
   } catch (error) {
-    console.error("Error in bulkImportEmployees:", error);
-    throw new Error("Failed to bulk import employees.");
+    console.error("Error in bulkImportEmployees - code:", error.code, "meta:", JSON.stringify(error.meta), "message:", error.message);
+    if (error.code === 'P2002') {
+      const field = error.meta?.target?.join(', ') || 'email';
+      throw new Error(`Duplicate entry: an employee with this ${field} already exists.`);
+    }
+    if (error.code === 'P2003') {
+      throw new Error(`Invalid reference: ${error.meta?.field_name || 'a field'} references a record that does not exist.`);
+    }
+    throw new Error(`Bulk import failed: ${error.message}`);
   }
 },
 

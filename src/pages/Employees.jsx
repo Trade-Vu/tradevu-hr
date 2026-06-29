@@ -4,6 +4,7 @@ import { gql } from "graphql-request";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Upload, Grid, List, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import EmployeeList from "../components/dashboard/EmployeeList";
@@ -14,6 +15,7 @@ import EmployeeCard from "../components/employees/EmployeeCard";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EmployeeDetail from "./EmployeeDetail";
 import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const CardSkeleton = () => (
   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -173,29 +175,43 @@ export default function Employees() {
 
   const bulkCreateEmployeesMutation = useMutation({
     mutationFn: async (employeesData) => {
+      console.log('[BulkImport] Starting mutation with', employeesData.length, 'employees');
+      console.log('[BulkImport] Sample row:', employeesData[0]);
       const mutation = gql`
         mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
           bulkImportEmployees(employees: $employees) { id }
         }
       `;
-      const { bulkImportEmployees } = await gqlClient.request(mutation, {
-        employees: employeesData.map(emp => ({
-          fullName: emp.full_name,
-          email: emp.email,
-          jobTitle: emp.job_title,
-          departmentId: emp.department_id || null,
-          employmentType: 'FULL_TIME',
-          hireDate: emp.start_date,
-          basicSalary: parseFloat(emp.basic_salary) || 0
-        }))
-      });
+      const payload = employeesData.map(emp => ({
+        fullName: emp.full_name,
+        email: emp.email,
+        jobTitle: emp.job_title,
+        departmentId: emp.department_id || null,
+        employmentType: 'FULL_TIME',
+        hireDate: emp.start_date,
+        basicSalary: parseFloat(emp.basic_salary) || 0
+      }));
+      console.log('[BulkImport] Payload sample:', payload[0]);
+      const { bulkImportEmployees } = await gqlClient.request(mutation, { employees: payload });
+      console.log('[BulkImport] Success, imported:', bulkImportEmployees.length);
       return bulkImportEmployees;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       setShowImportDialog(false);
+      if (data.length > 0) {
+        toast.success(`Successfully imported ${data.length} employee${data.length !== 1 ? 's' : ''}!`);
+      } else {
+        toast.info('No new employees were imported — all emails already exist in the system.');
+      }
     },
+    onError: (error) => {
+      const msg = error?.response?.errors?.[0]?.message
+        || error?.message
+        || 'Failed to import employees.';
+      toast.error(msg);
+    }
   });
 
 
@@ -449,5 +465,3 @@ export default function Employees() {
   );
 }
 
-// Ensure you import Select components at the top if they weren't before:
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

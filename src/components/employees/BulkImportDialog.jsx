@@ -140,8 +140,11 @@ Jane Smith,jane@example.com,HR Manager,Human Resources,2024-02-01,95000`;
   };
 
   const handleImport = () => {
+    console.log('[BulkImportDialog] handleImport called, parsedData:', parsedData?.length);
     if (parsedData && parsedData.length > 0) {
       onImport(parsedData);
+    } else {
+      console.warn('[BulkImportDialog] parsedData is empty or null — Import button should not have been visible');
     }
   };
 

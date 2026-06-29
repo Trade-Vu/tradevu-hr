@@ -36,7 +36,7 @@ const navigationStructure = [
     children: [
       { title: "Overview", url: "/", icon: LayoutDashboard },
       { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
-      { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
+      { title: "Assets (Dev Only)", url: createPageUrl("Assets"), icon: Laptop },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
     ]
   },
@@ -46,9 +46,9 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
-      isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      isFeatureEnabled('CHAT_MODULE') && { title: "Chat (Dev Only)", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
+      { title: "Attendance (Dev Only)", url: createPageUrl("Attendance"), icon: Calendar },
     ].filter(Boolean)
   },
   {
@@ -76,7 +76,7 @@ const navigationStructure = [
     ]
   },
   {
-    title: "Training LMS",
+    title: "Training LMS (Dev Only)",
     icon: Video,
     isParent: true,
     children: [
@@ -85,7 +85,7 @@ const navigationStructure = [
     ]
   },
   isFeatureEnabled('PERFORMANCE_MODULE') && {
-    title: "Performance",
+    title: "Performance (Dev Only)",
     icon: Target,
     isParent: true,
     children: [
@@ -93,7 +93,7 @@ const navigationStructure = [
     ]
   },
   {
-    title: "Compliance",
+    title: "Compliance (Dev Only)",
     icon: ShieldCheck,
     isParent: true,
     children: [
@@ -105,7 +105,7 @@ const navigationStructure = [
     ]
   },
   {
-    title: "Analytics",
+    title: "Analytics (Dev Only)",
     icon: BarChart3,
     isParent: true,
     children: [
@@ -124,7 +124,7 @@ const employeeNavigation = [
     children: [
       { title: "My Portal", url: createPageUrl("EmployeeSelfService"), icon: Briefcase },
       { title: "My Tasks", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      isFeatureEnabled('CHAT_MODULE') && { title: "Chat (Dev Only)", url: createPageUrl("Chat"), icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -139,7 +139,7 @@ const employeeNavigation = [
     ]
   },
   {
-    title: "Training",
+    title: "Training (Dev Only)",
     icon: Video,
     isParent: true,
     children: [
