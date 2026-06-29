@@ -147,6 +147,7 @@ Cypress.Commands.add('loginAsCEO', () => {
 
   cy.on('window:before:load', (win) => {
     win.localStorage.setItem('token', token);
+    win.localStorage.setItem('tradevu_view_mode', 'ADMIN');
   });
 
   cy.interceptGQL('Me', { data: { me: user } });
@@ -173,6 +174,7 @@ Cypress.Commands.add('loginAsHR', (overrides = {}) => {
 
   cy.on('window:before:load', (win) => {
     win.localStorage.setItem('token', token);
+    win.localStorage.setItem('tradevu_view_mode', 'ADMIN');
   });
 
   cy.interceptGQL('Me', { data: { me: user } });

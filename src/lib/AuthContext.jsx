@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
+      setAuthError(null);
       // Check if we have a token (from local storage or appParams)
       const token = localStorage.getItem('token') || appParams.token;
       

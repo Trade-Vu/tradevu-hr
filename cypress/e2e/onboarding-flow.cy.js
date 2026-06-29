@@ -131,7 +131,7 @@ describe('CEO → HR Onboarding Critical Path', () => {
       interceptGQL('InviteUser', 'inviteHR', {
         inviteUser: true
       });
-      interceptGQL('GetPaginatedEmployees', 'getPaginatedEmployees', {
+      interceptGQL('GetPaginatedEmployeesList', 'getPaginatedEmployees', {
         paginatedEmployees: {
           employees: [],
           totalCount: 0,
