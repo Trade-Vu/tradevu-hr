@@ -265,6 +265,21 @@ createEmployee: async (_, {
     await applyDynamicBenefits(emp.id, 'Entry Level', prisma);
   }
 
+    // Send welcome email to the new employee
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    await NotificationService.notify({
+      targetEmail: employeeData.email,
+      category: 'employee_created',
+      title: 'Welcome to TradeVu HR!',
+      message: 'Your employee profile has been drafted. Please log in to complete your setup.',
+      sendEmail: true,
+      emailProps: {
+        fullName: emp.fullName,
+        loginLink: `${frontendUrl}/login`,
+        temporaryPassword: 'Welcome123!'
+      }
+    });
+
     return emp;
   } catch (error) {
     console.error("Error in createEmployee:", error);

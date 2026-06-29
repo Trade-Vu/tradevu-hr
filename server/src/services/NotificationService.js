@@ -63,15 +63,16 @@ export class NotificationService {
       // 2. Send email via Resend if requested
       if (sendEmail) {
         let recipientEmail = targetEmail;
-        let recipientName = 'there';
+        let recipientName = emailProps.fullName || 'there';
+        let userRecord = null;
         
-        if (userId && !recipientEmail) {
-          const user = await prisma.user.findUnique({
+        if (userId) {
+          userRecord = await prisma.user.findUnique({
             where: { id: userId },
             select: { email: true, employee: { select: { fullName: true } } }
           });
-          recipientEmail = user?.email;
-          recipientName = user?.employee?.fullName || 'there';
+          if (!recipientEmail) recipientEmail = userRecord?.email;
+          recipientName = userRecord?.employee?.fullName || recipientName;
         }
 
         if (recipientEmail) {
@@ -86,21 +87,21 @@ export class NotificationService {
             let htmlContent;
             try {
               if (category === 'onboarding_welcome') {
-                htmlContent = await render(React.createElement(WelcomeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(WelcomeEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'leave') {
-                htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'promotion') {
-                htmlContent = await render(React.createElement(PromotionEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(PromotionEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'employee_created') {
-                htmlContent = await render(React.createElement(EmployeeCreationEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(EmployeeCreationEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'employee_activated') {
-                htmlContent = await render(React.createElement(EmployeeActivationEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(EmployeeActivationEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'probation_update') {
-                htmlContent = await render(React.createElement(ProbationNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(ProbationNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'suspension_notice') {
-                htmlContent = await render(React.createElement(SuspensionNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(SuspensionNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'exit_notice') {
-                htmlContent = await render(React.createElement(ExitNoticeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(ExitNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
               } else if (category === 'PROFILE_COMPLETION') {
                 htmlContent = await render(React.createElement(ProfileCompletionEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
               } else if (category === 'PROFILE_UPDATE') {
@@ -116,7 +117,7 @@ export class NotificationService {
               } else if (category === 'password_reset') {
                 htmlContent = await render(React.createElement(PasswordResetEmail, { ...emailProps }));
               } else if (category === 'payslip_ready') {
-                htmlContent = await render(React.createElement(PayslipReadyEmail, { fullName: user.employee?.fullName, ...emailProps }));
+                htmlContent = await render(React.createElement(PayslipReadyEmail, { fullName: recipientName, ...emailProps }));
               } else {
                 htmlContent = await render(React.createElement(BaseTemplate, { previewText: title }, 
                   React.createElement('div', { style: { fontFamily: 'sans-serif' } },
