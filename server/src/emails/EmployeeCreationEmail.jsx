@@ -2,7 +2,7 @@ import React from 'react';
 import { BaseTemplate } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
-export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword }) => {
+export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword, buttonText }) => {
   return (
     <BaseTemplate previewText="Your TradeVu HR Account has been created">
       <Text className="text-2xl font-bold text-slate-900 mb-4 mt-0">
@@ -15,7 +15,9 @@ export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword }
 
       <Text className="text-base text-slate-700 leading-relaxed mb-4">
         Your employee profile on TradeVu HR has just been drafted by the HR team. 
-        You can now log in to complete your profile information.
+        {temporaryPassword 
+          ? " You can now log in to complete your profile information." 
+          : " You can now set your password to complete your profile."}
       </Text>
 
       {temporaryPassword && (
@@ -31,7 +33,7 @@ export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword }
             href={loginLink}
             className="bg-purple-600 text-white font-semibold rounded-lg px-6 py-3 no-underline text-center inline-block"
           >
-            Log In Now
+            {buttonText || "Log In Now"}
           </Button>
         </Section>
       )}
@@ -41,8 +43,8 @@ export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword }
 
 EmployeeCreationEmail.PreviewProps = {
   fullName: 'Jane Doe',
-  loginLink: 'http://localhost:5173/login',
-  temporaryPassword: 'TempPassword123!'
+  loginLink: 'http://localhost:5173/resetpassword?token=XYZ',
+  buttonText: 'Set Your Password'
 };
 
 export default EmployeeCreationEmail;
