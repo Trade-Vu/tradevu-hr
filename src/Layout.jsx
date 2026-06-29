@@ -36,7 +36,7 @@ const navigationStructure = [
     children: [
       { title: "Overview", url: "/", icon: LayoutDashboard },
       { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
-      { title: "Assets (Dev Only)", url: createPageUrl("Assets"), icon: Laptop },
+      import.meta.env.DEV && { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
     ]
   },
@@ -46,9 +46,9 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
-      isFeatureEnabled('CHAT_MODULE') && { title: "Chat (Dev Only)", url: createPageUrl("Chat"), icon: MessageCircle },
+      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
       { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      { title: "Attendance (Dev Only)", url: createPageUrl("Attendance"), icon: Calendar },
+      import.meta.env.DEV && { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
     ].filter(Boolean)
   },
   {
@@ -75,8 +75,8 @@ const navigationStructure = [
       { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle },
     ]
   },
-  {
-    title: "Training LMS (Dev Only)",
+  import.meta.env.DEV && {
+    title: "Training LMS",
     icon: Video,
     isParent: true,
     children: [
@@ -84,16 +84,16 @@ const navigationStructure = [
       { title: "Evaluations", url: createPageUrl("Evaluations"), icon: ClipboardCheck },
     ]
   },
-  isFeatureEnabled('PERFORMANCE_MODULE') && {
-    title: "Performance (Dev Only)",
+  import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
+    title: "Performance",
     icon: Target,
     isParent: true,
     children: [
       { title: "Reviews", url: createPageUrl("Performance"), icon: Target }
     ]
   },
-  {
-    title: "Compliance (Dev Only)",
+  import.meta.env.DEV && {
+    title: "Compliance",
     icon: ShieldCheck,
     isParent: true,
     children: [
@@ -104,8 +104,8 @@ const navigationStructure = [
       { title: "Templates", url: createPageUrl("Templates"), icon: FileText },
     ]
   },
-  {
-    title: "Analytics (Dev Only)",
+  import.meta.env.DEV && {
+    title: "Analytics",
     icon: BarChart3,
     isParent: true,
     children: [
@@ -124,7 +124,7 @@ const employeeNavigation = [
     children: [
       { title: "My Portal", url: createPageUrl("EmployeeSelfService"), icon: Briefcase },
       { title: "My Tasks", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      isFeatureEnabled('CHAT_MODULE') && { title: "Chat (Dev Only)", url: createPageUrl("Chat"), icon: MessageCircle },
+      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -138,8 +138,8 @@ const employeeNavigation = [
       { title: "Request HR Letter", url: createPageUrl("HRLetters"), icon: FileText },
     ]
   },
-  {
-    title: "Training (Dev Only)",
+  import.meta.env.DEV && {
+    title: "Training",
     icon: Video,
     isParent: true,
     children: [
