@@ -1,0 +1,82 @@
+
+> base44-app@0.0.0 cypress:run:api
+> cypress run --spec 'cypress/e2e/api-integration.cy.js'
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.15.0                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.11.1 (/usr/local/bin/node)                                                 │
+  │ Specs:          1 found (api-integration.cy.js)                                                │
+  │ Searched:       cypress/e2e/api-integration.cy.js                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  api-integration.cy.js                                                           (1 of 1)
+
+
+  GraphQL API Integration
+    Employees Query Intercepted
+      ✓ sends employees query when visiting Employees page (1443ms)
+      ✓ sends authorization header with employees query (562ms)
+    Mock GraphQL Responses
+      ✓ renders mocked employee data correctly (605ms)
+      ✓ handles empty employees response gracefully (586ms)
+      ✓ handles GraphQL error response gracefully (276ms)
+    Dashboard API Calls
+      ✓ dashboard fetches employees and tasks on load (317ms)
+    Expenses API Calls
+      ✓ fetches employees list when admin visits expenses page (389ms)
+    Loans API Calls
+      ✓ fetches loans data on page load (324ms)
+
+
+  8 passing (5s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     4 seconds                                                                        │
+  │ Spec Ran:     api-integration.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/api-integration.cy.js.mp4
+
+
+✅ All 8 Cypress tests passed!
+
+================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  api-integration.cy.js                    00:04        8        8        -        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✔  All specs passed!                        00:04        8        8        -        -        -  
+

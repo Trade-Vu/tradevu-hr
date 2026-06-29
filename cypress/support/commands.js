@@ -24,6 +24,7 @@ Cypress.Commands.add('loginByApi', (email, password) => {
   cy.on('window:before:load', (win) => {
     win.localStorage.setItem('token', token)
     win.localStorage.setItem('currentUser', JSON.stringify(user))
+    win.localStorage.setItem('tradevu_view_mode', 'ADMIN')
   })
   
   // Intercept the Me query that AuthContext calls on app mount

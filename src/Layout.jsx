@@ -38,7 +38,7 @@ const navigationStructure = [
       { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
       import.meta.env.DEV && { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
       { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
-    ]
+    ].filter(Boolean)
   },
   {
     title: "Employees",
@@ -357,7 +357,7 @@ export default function Layout({ children }) {
   const getActivePrimaryNav = () => {
     if (manualActivePrimary) return manualActivePrimary;
     for (const item of navItems) {
-      if (item.children && item.children.some(child => location.pathname === child.url)) {
+      if (item.children && item.children.some(child => location.pathname.toLowerCase() === child.url.toLowerCase())) {
         return item;
       }
     }
@@ -411,6 +411,8 @@ export default function Layout({ children }) {
                 <Tooltip key={item.title}>
                   <TooltipTrigger asChild>
                     <motion.button
+                      aria-label={item.title}
+                      data-cy={`nav-primary-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
@@ -426,6 +428,7 @@ export default function Layout({ children }) {
                           : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900')
                       }`}
                     >
+                      <span className="sr-only">{item.title}</span>
                       <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
                       {item.badge && (
                         <div className={`absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 ${isDark ? 'border-slate-900' : 'border-slate-50'}`}>

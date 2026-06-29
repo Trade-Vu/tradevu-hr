@@ -1,0 +1,91 @@
+
+> base44-app@0.0.0 cypress:run:dashboard
+> cypress run --spec 'cypress/e2e/dashboard.cy.js'
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.15.0                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.11.1 (/usr/local/bin/node)                                                 │
+  │ Specs:          1 found (dashboard.cy.js)                                                      │
+  │ Searched:       cypress/e2e/dashboard.cy.js                                                    │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  dashboard.cy.js                                                                 (1 of 1)
+
+
+  Dashboard
+    Layout & Navigation Sidebar
+      ✓ renders the main navigation sidebar (1472ms)
+      ✓ shows Tradevu branding or logo (406ms)
+      ✓ renders primary navigation icons (392ms)
+      ✓ highlights the active navigation item in secondary sidebar (457ms)
+      ✓ renders user info in dropdown trigger (278ms)
+    Dashboard Stats
+      ✓ renders four stat cards (324ms)
+      ✓ displays Total Employees stat card (395ms)
+      ✓ displays Active Onboarding stat card (383ms)
+      ✓ displays Avg. Progress stat card (412ms)
+    Quick Actions
+      ✓ renders quick action buttons (331ms)
+      ✓ Add New Hire button navigates to employees page (536ms)
+    Employee List Table
+      ✓ renders the employee list section (443ms)
+      ✓ renders search input for filtering employees (771ms)
+      ✓ renders status filter dropdown (787ms)
+      ✓ filters employees by search term (801ms)
+    Mobile Responsiveness
+      ✓ renders mobile header on small screens (863ms)
+      ✓ sidebar is hidden by default on mobile (489ms)
+
+
+  17 passing (10s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        17                                                                               │
+  │ Passing:      17                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     10 seconds                                                                       │
+  │ Spec Ran:     dashboard.cy.js                                                                  │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/dashboard.cy.js.mp4
+
+
+✅ All 17 Cypress tests passed!
+
+================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  dashboard.cy.js                          00:10       17       17        -        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✔  All specs passed!                        00:10       17       17        -        -        -  
+

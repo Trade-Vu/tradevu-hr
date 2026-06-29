@@ -1,0 +1,84 @@
+
+> base44-app@0.0.0 cypress:run:onboarding
+> cypress run --spec 'cypress/e2e/onboarding-flow.cy.js'
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.15.0                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.11.1 (/usr/local/bin/node)                                                 │
+  │ Specs:          1 found (onboarding-flow.cy.js)                                                │
+  │ Searched:       cypress/e2e/onboarding-flow.cy.js                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  onboarding-flow.cy.js                                                           (1 of 1)
+
+
+  CEO → HR Onboarding Critical Path
+    CEO Registration Flow
+      ✓ can complete all 5 steps and submit registration (4156ms)
+      ✓ shows an error when registration fails (duplicate email) (1635ms)
+    CEO Invites HR Admin
+      ✓ sends an invite email and shows success toast (1128ms)
+    HR Admin Accepts Invite
+      ✓ renders the invite form with pre-filled email for a valid token (234ms)
+      ✓ redirects HR admin to /dashboard (NOT /) after accepting (1167ms)
+      ✓ shows error for an invalid/expired token (198ms)
+      ✓ shows error when no token is present in URL (197ms)
+    HR Profile Completion Wizard
+      ✓ shows the profile completion wizard when mustCompleteProfile is true (246ms)
+      ✓ shows Step 1 of 2 for HR when CSV_IMPORT is disabled (201ms)
+    CSV Import Step (Feature Flag)
+      ✓ CSV import step is hidden in prod (no VITE_FEATURE_CSV_IMPORT) (203ms)
+
+
+  10 passing (10s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        10                                                                               │
+  │ Passing:      10                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     9 seconds                                                                        │
+  │ Spec Ran:     onboarding-flow.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/onboarding-flow.cy.js.mp4
+
+
+✅ All 10 Cypress tests passed!
+
+================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  onboarding-flow.cy.js                    00:09       10       10        -        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✔  All specs passed!                        00:09       10       10        -        -        -  
+

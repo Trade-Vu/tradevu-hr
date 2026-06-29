@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import React from 'react';
 import { render } from '@react-email/render';
 import WelcomeEmail from '../emails/WelcomeEmail.jsx';
@@ -20,8 +20,16 @@ import InviteEmail from '../emails/InviteEmail.jsx';
 import PasswordResetEmail from '../emails/PasswordResetEmail.jsx';
 import PayslipReadyEmail from '../emails/PayslipReadyEmail.jsx';
 
-// Initialize Resend only if the API key is present
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Initialize Nodemailer SMTP only if the SMTP host is present
+const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '465', 10),
+  secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+}) : null;
 
 export class NotificationService {
   /**
@@ -67,7 +75,7 @@ export class NotificationService {
         }
 
         if (recipientEmail) {
-          if (resend) {
+          if (transporter) {
             // Note: Railway provided domains (.up.railway.app) cannot be verified on Resend
             // because you don't control their DNS records.
             // For MVP/testing, Resend allows sending from onboarding@resend.dev to the 
@@ -124,28 +132,26 @@ export class NotificationService {
               htmlContent = `<p>${message}</p>`; // Fallback
             }
 
-            const { data, error } = await resend.emails.send({
-              from: fromEmail.includes('<') ? fromEmail : `TradeVu HR <${fromEmail}>`,
-              to: [recipientEmail],
-              subject: title,
-              html: htmlContent
-            });
-            
-            if (error) {
-              console.error(`[NotificationService] Resend API Error:`, error);
-              
-              // Fallback to mocking if we hit the Resend free tier limitation
-              if (error.statusCode === 403 && error.name === 'validation_error') {
-                console.log(`[NotificationService] Falling back to mock email due to unverified domain restriction.`);
+            try {
+              const info = await transporter.sendMail({
+                from: fromEmail.includes('<') ? fromEmail : `TradeVu HR <${fromEmail}>`,
+                to: recipientEmail,
+                subject: title,
+                html: htmlContent
+              });
+              console.log(`[NotificationService] Email dispatched to ${recipientEmail} via Resend SMTP. ID: ${info.messageId}`);
+            } catch (error) {
+              console.error(`[NotificationService] SMTP Error:`, error);
+              // Fallback to mocking if we hit a restriction
+              if (error.responseCode === 403 || error.code === 'EENVELOPE') {
+                console.log(`[NotificationService] Falling back to mock email due to SMTP error.`);
                 console.log(`Subject: ${title}`);
                 console.log(`Body: ${message}`);
                 console.log(`Link: ${deepLink ? `${frontendUrl}${deepLink}` : frontendUrl}`);
               }
-            } else {
-              console.log(`[NotificationService] Email dispatched to ${recipientEmail} via Resend. ID: ${data?.id}`);
             }
           } else {
-            console.log(`[NotificationService] Resend API Key missing. Mocking email to ${recipientEmail}`);
+            console.log(`[NotificationService] SMTP credentials missing. Mocking email to ${recipientEmail}`);
             console.log(`Subject: ${title}`);
             console.log(`Body: ${message}`);
           }

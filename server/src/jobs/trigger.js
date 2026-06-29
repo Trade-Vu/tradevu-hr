@@ -1,5 +1,5 @@
 import { TriggerClient, eventTrigger, cronTrigger } from '@trigger.dev/sdk';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { prisma } from '../db.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -10,7 +10,15 @@ export const client = new TriggerClient({
   apiUrl: process.env.TRIGGER_API_URL,
 });
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '465', 10),
+  secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+}) : null;
 
 // Job 1: Send email when a new document is uploaded
 client.defineJob({
@@ -25,16 +33,16 @@ client.defineJob({
     
     const adminEmail = 'hr-admin@example.com'; 
     
-    if (resend) {
+    if (transporter) {
       await io.runTask('send-email', async () => {
-        await resend.emails.send({
+        await transporter.sendMail({
           from: 'onboarding@resend.dev',
           to: adminEmail,
           subject: 'New Employee Document Uploaded',
           html: `<p>A new document (<strong>${payload.documentName}</strong>) has been uploaded and requires review.</p>`,
         });
       });
-      await io.logger.info('Notification email sent via Resend!');
+      await io.logger.info('Notification email sent via Resend SMTP!');
     } else {
       await io.logger.info(`[MOCK EMAIL] To: ${adminEmail} | Subject: New Employee Document Uploaded`);
     }
@@ -69,9 +77,9 @@ client.defineJob({
 
     await io.logger.info(`Found ${pendingDocuments.length} pending documents.`);
 
-    if (resend) {
+    if (transporter) {
       await io.runTask('send-daily-digest', async () => {
-        await resend.emails.send({
+        await transporter.sendMail({
           from: 'onboarding@resend.dev',
           to: 'hr-admin@example.com',
           subject: `Action Required: ${pendingDocuments.length} Pending Document Approvals`,

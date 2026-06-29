@@ -1,0 +1,16 @@
+Dashboard
+Overview
+Approvals
+Assets
+Tasks & Projects
+DIRECTORY
+
+Manage your 0 employees
+
+Invite User
+Import CSV
+Add Employee
+All Status
+No employees found
+
+We couldn't find any employees matching your search criteria.

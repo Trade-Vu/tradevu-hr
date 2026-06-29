@@ -1,0 +1,1072 @@
+
+> base44-app@0.0.0 cypress:run
+> cypress run
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.15.0                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.11.1 (/usr/local/bin/node)                                                 │
+  │ Specs:          14 found (api-integration.cy.js, auth.cy.js, dashboard.cy.js, employees.cy.js, │
+  │                  expenses.cy.js, loans.cy.js, navigation.cy.js, onboarding-flow.cy.js, prd01-g │
+  │                 overnance.cy.js, prd02-employee-core.cy.js, prd03-documents.cy.js, prd04-payro │
+  │                 ll.cy.js, prd05-leave-a...)                                                    │
+  │ Searched:       cypress/e2e/**/*.cy.{js,jsx}                                                   │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  api-integration.cy.js                                                          (1 of 14)
+
+
+  GraphQL API Integration
+    Employees Query Intercepted
+      ✓ sends employees query when visiting Employees page (1350ms)
+      ✓ sends authorization header with employees query (564ms)
+    Mock GraphQL Responses
+      ✓ renders mocked employee data correctly (675ms)
+      ✓ handles empty employees response gracefully (410ms)
+      ✓ handles GraphQL error response gracefully (278ms)
+    Dashboard API Calls
+      ✓ dashboard fetches employees and tasks on load (254ms)
+    Expenses API Calls
+      ✓ fetches employees list when admin visits expenses page (286ms)
+    Loans API Calls
+      ✓ fetches loans data on page load (274ms)
+
+
+  8 passing (4s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     4 seconds                                                                        │
+  │ Spec Ran:     api-integration.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/api-integration.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  auth.cy.js                                                                     (2 of 14)
+
+
+  Authentication
+    Login Page UI
+      ✓ renders the login page with all required elements (1113ms)
+      ✓ shows validation errors for empty submission (435ms)
+      ✓ shows error on invalid credentials (2690ms)
+    Successful Login Flow
+      ✓ logs in as super admin and lands on dashboard (1190ms)
+      ✓ stores auth token in localStorage after login (1154ms)
+    Route Protection
+      ✓ redirects unauthenticated users from protected pages to login (571ms)
+      ✓ allows authenticated users to access protected pages (626ms)
+    Logout
+      ✓ logs out and redirects to login page (860ms)
+
+
+  8 passing (9s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     8 seconds                                                                        │
+  │ Spec Ran:     auth.cy.js                                                                       │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/auth.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  dashboard.cy.js                                                                (3 of 14)
+
+
+  Dashboard
+    Layout & Navigation Sidebar
+      ✓ renders the main navigation sidebar (1074ms)
+      ✓ shows Tradevu branding or logo (382ms)
+      ✓ renders primary navigation icons (359ms)
+      ✓ highlights the active navigation item in secondary sidebar (255ms)
+      ✓ renders user info in dropdown trigger (297ms)
+    Dashboard Stats
+      ✓ renders four stat cards (294ms)
+      ✓ displays Total Employees stat card (457ms)
+      ✓ displays Active Onboarding stat card (394ms)
+      ✓ displays Avg. Progress stat card (391ms)
+    Quick Actions
+      ✓ renders quick action buttons (303ms)
+      ✓ Add New Hire button navigates to employees page (403ms)
+    Employee List Table
+      ✓ renders the employee list section (378ms)
+      ✓ renders search input for filtering employees (581ms)
+      ✓ renders status filter dropdown (666ms)
+      ✓ filters employees by search term (1102ms)
+    Mobile Responsiveness
+      ✓ renders mobile header on small screens (874ms)
+      ✓ sidebar is hidden by default on mobile (447ms)
+
+
+  17 passing (9s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        17                                                                               │
+  │ Passing:      17                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     9 seconds                                                                        │
+  │ Spec Ran:     dashboard.cy.js                                                                  │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/dashboard.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  employees.cy.js                                                                (4 of 14)
+
+
+  Employees
+    Page Rendering
+      ✓ loads the employees page without errors (1764ms)
+      ✓ renders the page header with title (514ms)
+      ✓ renders the Add Employee / Hire button (403ms)
+    Employee List
+      ✓ renders the employee list table or grid (275ms)
+      ✓ renders employee cards or rows with names (351ms)
+    Search & Filter
+      ✓ has a functional search input (629ms)
+      ✓ filters results when typing a search term (690ms)
+      ✓ clears filter and shows all employees (698ms)
+    Add Employee Form
+      ✓ opens the add employee dialog or form (392ms)
+      ✓ renders all required form fields (381ms)
+      ✓ can close the form/dialog (473ms)
+      ✓ shows validation when submitting empty form (597ms)
+    Employee Detail Navigation
+      ✓ clicking on an employee opens the detail dialog (485ms)
+
+
+  13 passing (8s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        13                                                                               │
+  │ Passing:      13                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     7 seconds                                                                        │
+  │ Spec Ran:     employees.cy.js                                                                  │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/employees.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  expenses.cy.js                                                                 (5 of 14)
+
+
+  Expenses
+    Page Rendering
+      1) loads the expenses page without errors
+      2) renders the page header
+      ✓ renders the subtitle/description (504ms)
+    Stats Cards
+      ✓ renders Pending stat card (419ms)
+      ✓ renders Approved stat card (267ms)
+      ✓ renders Reimbursed stat card (286ms)
+      ✓ renders Total Claims stat card (313ms)
+      ✓ stat cards show SAR currency (263ms)
+    Claims List
+      ✓ renders the Expense Claims section (253ms)
+      ✓ shows empty state when no claims exist (244ms)
+    New Expense Form
+      ✓ does not show New Expense button when employee not set (admin without employee context) (575ms)
+    Accessibility
+      ✓ expense type select has accessible label (241ms)
+
+
+  10 passing (25s)
+  2 failing
+
+  1) Expenses
+       Page Rendering
+         loads the expenses page without errors:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/expenses/i' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/expenses.cy.js:16:31)
+
+  2) Expenses
+       Page Rendering
+         renders the page header:
+
+      Timed out retrying after 10000ms
+      + expected - actual
+
+      -'TradeVu'
+      +/expense/i
+      
+      at Context.eval (webpack://base44-app/./cypress/e2e/expenses.cy.js:20:19)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        12                                                                               │
+  │ Passing:      10                                                                               │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     25 seconds                                                                       │
+  │ Spec Ran:     expenses.cy.js                                                                   │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/expenses.cy.js/Ex    (2560x1440)
+     penses -- Page Rendering -- loads the expenses page without errors (failed).png                
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/expenses.cy.js/Ex    (2560x1440)
+     penses -- Page Rendering -- renders the page header (failed).png                               
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/expenses.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  loans.cy.js                                                                    (6 of 14)
+
+
+  Loans
+    Page Rendering
+      ✓ loads the loans page without errors (1386ms)
+      1) renders the page header with correct title
+      ✓ renders the Loan Management badge (578ms)
+      ✓ renders description text (382ms)
+    New Loan Request Button
+      ✓ renders the New Loan Request button (327ms)
+      ✓ opens the loan request dialog on click (473ms)
+    Loan Request Dialog
+      ✓ renders Loan Type select (374ms)
+      ✓ renders Amount field (625ms)
+      ✓ renders Duration (Months) field (593ms)
+      ✓ renders Reason textarea (379ms)
+      ✓ renders Monthly Installment calculated display (347ms)
+      ✓ renders Paid From field (337ms)
+      ✓ calculates monthly installment dynamically (870ms)
+      ✓ can close the dialog with Cancel button (631ms)
+      ✓ shows admin employee selector when admin is logged in (363ms)
+    Empty State
+      ✓ shows empty state with no loans (395ms)
+      ✓ empty state has a New Loan Request button (437ms)
+    Loan Type Options
+      ✓ loan type select contains correct options (387ms)
+
+
+  17 passing (20s)
+  1 failing
+
+  1) Loans
+       Page Rendering
+         renders the page header with correct title:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/loans/i' within the element: <h1.text-lg.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/loans.cy.js:20:38)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        18                                                                               │
+  │ Passing:      17                                                                               │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     19 seconds                                                                       │
+  │ Spec Ran:     loans.cy.js                                                                      │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/loans.cy.js/Loans    (2560x1440)
+      -- Page Rendering -- renders the page header with correct title (failed).png                  
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/loans.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  navigation.cy.js                                                               (7 of 14)
+
+
+  Navigation & Routing
+    Direct URL Navigation
+      ✓ navigates to Dashboard page at / (1298ms)
+      1) navigates to Employees page at /Employees
+      2) navigates to Payroll page at /Payroll
+      3) navigates to Loans page at /Loans
+      4) navigates to Expenses page at /Expenses
+      5) navigates to Performance page at /Performance
+      6) navigates to Attendance page at /Attendance
+    Sidebar Link Navigation
+      7) Dashboard link navigates to root
+      8) Employees link navigates to employees page
+      9) Payroll group expands to show sub-items
+      10) Loans sub-link navigates to loans page
+      11) Expenses sub-link navigates to expenses page
+      12) Performance link navigates correctly
+    Page Not Found
+      ✓ shows 404 page for unknown routes (553ms)
+    Settings (Admin Only)
+      ✓ Settings link is visible for admins in sidebar (299ms)
+      ✓ Settings link navigates to Settings page (289ms)
+
+
+  4 passing (2m)
+  12 failing
+
+  1) Navigation & Routing
+       Direct URL Navigation
+         navigates to Employees page at /Employees:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/employees/i' within the element: <h2.text-xl.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  2) Navigation & Routing
+       Direct URL Navigation
+         navigates to Payroll page at /Payroll:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/payroll/i' within the element: <h2.text-xl.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  3) Navigation & Routing
+       Direct URL Navigation
+         navigates to Loans page at /Loans:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/loans/i' within the element: <h2.text-xl.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  4) Navigation & Routing
+       Direct URL Navigation
+         navigates to Expenses page at /Expenses:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/expense/i' within the element: <h2.text-xl.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  5) Navigation & Routing
+       Direct URL Navigation
+         navigates to Performance page at /Performance:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/performance/i' within the element: <h2.text-xl.font-semibold.mb-4> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  6) Navigation & Routing
+       Direct URL Navigation
+         navigates to Attendance page at /Attendance:
+     AssertionError: Timed out retrying after 8000ms: Expected to find content: '/attendance/i' within the element: <h2.text-xl.font-bold.text-slate-900.tracking-tight> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:28:62)
+
+  7) Navigation & Routing
+       Sidebar Link Navigation
+         Dashboard link navigates to root:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/dashboard/i' within the selector: 'a' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:35:9)
+
+  8) Navigation & Routing
+       Sidebar Link Navigation
+         Employees link navigates to employees page:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/employees/i' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:41:9)
+
+  9) Navigation & Routing
+       Sidebar Link Navigation
+         Payroll group expands to show sub-items:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/payroll/i' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:47:9)
+
+  10) Navigation & Routing
+       Sidebar Link Navigation
+         Loans sub-link navigates to loans page:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/payroll/i' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:53:9)
+
+  11) Navigation & Routing
+       Sidebar Link Navigation
+         Expenses sub-link navigates to expenses page:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/payroll/i' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:60:9)
+
+  12) Navigation & Routing
+       Sidebar Link Navigation
+         Performance link navigates correctly:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/performance/i' within the selector: 'a' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/navigation.cy.js:67:9)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        16                                                                               │
+  │ Passing:      4                                                                                │
+  │ Failing:      12                                                                               │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  12                                                                               │
+  │ Video:        true                                                                             │
+  │ Duration:     1 minute, 58 seconds                                                             │
+  │ Spec Ran:     navigation.cy.js                                                                 │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Employees page at                
+     Employees (failed).png                                                                         
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Payroll page at Pa               
+     yroll (failed).png                                                                             
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Loans page at Loan               
+     s (failed).png                                                                                 
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Expenses page at E               
+     xpenses (failed).png                                                                           
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Performance page a               
+     t Performance (failed).png                                                                     
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Direct URL Navigation -- navigates to Attendance page at               
+      Attendance (failed).png                                                                       
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Dashboard link navigates to r               
+     oot (failed).png                                                                               
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Employees link navigates to e               
+     mployees page (failed).png                                                                     
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Payroll group expands to show               
+      sub-items (failed).png                                                                        
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Loans sub-link navigates to l               
+     oans page (failed).png                                                                         
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Expenses sub-link navigates t               
+     o expenses page (failed).png                                                                   
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/navigation.cy.js/    (2560x1440)
+     Navigation & Routing -- Sidebar Link Navigation -- Performance link navigates co               
+     rrectly (failed).png                                                                           
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/navigation.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  onboarding-flow.cy.js                                                          (8 of 14)
+
+
+  CEO → HR Onboarding Critical Path
+    CEO Registration Flow
+      ✓ can complete all 5 steps and submit registration (3678ms)
+      ✓ shows an error when registration fails (duplicate email) (1576ms)
+    CEO Invites HR Admin
+      ✓ sends an invite email and shows success toast (1055ms)
+    HR Admin Accepts Invite
+      ✓ renders the invite form with pre-filled email for a valid token (289ms)
+      ✓ redirects HR admin to /dashboard (NOT /) after accepting (1106ms)
+      ✓ shows error for an invalid/expired token (182ms)
+      ✓ shows error when no token is present in URL (178ms)
+    HR Profile Completion Wizard
+      ✓ shows the profile completion wizard when mustCompleteProfile is true (200ms)
+      ✓ shows Step 1 of 2 for HR when CSV_IMPORT is disabled (192ms)
+    CSV Import Step (Feature Flag)
+      ✓ CSV import step is hidden in prod (no VITE_FEATURE_CSV_IMPORT) (195ms)
+
+
+  10 passing (9s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        10                                                                               │
+  │ Passing:      10                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     8 seconds                                                                        │
+  │ Spec Ran:     onboarding-flow.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/onboarding-flow.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd01-governance.cy.js                                                         (9 of 14)
+
+
+  PRD 01 - Platform Governance
+    Settings Page - Departments
+      1) "before each" hook for "renders the departments list"
+    Settings Page - Workflows & Shifts
+      ✓ displays the Approval Workflows tab by default (459ms)
+      2) creates a new shift (Happy Path)
+
+
+  1 passing (27s)
+  2 failing
+
+  1) PRD 01 - Platform Governance
+       Settings Page - Departments
+         "before each" hook for "renders the departments list":
+     CypressError: Timed out retrying after 15000ms: `cy.wait()` timed out waiting `15000ms` for the 1st request to the route: `GetDepartmentsAndEmployees`. No request ever occurred.
+
+https://on.cypress.io/wait
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Settings Page - Departments`
+      at cypressErr (http://localhost:5173/__cypress/runner/cypress_runner.js:78521:18)
+      at Object.errByPath (http://localhost:5173/__cypress/runner/cypress_runner.js:78579:10)
+      at checkForXhr (http://localhost:5173/__cypress/runner/cypress_runner.js:139091:84)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:139116:28)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:5173/__cypress/runner/cypress_runner.js:4285:29)
+      at whenStable (http://localhost:5173/__cypress/runner/cypress_runner.js:152243:70)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:152158:14)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1671:18)
+      at Promise._fulfill (http://localhost:5173/__cypress/runner/cypress_runner.js:1615:18)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:5420:46)
+  From Your Spec Code:
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd01-governance.cy.js:28:9)
+
+  2) PRD 01 - Platform Governance
+       Settings Page - Workflows & Shifts
+         creates a new shift (Happy Path):
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Add Shift' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd01-governance.cy.js:136:9)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        5                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      2                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     27 seconds                                                                       │
+  │ Spec Ran:     prd01-governance.cy.js                                                           │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd01-governance.    (2560x1440)
+     cy.js/PRD 01 - Platform Governance -- Settings Page - Departments -- renders the               
+      departments list -- before each hook (failed) (1).png                                         
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd01-governance.    (2560x1440)
+     cy.js/PRD 01 - Platform Governance -- Settings Page - Workflows & Shifts -- crea               
+     tes a new shift (Happy Path) (failed) (1).png                                                  
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd01-governance.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd02-employee-core.cy.js                                                     (10 of 14)
+
+
+  PRD 02 - Employee Core
+    Directory & Org Chart
+      1) renders the Org Chart (Organogram) correctly
+    Employee Portal & Compliance
+      ✓ renders employee details in ESS view (507ms)
+      ✓ displays compliance alerts for expiring documents (493ms)
+
+
+  2 passing (12s)
+  1 failing
+
+  1) PRD 02 - Employee Core
+       Directory & Org Chart
+         renders the Org Chart (Organogram) correctly:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Organogram' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd02-employee-core.cy.js:32:32)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      2                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     12 seconds                                                                       │
+  │ Spec Ran:     prd02-employee-core.cy.js                                                        │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd02-employee-co    (2560x1440)
+     re.cy.js/PRD 02 - Employee Core -- Directory & Org Chart -- renders the Org Char               
+     t (Organogram) correctly (failed) (1).png                                                      
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd02-employee-core.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd03-documents.cy.js                                                         (11 of 14)
+
+
+  PRD 03 - Document Management
+    Knowledge Bank
+      1) renders the knowledge bank with folders and policies
+      ✓ can search for a document (762ms)
+    HR Letters
+      ✓ renders the HR Letters page (380ms)
+      ✓ opens the generate letter dialog (371ms)
+
+
+  3 passing (13s)
+  1 failing
+
+  1) PRD 03 - Document Management
+       Knowledge Bank
+         renders the knowledge bank with folders and policies:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Knowledge Bank' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd03-documents.cy.js:25:36)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        4                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     12 seconds                                                                       │
+  │ Spec Ran:     prd03-documents.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd03-documents.c    (2560x1440)
+     y.js/PRD 03 - Document Management -- Knowledge Bank -- renders the knowledge ban               
+     k with folders and policies (failed) (1).png                                                   
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd03-documents.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd04-payroll.cy.js                                                           (12 of 14)
+
+
+  PRD 04 - Payroll & Compensation
+    Payroll Runs
+      1) renders the Payroll page and displays history
+      2) generates a new payroll run
+      3) views payroll run details
+      4) simulates async payslip generation
+
+
+  0 passing (43s)
+  4 failing
+
+  1) PRD 04 - Payroll & Compensation
+       Payroll Runs
+         renders the Payroll page and displays history:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Payroll Administration' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd04-payroll.cy.js:27:44)
+
+  2) PRD 04 - Payroll & Compensation
+       Payroll Runs
+         generates a new payroll run:
+     CypressError: Timed out retrying after 10050ms: `cy.click()` failed because this element is `disabled`:
+
+`<button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full bg-slate-900" disabled="">Generate</button>`
+
+Fix this problem, or use `{force: true}` to disable error checking.
+
+https://on.cypress.io/element-cannot-be-interacted-with
+      at Object.isNotDisabled (http://localhost:5173/__cypress/runner/cypress_runner.js:153405:58)
+      at runAllChecks (http://localhost:5173/__cypress/runner/cypress_runner.js:115625:26)
+      at retryActionability (http://localhost:5173/__cypress/runner/cypress_runner.js:115714:16)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:5173/__cypress/runner/cypress_runner.js:4285:29)
+      at whenStable (http://localhost:5173/__cypress/runner/cypress_runner.js:152243:70)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:152158:14)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1671:18)
+      at Promise._fulfill (http://localhost:5173/__cypress/runner/cypress_runner.js:1615:18)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:5420:46)
+  From Your Spec Code:
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd04-payroll.cy.js:48:46)
+
+  3) PRD 04 - Payroll & Compensation
+       Payroll Runs
+         views payroll run details:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'View Details' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd04-payroll.cy.js:64:9)
+
+  4) PRD 04 - Payroll & Compensation
+       Payroll Runs
+         simulates async payslip generation:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'View Details' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd04-payroll.cy.js:85:9)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        4                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      4                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  4                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     42 seconds                                                                       │
+  │ Spec Ran:     prd04-payroll.cy.js                                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd04-payroll.cy.    (2560x1440)
+     js/PRD 04 - Payroll & Compensation -- Payroll Runs -- renders the Payroll page a               
+     nd displays history (failed) (1).png                                                           
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd04-payroll.cy.    (2560x1440)
+     js/PRD 04 - Payroll & Compensation -- Payroll Runs -- generates a new payroll ru               
+     n (failed) (1).png                                                                             
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd04-payroll.cy.    (2560x1440)
+     js/PRD 04 - Payroll & Compensation -- Payroll Runs -- views payroll run details                
+     (failed) (1).png                                                                               
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd04-payroll.cy.    (2560x1440)
+     js/PRD 04 - Payroll & Compensation -- Payroll Runs -- simulates async payslip ge               
+     neration (failed) (1).png                                                                      
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd04-payroll.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd05-leave-attendance.cy.js                                                  (13 of 14)
+
+
+  PRD 05 - Leave & Attendance
+    Leave Management
+      1) renders the leave balances correctly based on calculations
+      2) creates a new leave request (Happy Path)
+      3) allows HR to approve a pending leave request
+    Attendance
+      ✓ clocks in successfully (409ms)
+
+
+  1 passing (32s)
+  3 failing
+
+  1) PRD 05 - Leave & Attendance
+       Leave Management
+         renders the leave balances correctly based on calculations:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'ANNUAL LEAVE' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd05-leave-attendance.cy.js:32:34)
+
+  2) PRD 05 - Leave & Attendance
+       Leave Management
+         creates a new leave request (Happy Path):
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'New Leave Request' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd05-leave-attendance.cy.js:42:9)
+
+  3) PRD 05 - Leave & Attendance
+       Leave Management
+         allows HR to approve a pending leave request:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Approve' within the element: <button.inline-flex.items-center.justify-center.gap-2.whitespace-nowrap.text-sm.font-medium.transition-colors.focus-visible:outline-none.focus-visible:ring-1.focus-visible:ring-ring.disabled:pointer-events-none.disabled:opacity-50.[&_svg]:pointer-events-none.[&_svg]:size-4.[&_svg]:shrink-0.h-9.px-4.py-2.rounded-lg.bg-indigo-600.hover:bg-indigo-700.text-white.shadow-sm> but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd05-leave-attendance.cy.js:63:23)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        4                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      3                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     32 seconds                                                                       │
+  │ Spec Ran:     prd05-leave-attendance.cy.js                                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd05-leave-atten    (2560x1440)
+     dance.cy.js/PRD 05 - Leave & Attendance -- Leave Management -- renders the leave               
+      balances correctly based on calculations (failed) (1).png                                     
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd05-leave-atten    (2560x1440)
+     dance.cy.js/PRD 05 - Leave & Attendance -- Leave Management -- creates a new lea               
+     ve request (Happy Path) (failed) (1).png                                                       
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd05-leave-atten    (2560x1440)
+     dance.cy.js/PRD 05 - Leave & Attendance -- Leave Management -- allows HR to appr               
+     ove a pending leave request (failed) (1).png                                                   
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd05-leave-attendance.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  prd06-performance-lifecycle.cy.js                                             (14 of 14)
+
+
+  PRD 06 - Performance & Lifecycle
+    Performance
+      1) renders goals and their weights
+      2) creates a new goal
+      3) views and submits a self-appraisal for a check-in
+    Lifecycle (Onboarding Tasks)
+      4) renders onboarding tasks
+      5) completes an onboarding task
+    Company Wall & Celebrations
+      6) renders company feed and celebrations widget
+
+
+  0 passing (1m)
+  6 failing
+
+  1) PRD 06 - Performance & Lifecycle
+       Performance
+         renders goals and their weights:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Performance Management' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:34:44)
+
+  2) PRD 06 - Performance & Lifecycle
+       Performance
+         creates a new goal:
+     AssertionError: Timed out retrying after 10000ms: Expected to find element: `input[placeholder*="Goal Title"]`, but never found it.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:45:9)
+
+  3) PRD 06 - Performance & Lifecycle
+       Performance
+         views and submits a self-appraisal for a check-in:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Monthly Check-ins' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:53:9)
+
+  4) PRD 06 - Performance & Lifecycle
+       Lifecycle (Onboarding Tasks)
+         renders onboarding tasks:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Onboarding & Tasks' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:87:40)
+
+  5) PRD 06 - Performance & Lifecycle
+       Lifecycle (Onboarding Tasks)
+         completes an onboarding task:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Sign Contract' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:98:9)
+
+  6) PRD 06 - Performance & Lifecycle
+       Company Wall & Celebrations
+         renders company feed and celebrations widget:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Alice' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/prd06-performance-lifecycle.cy.js:120:27)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        6                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      6                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  6                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     1 minute, 3 seconds                                                              │
+  │ Spec Ran:     prd06-performance-lifecycle.cy.js                                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Performance -- renders goal               
+     s and their weights (failed) (1).png                                                           
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Performance -- creates a ne               
+     w goal (failed) (1).png                                                                        
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Performance -- views and su               
+     bmits a self-appraisal for a check-in (failed) (1).png                                         
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Lifecycle (Onboarding Tasks               
+     ) -- renders onboarding tasks (failed) (1).png                                                 
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Lifecycle (Onboarding Tasks               
+     ) -- completes an onboarding task (failed) (1).png                                             
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/prd06-performance    (2560x1440)
+     -lifecycle.cy.js/PRD 06 - Performance & Lifecycle -- Company Wall & Celebrations               
+      -- renders company feed and celebrations widget (failed) (1).png                              
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/prd06-performance-lifecycle.cy.js.mp4
+
+
+
+❌ 32 Cypress test(s) failed
+================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  api-integration.cy.js                    00:04        8        8        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  auth.cy.js                               00:08        8        8        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  dashboard.cy.js                          00:09       17       17        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  employees.cy.js                          00:07       13       13        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  expenses.cy.js                           00:25       12       10        2        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  loans.cy.js                              00:19       18       17        1        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  navigation.cy.js                         01:58       16        4       12        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  onboarding-flow.cy.js                    00:08       10       10        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd01-governance.cy.js                   00:27        5        1        2        -        2 │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd02-employee-core.cy.js                00:12        3        2        1        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd03-documents.cy.js                    00:12        4        3        1        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd04-payroll.cy.js                      00:42        4        -        4        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd05-leave-attendance.cy.js             00:32        4        1        3        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  prd06-performance-lifecycle.cy.js        01:03        6        -        6        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✖  9 of 14 failed (64%)                     06:33      128       94       32        -        2  
+

@@ -1,0 +1,100 @@
+
+> base44-app@0.0.0 cypress:run:onboarding
+> cypress run --spec 'cypress/e2e/onboarding-flow.cy.js'
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.15.0                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.11.1 (/usr/local/bin/node)                                                 │
+  │ Specs:          1 found (onboarding-flow.cy.js)                                                │
+  │ Searched:       cypress/e2e/onboarding-flow.cy.js                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  onboarding-flow.cy.js                                                           (1 of 1)
+
+
+  CEO → HR Onboarding Critical Path
+    CEO Registration Flow
+      ✓ can complete all 5 steps and submit registration (3869ms)
+      ✓ shows an error when registration fails (duplicate email) (1655ms)
+    CEO Invites HR Admin
+      1) sends an invite email and shows success toast
+    HR Admin Accepts Invite
+      ✓ renders the invite form with pre-filled email for a valid token (323ms)
+      ✓ redirects HR admin to /dashboard (NOT /) after accepting (1154ms)
+      ✓ shows error for an invalid/expired token (305ms)
+      ✓ shows error when no token is present in URL (292ms)
+    HR Profile Completion Wizard
+      ✓ shows the profile completion wizard when mustCompleteProfile is true (218ms)
+      ✓ shows Step 1 of 2 for HR when CSV_IMPORT is disabled (203ms)
+    CSV Import Step (Feature Flag)
+      ✓ CSV import step is hidden in prod (no VITE_FEATURE_CSV_IMPORT) (205ms)
+
+
+  9 passing (19s)
+  1 failing
+
+  1) CEO → HR Onboarding Critical Path
+       CEO Invites HR Admin
+         sends an invite email and shows success toast:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/Invite User/i' within the selector: 'button' but never did.
+      at Context.eval (webpack://base44-app/./cypress/e2e/onboarding-flow.cy.js:146:9)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        10                                                                               │
+  │ Passing:      9                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     18 seconds                                                                       │
+  │ Spec Ran:     onboarding-flow.cy.js                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/onboarding-flow.c    (2560x1440)
+     y.js/CEO → HR Onboarding Critical Path -- CEO Invites HR Admin -- sends an invit               
+     e email and shows success toast (failed).png                                                   
+
+
+  (Video)
+
+  -  Video output: /Users/chizanumidemili/Projects/tradevu-hr/cypress/videos/onboarding-flow.cy.js.mp4
+
+
+
+❌ 1 Cypress test(s) failed
+================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✖  onboarding-flow.cy.js                    00:18       10        9        1        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✖  1 of 1 failed (100%)                     00:18       10        9        1        -        -  
+
