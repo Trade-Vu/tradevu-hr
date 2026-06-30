@@ -209,10 +209,14 @@ createEmployee: async (_, {
     ipAddress
   });
 
+  let newUserId = null;
   // Auto-generate User account for the new employee
   try {
-    const passwordHash = await hashPassword('Welcome123!');
-    await prisma.user.create({
+    const { randomBytes } = await import('crypto');
+    const secureRandomPassword = randomBytes(32).toString('hex');
+    const passwordHash = await hashPassword(secureRandomPassword);
+    
+    const newUser = await prisma.user.create({
       data: {
         email: employeeData.email,
         passwordHash,
@@ -223,6 +227,7 @@ createEmployee: async (_, {
         mustCompleteProfile: true
       }
     });
+    newUserId = newUser.id;
   } catch (err) {
     console.error("Failed to automatically create user for employee:", err);
     // Continue even if user creation fails (e.g. duplicate email)
@@ -264,6 +269,36 @@ createEmployee: async (_, {
     // If no grade provided, apply a default base grade to generate the initial annual leave balance
     await applyDynamicBenefits(emp.id, 'Entry Level', prisma);
   }
+
+    // Send welcome email with activation link to the new employee
+    if (newUserId) {
+      const { randomUUID } = await import('crypto');
+      const token = randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48); // 48 hours for initial activation
+
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: newUserId,
+          token,
+          expiresAt
+        }
+      });
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      await NotificationService.notify({
+        targetEmail: employeeData.email,
+        category: 'employee_created',
+        title: 'Welcome to TradeVu HR!',
+        message: 'Your employee profile has been drafted. Please set your password to complete your setup.',
+        sendEmail: true,
+        emailProps: {
+          fullName: emp.fullName,
+          loginLink: `${frontendUrl}/resetpassword?token=${token}`,
+          buttonText: 'Set Your Password'
+        }
+      });
+    }
 
     return emp;
   } catch (error) {

@@ -30,8 +30,21 @@ model User {
   invitesSent         InviteToken[]      @relation("InvitesSent")
   employee            Employee?          @relation(fields: [employeeId], references: [id])
   organization        Organization       @relation(fields: [organizationId], references: [id])
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
 }
 
 model Organization {
@@ -920,3 +933,4 @@ model InviteToken {
   organization    Organization @relation(fields: [organizationId], references: [id])
   invitedByUser   User         @relation("InvitesSent", fields: [invitedByUserId], references: [id])
 }
+
