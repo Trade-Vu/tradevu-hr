@@ -87,7 +87,7 @@ jobs:
         run: |
           # Resolve the URL that will actually be baked into the bundle.
           # If the secret is empty, .env.production supplies the value.
-          RESOLVED_URL="${VITE_GRAPHQL_URL:-$(grep VITE_GRAPHQL_URL .env.production | cut -d= -f2-)}"
+          RESOLVED_URL="${VITE_GRAPHQL_URL:-$(grep -E '^VITE_GRAPHQL_URL=' .env.production | cut -d= -f2-)}"
           echo "Building with VITE_GRAPHQL_URL=$RESOLVED_URL"
 
           # Safety guard — bail if we'd accidentally bake in localhost
