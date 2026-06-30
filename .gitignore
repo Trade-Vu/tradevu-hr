@@ -1,6 +1,6 @@
-#env
-.env
-.env.*
+# local env files
+.env.local
+.env.*.local
 
 # Logs
 logs
