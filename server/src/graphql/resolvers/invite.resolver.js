@@ -57,7 +57,8 @@ export const inviteResolvers = {
         }
       }
 
-      const inviteLink = `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/accept-invite?token=${token}`;
+      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
+      const inviteLink = `${process.env.FRONTEND_URL || fallbackUrl}/accept-invite?token=${token}`;
 
       await NotificationService.notify({
         targetEmail: email,
