@@ -83,7 +83,8 @@ export class NotificationService {
             // For MVP/testing, Resend allows sending from onboarding@resend.dev to the 
             // email address you verified when signing up for Resend.
             const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
+            const frontendUrl = process.env.FRONTEND_URL || fallbackUrl;
             
             let htmlContent;
             try {

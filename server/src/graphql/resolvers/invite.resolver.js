@@ -22,7 +22,10 @@ export const inviteResolvers = {
         where: { email, organizationId: user.organizationId, usedAt: null, expiresAt: { gt: new Date() } }
       });
       if (existingInvite) {
-        throw new Error('An active invite has already been sent to this email.');
+        // If an active invite exists, delete it so we can create a fresh one and resend the email
+        await prisma.inviteToken.delete({
+          where: { id: existingInvite.id }
+        });
       }
 
       const { randomUUID } = await import('crypto');
@@ -57,7 +60,8 @@ export const inviteResolvers = {
         }
       }
 
-      const inviteLink = `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/accept-invite?token=${token}`;
+      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
+      const inviteLink = `${process.env.FRONTEND_URL || fallbackUrl}/accept-invite?token=${token}`;
 
       await NotificationService.notify({
         targetEmail: email,
