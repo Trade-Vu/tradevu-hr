@@ -22,7 +22,10 @@ export const inviteResolvers = {
         where: { email, organizationId: user.organizationId, usedAt: null, expiresAt: { gt: new Date() } }
       });
       if (existingInvite) {
-        throw new Error('An active invite has already been sent to this email.');
+        // If an active invite exists, delete it so we can create a fresh one and resend the email
+        await prisma.inviteToken.delete({
+          where: { id: existingInvite.id }
+        });
       }
 
       const { randomUUID } = await import('crypto');
