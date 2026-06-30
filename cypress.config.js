@@ -21,6 +21,12 @@ export default defineConfig({
       adminPassword: 'Admin@12345',
     },
     setupNodeEvents(on, config) {
+      on('task', {
+        log(message) {
+          console.log(message)
+          return null
+        }
+      })
       // Log failed tests clearly
       on('after:run', (results) => {
         if (results && results.totalFailed > 0) {

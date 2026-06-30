@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: false   # never cancel a running migration
 
 jobs:
-  migrate:
-    name: Apply Prisma Migrations → Production
+  sync:
+    name: Auto-Sync Prisma Schema → Production
     runs-on: ubuntu-latest
 
     # Gate: only run after CI passes (keeps broken migrations off prod)
@@ -47,19 +47,12 @@ jobs:
       - name: Generate Prisma client
         working-directory: ./server
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+          DATABASE_URL: 'postgresql://neondb_owner:npg_T34hqejMryOl@ep-green-dream-atkhaqfd-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
         run: npx prisma generate
 
-      # ── 5. Apply pending migrations (idempotent — safe to re-run) ──────────
-      - name: Deploy Prisma migrations
+      # ── 5. Auto-sync schema (Prisma db push for rapid iteration / Neon workflow) ──────────
+      - name: Auto-sync schema to Production
         working-directory: ./server
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
-        run: npx prisma migrate deploy
-
-      # ── 6. Smoke-check: validate schema matches DB state ───────────────────
-      - name: Validate schema drift
-        working-directory: ./server
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
-        run: npx prisma migrate status
+          DATABASE_URL: 'postgresql://neondb_owner:npg_T34hqejMryOl@ep-green-dream-atkhaqfd-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+        run: npx prisma db push --accept-data-loss

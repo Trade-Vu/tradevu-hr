@@ -111,14 +111,15 @@ describe('PRD 01 - Platform Governance', () => {
       cy.reload() // Reload to ensure fresh state with our mock
       cy.contains('Departments').click() // Need to switch to the tab again
       cy.contains('Marketing').should('be.visible')
-      cy.contains('PENDING').should('be.visible')
+      cy.contains('Pending Approval').should('be.visible')
       
       // Click Approve
       cy.contains('Approve').click()
 
-      // Should show as APPROVED
+      // Should show as APPROVED (Pending badge and Approve button disappear)
       cy.wait('@GetDepartmentsAndEmployeesAfterApprove')
-      cy.contains('APPROVED').should('be.visible')
+      cy.contains('Pending Approval').should('not.exist')
+      cy.contains('button', 'Approve').should('not.exist')
     })
   })
 
@@ -132,15 +133,39 @@ describe('PRD 01 - Platform Governance', () => {
     })
 
     it('creates a new shift (Happy Path)', () => {
+      cy.interceptGQL('GetShifts', {
+        data: { shifts: [] }
+      }).as('GetShifts')
+      
       cy.contains('Shifts').click()
+      cy.wait('@GetShifts')
+      
       cy.contains('Add Shift').click()
       
-      // We rely on the frontend mock for shifts currently defined in Settings.jsx
+      // Intercept creation and subsequent fetch
+      let shiftCreated = false;
+      cy.intercept('POST', Cypress.env('graphqlUrl'), (req) => {
+        if (req.body.operationName === 'CreateShift') {
+          shiftCreated = true;
+          req.reply({ data: { createShift: { id: 's1' } } })
+        } else if (req.body.operationName === 'GetShifts' && shiftCreated) {
+          req.alias = 'GetShiftsAfterCreate';
+          req.reply({
+            data: {
+              shifts: [
+                { id: 's1', name: 'Night Shift', startTime: '22:00', endTime: '06:00', breakMinutes: 60, isActive: true }
+              ]
+            }
+          })
+        }
+      })
+      
       cy.get('input').eq(0).type('Night Shift')
       cy.get('input[type="time"]').eq(0).type('22:00')
       cy.get('input[type="time"]').eq(1).type('06:00')
       
       cy.get('form').contains('Create').click()
+      cy.wait('@GetShiftsAfterCreate')
       
       // Check the shift is created in UI
       cy.contains('Night Shift').should('be.visible')

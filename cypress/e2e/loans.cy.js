@@ -5,6 +5,19 @@
 
 describe('Loans', () => {
   beforeEach(() => {
+    cy.interceptGQL('employees', {
+      data: {
+        employees: []
+      }
+    }).as('employees')
+    cy.interceptGQL('GetPaginatedLoans', {
+      data: {
+        paginatedLoans: {
+          loans: [],
+          totalCount: 0
+        }
+      }
+    }).as('GetPaginatedLoans')
     cy.fixture('users').then(({ superAdmin }) => {
       cy.loginByApi(superAdmin.email, superAdmin.password)
       cy.visit('/Loans')
@@ -17,7 +30,7 @@ describe('Loans', () => {
     })
 
     it('renders the page header with correct title', () => {
-      cy.get('h1').contains(/loans/i).should('be.visible')
+      cy.contains('Loan Management').should('be.visible')
     })
 
     it('renders the Loan Management badge', () => {
