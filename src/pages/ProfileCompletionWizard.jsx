@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import countryList from 'country-list';
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
@@ -375,10 +377,14 @@ export default function ProfileCompletionWizard() {
                 </div>
                 <div className="space-y-2">
                   <Label>Phone Number <span className="text-red-500">*</span></Label>
-                  <Input 
+                  <PhoneInput 
+                    international
+                    defaultCountry="US"
                     value={formData.phone} 
-                    onChange={e => setFormData(p => ({...p, phone: e.target.value}))} 
+                    onChange={val => setFormData(p => ({...p, phone: val || ''}))} 
+                    inputComponent={Input}
                     placeholder="+1234567890"
+                    className="flex gap-2"
                   />
                 </div>
                 <div className="space-y-2">
