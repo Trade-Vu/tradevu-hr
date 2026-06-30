@@ -6,8 +6,6 @@ describe('Debug', () => {
     })
   })
   it('finds dashboard link', () => {
-    cy.contains('a', /dashboard/i).then(($el) => {
-      cy.writeFile('match_a.txt', $el[0].outerHTML)
-    })
+    cy.contains('a', 'Overview')
   })
 })

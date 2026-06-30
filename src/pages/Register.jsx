@@ -23,10 +23,7 @@ const REGISTER_MUTATION = gql`
 
 const INVITE_HR_MUTATION = gql`
   mutation InviteHRAdmin($email: String!) {
-    inviteUser(email: $email, role: "HR_ADMIN") {
-      id
-      email
-    }
+    inviteUser(input: { email: $email, role: "HR_ADMIN" })
   }
 `;
 

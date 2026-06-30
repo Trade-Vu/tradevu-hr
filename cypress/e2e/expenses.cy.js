@@ -5,6 +5,11 @@
 
 describe('Expenses', () => {
   beforeEach(() => {
+    cy.interceptGQL('employees', {
+      data: {
+        employees: []
+      }
+    }).as('employees')
     cy.fixture('users').then(({ superAdmin }) => {
       cy.loginByApi(superAdmin.email, superAdmin.password)
       cy.visit('/Expenses')
@@ -13,11 +18,11 @@ describe('Expenses', () => {
 
   context('Page Rendering', () => {
     it('loads the expenses page without errors', () => {
-      cy.contains(/expenses/i).should('be.visible')
+      cy.contains(/expense/i).should('be.visible')
     })
 
     it('renders the page header', () => {
-      cy.get('h1').should('contain.text', /expense/i)
+      cy.contains('Expense Management').should('be.visible')
     })
 
     it('renders the subtitle/description', () => {

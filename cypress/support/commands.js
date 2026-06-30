@@ -34,6 +34,24 @@ Cypress.Commands.add('loginByApi', (email, password) => {
     }
   })
   
+  // Intercept layout queries to prevent hanging if backend is down
+  cy.interceptGQL('GetOrg', {
+    data: {
+      organization: { id: 'org1', name: 'TradeVu HR' }
+    }
+  })
+
+  cy.interceptGQL('GetPendingCounts', {
+    data: {
+      employees: [],
+      documents: [],
+      leaveRequests: [],
+      profileUpdateRequests: [],
+      allProbationRequests: [],
+      allOffboardings: []
+    }
+  })
+  
   Cypress.env('token', token)
   Cypress.env('currentUser', user)
 })
@@ -111,21 +129,34 @@ Cypress.Commands.add('noConsoleErrors', () => {
  * Usage: cy.interceptGQL('GetEmployees', { data: { employees: [] } })
  */
 Cypress.Commands.add('interceptGQL', (operationName, responseOverride) => {
-  cy.intercept('POST', Cypress.env('graphqlUrl'), (req) => {
+  cy.intercept('POST', '**/graphql', (req) => {
     let matches = false;
-    if (typeof req.body === 'string') {
+    if (req.body && req.body.operationName) {
+      matches = req.body.operationName === operationName;
+    } else if (req.body && req.body.query) {
+      // For queries without operationName (e.g. just query { leaveTypes { ... } })
+      // We extract the first word after query or mutation
+      const queryMatch = req.body.query.match(/(?:query|mutation)\s+([a-zA-Z0-9_]+)/);
+      if (queryMatch && queryMatch[1]) {
+        matches = queryMatch[1] === operationName;
+      } else {
+        // Fallback for unnamed queries like query { employees { id } }
+        matches = req.body.query.includes(operationName);
+      }
+    } else if (typeof req.body === 'string') {
       matches = req.body.includes(operationName);
-    } else if (req.body) {
-      matches = (req.body.operationName === operationName) || 
-                (req.body.query && req.body.query.includes(operationName));
     }
 
     if (matches) {
       req.alias = operationName;
       req.reply({
-        statusCode: 200,
-        body: responseOverride,
-      })
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'POST, GET, OPTIONS',
+          'access-control-allow-headers': 'Content-Type, Authorization',
+        },
+        body: responseOverride
+      });
     }
   })
 })

@@ -11,13 +11,22 @@ describe('PRD 04 - Payroll & Compensation', () => {
   context('Payroll Runs', () => {
     beforeEach(() => {
       // Mock payroll runs query
-      cy.interceptGQL('payrollRuns', {
+      cy.interceptGQL('GetRuns', {
         data: {
           payrollRuns: [
-            { id: 'pr1', month: '2026-05', periodStart: '2026-05-01', periodEnd: '2026-05-31', status: 'DRAFT', totalGross: 500000, totalNet: 450000, processedBy: 'Admin' }
+            {
+              id: 'run-1',
+              month: '2026-05',
+              periodStart: '2026-05-01',
+              periodEnd: '2026-05-31',
+              status: 'DRAFT',
+              totalGross: 500000,
+              totalNet: 450000,
+              processedBy: 'Super Admin'
+            }
           ]
         }
-      })
+      }).as('payrollRuns')
 
       cy.visit('/Payroll')
       cy.wait('@payrollRuns')
@@ -45,6 +54,11 @@ describe('PRD 04 - Payroll & Compensation', () => {
       })
 
       cy.contains('Generate Payroll Run').click()
+      
+      cy.get('input[type="month"]').type('2026-06')
+      cy.get('input[type="date"]').eq(0).type('2026-06-01')
+      cy.get('input[type="date"]').eq(1).type('2026-06-30')
+      
       cy.get('button').contains(/^Generate$/).click()
 
       cy.wait('@payrollRuns')

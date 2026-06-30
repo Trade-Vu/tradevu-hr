@@ -131,63 +131,68 @@ register: async (_, {
     
     // Auth Hardening check removed to allow multiple organizations
 
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email
-    }
-  });
-  if (existingUser) throw new Error("Email already in use");
-  const passwordHash = await hashPassword(password);
-  const organization = await prisma.organization.create({
-    data: {
-      name: orgName,
-      ownerEmail: email
-    }
+  const result = await prisma.$transaction(async (tx) => {
+    const existingUser = await tx.user.findUnique({
+      where: { email }
+    });
+    if (existingUser) throw new Error("Email already in use");
+
+    const passwordHash = await hashPassword(password);
+    const organization = await tx.organization.create({
+      data: {
+        name: orgName,
+        ownerEmail: email
+      }
+    });
+
+    // Auto-create HR Department
+    await tx.department.create({
+      data: {
+        name: 'Human Resources',
+        code: 'HR',
+        organizationId: organization.id
+      }
+    });
+
+    const user = await tx.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: 'SUPER_ADMIN',
+        organizationId: organization.id,
+        isOrgOwner: true
+      }
+    });
+
+    // Auto-create Employee profile for the CEO/Founder
+    const employeeCode = 'EMP-000001';
+    const employee = await tx.employee.create({
+      data: {
+        email,
+        jobTitle: 'CEO',
+        fullName: 'CEO / Founder', // Will be updated during profile completion
+        employeeCode,
+        organizationId: organization.id,
+        employmentStatus: 'DRAFT',
+        onboardingStatus: 'not_started',
+        employmentType: 'FULL_TIME',
+        hireDate: new Date()
+      }
+    });
+
+    // Link the employee to the user
+    await tx.user.update({
+      where: { id: user.id },
+      data: { employeeId: employee.id }
+    });
+    
+    return { user, employee };
   });
 
-  // Auto-create HR Department
-  await prisma.department.create({
-    data: {
-      name: 'Human Resources',
-      code: 'HR',
-      organizationId: organization.id
-    }
-  });
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      role: 'SUPER_ADMIN',
-      organizationId: organization.id,
-      isOrgOwner: true
-    }
-  });
-
-  // Auto-create Employee profile for the CEO
-  const employeeCode = 'EMP-000001';
-  const employee = await prisma.employee.create({
-    data: {
-      email,
-      jobTitle: 'CEO',
-      fullName: 'CEO / Founder', // Will be updated during profile completion
-      employeeCode,
-      organizationId: organization.id,
-      employmentStatus: 'DRAFT',
-      onboardingStatus: 'not_started',
-      employmentType: 'FULL_TIME',
-      hireDate: new Date()
-    }
-  });
-
-  // Link the employee to the user
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { employeeId: employee.id }
-  });
-  const token = generateToken(user);
+  const token = generateToken(result.user);
     return {
       token,
-      user
+      user: result.user
     };
   } catch (error) {
     console.error("Error in register:", error);
@@ -195,7 +200,11 @@ register: async (_, {
       throw error;
     }
     if (error.code === 'P2002') {
-      throw new Error("Email already in use");
+      const field = error.meta?.target?.[0] ?? 'field';
+      if (field === 'email') throw new Error("Email already in use");
+      if (field === 'name') throw new Error("Organization name is already taken. Please choose another one.");
+      console.error(`[register] P2002 on field: ${field}`, error.meta);
+      throw new Error("An account conflict occurred. Please try again.");
     }
     throw new Error("Failed to register. Please try again later.");
   }
@@ -301,18 +310,15 @@ clearProfileGate: async (_, __, {
             role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] }
           }
         });
-        
-        const notifications = hrAdmins.map(hr => ({
-          userId: hr.id,
-          category: 'approval',
-          title: 'New Employee Profile Review',
-          message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
-          channel: 'IN_APP',
-          deepLink: `/approvals`
-        }));
-        
-        if (notifications.length > 0) {
-          await tx.notification.createMany({ data: notifications });
+        for (const hr of hrAdmins) {
+          await NotificationService.notify({
+            userId: hr.id,
+            category: 'approval',
+            title: 'New Employee Profile Review',
+            message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
+            deepLink: `/approvals`,
+            sendEmail: true
+          });
         }
       }
     }

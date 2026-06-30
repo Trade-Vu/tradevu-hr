@@ -11,7 +11,18 @@ export const inviteResolvers = {
 
       const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
-        throw new Error('A user with this email already exists.');
+        if (existingUser.organizationId === user.organizationId) {
+          throw new Error('This user is already a member of your organization.');
+        } else {
+          throw new Error('This email is already registered to an organization in TradeVu HR.');
+        }
+      }
+
+      const existingInvite = await prisma.inviteToken.findFirst({
+        where: { email, organizationId: user.organizationId, usedAt: null, expiresAt: { gt: new Date() } }
+      });
+      if (existingInvite) {
+        throw new Error('An active invite has already been sent to this email.');
       }
 
       const { randomUUID } = await import('crypto');
