@@ -91,7 +91,7 @@ model Department {
 
 model Employee {
   id                      String                  @id @default(uuid())
-  employeeCode            String                  @unique
+  employeeCode            String
   organizationId          String
   fullName                String
   preferredName           String?
@@ -176,6 +176,8 @@ model Employee {
   suspensions             Suspension[]
   user                    User?
   probationRequests       ProbationRequest[]
+
+  @@unique([organizationId, employeeCode])
 }
 
 model EmployeeStatusHistory {

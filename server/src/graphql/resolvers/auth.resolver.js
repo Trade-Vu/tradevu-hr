@@ -163,7 +163,8 @@ register: async (_, {
     }
   });
 
-  // Auto-create Employee profile for the CEO
+  // Auto-create Employee profile for the CEO/Founder
+  // EMP-000001 is safe now — employeeCode uniqueness is scoped per-organization
   const employeeCode = 'EMP-000001';
   const employee = await prisma.employee.create({
     data: {
@@ -195,7 +196,10 @@ register: async (_, {
       throw error;
     }
     if (error.code === 'P2002') {
-      throw new Error("Email already in use");
+      const field = error.meta?.target?.[0] ?? 'field';
+      if (field === 'email') throw new Error("Email already in use");
+      console.error(`[register] P2002 on field: ${field}`, error.meta);
+      throw new Error("An account conflict occurred. Please try again.");
     }
     throw new Error("Failed to register. Please try again later.");
   }
@@ -301,18 +305,15 @@ clearProfileGate: async (_, __, {
             role: { in: ['HR_ADMIN', 'SUPER_ADMIN'] }
           }
         });
-        
-        const notifications = hrAdmins.map(hr => ({
-          userId: hr.id,
-          category: 'approval',
-          title: 'New Employee Profile Review',
-          message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
-          channel: 'IN_APP',
-          deepLink: `/approvals`
-        }));
-        
-        if (notifications.length > 0) {
-          await tx.notification.createMany({ data: notifications });
+        for (const hr of hrAdmins) {
+          await NotificationService.notify({
+            userId: hr.id,
+            category: 'approval',
+            title: 'New Employee Profile Review',
+            message: `${employee.fullName} has completed their profile setup and is awaiting review.`,
+            deepLink: `/approvals`,
+            sendEmail: true
+          });
         }
       }
     }

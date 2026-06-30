@@ -19,6 +19,7 @@ import DocumentNotificationEmail from '../emails/DocumentNotificationEmail.jsx';
 import InviteEmail from '../emails/InviteEmail.jsx';
 import PasswordResetEmail from '../emails/PasswordResetEmail.jsx';
 import PayslipReadyEmail from '../emails/PayslipReadyEmail.jsx';
+import ApprovalRequestEmail from '../emails/ApprovalRequestEmail.jsx';
 
 // Initialize Nodemailer SMTP only if the SMTP host is present
 const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
@@ -89,6 +90,8 @@ export class NotificationService {
                 htmlContent = await render(React.createElement(WelcomeEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
               } else if (category === 'leave') {
                 htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
+              } else if (category === 'approval') {
+                htmlContent = await render(React.createElement(ApprovalRequestEmail, { fullName: user.employee?.fullName, message, deepLink: deepLink ? `${frontendUrl}${deepLink}` : undefined, ...emailProps }));
               } else if (category === 'promotion') {
                 htmlContent = await render(React.createElement(PromotionEmail, { fullName: user.employee?.fullName, ...emailProps, deepLink }));
               } else if (category === 'employee_created') {

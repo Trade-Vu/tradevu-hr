@@ -1,44 +1,65 @@
-name: Database Schema Sync
+name: Database — Migrate Production
 
 on:
-  # Automatically run when the schema or migrations change on the main branches
+  # Run automatically when schema or migrations land on main
   push:
-    branches: [main, develop, staging]
+    branches: [main]
     paths:
       - 'server/prisma/schema.prisma'
       - 'server/prisma/migrations/**'
-  
-  # Allow manual triggering from the GitHub Actions tab
+
+  # Manual trigger from the Actions tab (useful for emergency re-runs)
   workflow_dispatch:
 
+# Only one migration job runs at a time — prevents race conditions
+concurrency:
+  group: db-migrate-production
+  cancel-in-progress: false   # never cancel a running migration
+
 jobs:
-  sync-database:
-    name: Apply Prisma Migrations
+  migrate:
+    name: Apply Prisma Migrations → Production
     runs-on: ubuntu-latest
-    
-    # Optional: ensure we only run this if CI passed first
-    # needs: [your-ci-job-name]
+
+    # Gate: only run after CI passes (keeps broken migrations off prod)
+    # Remove this block if you want migrations to run independently of CI.
+    # needs: ci-success   # uncomment if your CI workflow is in the same file
 
     steps:
-      - name: Checkout Code
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # ── 2. Node setup ──────────────────────────────────────────────────────
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-          # Tell GitHub where the lockfile is since it's in the server/ folder
           cache-dependency-path: 'server/package-lock.json'
 
-      - name: Install Server Dependencies
+      # ── 3. Install server deps (needed for prisma generate) ────────────────
+      - name: Install server dependencies
         working-directory: ./server
         run: npm ci
 
-      - name: Deploy Prisma Migrations
+      # ── 4. Generate Prisma client (ensures client matches schema) ──────────
+      - name: Generate Prisma client
         working-directory: ./server
         env:
-          # This pulls the DATABASE_URL from your GitHub repository secrets
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        # migrate deploy applies pending migrations to your production/staging DB
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+        run: npx prisma generate
+
+      # ── 5. Apply pending migrations (idempotent — safe to re-run) ──────────
+      - name: Deploy Prisma migrations
+        working-directory: ./server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
         run: npx prisma migrate deploy
+
+      # ── 6. Smoke-check: validate schema matches DB state ───────────────────
+      - name: Validate schema drift
+        working-directory: ./server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+        run: npx prisma migrate status

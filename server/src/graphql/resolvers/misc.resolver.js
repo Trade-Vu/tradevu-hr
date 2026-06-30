@@ -105,7 +105,8 @@ const checkAndPromoteEmployee = async (employeeId, prisma) => {
           category: 'approval',
           title: 'Employee Approval Required',
           message: `${emp.firstName} ${emp.lastName} has completed their profile and is waiting for approval.`,
-          deepLink: `/PendingApprovals`
+          deepLink: `/PendingApprovals`,
+          sendEmail: true
         });
       }
     }
@@ -1517,7 +1518,8 @@ submitProfileForReview: async (_, { employeeId }, { prisma, user, ipAddress }) =
       category: 'approval',
       title: 'Employee Approval Required',
       message: `${emp.firstName} ${emp.lastName} has resubmitted their profile for approval.`,
-      deepLink: `/PendingApprovals`
+      deepLink: `/PendingApprovals`,
+      sendEmail: true
     });
   }
   
