@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { gql } from 'graphql-request';
 import { gqlClient } from '@/api/graphqlClient';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -24,8 +25,17 @@ const GET_LEAVE_TYPES = gql`
   }
 `;
 
+const GET_ORGANIZATION = gql`
+  query GetOrganization($id: ID!) {
+    organization(id: $id) {
+      id
+      employeeClasses
+    }
+  }
+`;
+
 const CREATE_LEAVE_TYPE = gql`
-  mutation CreateLeaveType($name: String!, $daysPerYear: Int!, $isPaid: Boolean!, $requiresApproval: Boolean!, $eligibleAfterDays: Int, $applicableTo: JSON) {
+  mutation CreateLeaveType($name: String!, $daysPerYear: Float!, $isPaid: Boolean!, $requiresApproval: Boolean!, $eligibleAfterDays: Int, $applicableTo: JSON) {
     createLeaveType(name: $name, daysPerYear: $daysPerYear, isPaid: $isPaid, requiresApproval: $requiresApproval, eligibleAfterDays: $eligibleAfterDays, applicableTo: $applicableTo) {
       id
       name
@@ -34,7 +44,7 @@ const CREATE_LEAVE_TYPE = gql`
 `;
 
 const UPDATE_LEAVE_TYPE = gql`
-  mutation UpdateLeaveType($id: ID!, $name: String, $daysPerYear: Int, $isPaid: Boolean, $requiresApproval: Boolean, $eligibleAfterDays: Int, $applicableTo: JSON) {
+  mutation UpdateLeaveType($id: ID!, $name: String, $daysPerYear: Float, $isPaid: Boolean, $requiresApproval: Boolean, $eligibleAfterDays: Int, $applicableTo: JSON) {
     updateLeaveType(id: $id, name: $name, daysPerYear: $daysPerYear, isPaid: $isPaid, requiresApproval: $requiresApproval, eligibleAfterDays: $eligibleAfterDays, applicableTo: $applicableTo) {
       id
       name
@@ -51,13 +61,24 @@ const DEFAULT_FORM_DATA = {
   classOverrides: []
 };
 
-const KNOWN_CLASSES = ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
-
 export default function SettingsLeaveTypes() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
+
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', user?.organizationId],
+    queryFn: async () => {
+      if (!user?.organizationId) return null;
+      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
+      return res.organization;
+    },
+    enabled: !!user?.organizationId
+  });
+
+  const KNOWN_CLASSES = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
 
   const { data, isLoading } = useQuery({
     queryKey: ['leaveTypes'],
@@ -125,7 +146,7 @@ export default function SettingsLeaveTypes() {
     const overridesObj = {};
     formData.classOverrides.forEach(override => {
       if (override.className && override.className.trim() !== '') {
-        overridesObj[override.className.trim()] = parseInt(override.daysPerYear, 10) || 0;
+        overridesObj[override.className.trim()] = parseFloat(override.daysPerYear) || 0;
       }
     });
 
@@ -133,7 +154,7 @@ export default function SettingsLeaveTypes() {
 
     const payload = {
       name: formData.name,
-      daysPerYear: parseInt(formData.daysPerYear, 10),
+      daysPerYear: parseFloat(formData.daysPerYear) || 0,
       isPaid: formData.isPaid,
       requiresApproval: formData.requiresApproval,
       eligibleAfterDays: parseInt(formData.eligibleAfterDays, 10),

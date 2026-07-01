@@ -34,17 +34,15 @@ export default function Register() {
   const [orgName, setOrgName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [defaultEmployeePassword, setDefaultEmployeePassword] = useState('');
   const [hrEmail, setHrEmail] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showDefaultPassword, setShowDefaultPassword] = useState(false);
 
   const handleNext = (e) => {
     e.preventDefault();
-    if (step < 5) {
+    if (step < 4) {
       setStep(step + 1);
     } else {
       handleCompleteSetup();
@@ -108,7 +106,7 @@ export default function Register() {
             {/* Step Indicators */}
             {!isComplete && (
               <div className="flex gap-2 mb-8">
-                {[1, 2, 3, 4, 5].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <div 
                     key={i} 
                     className={`h-1.5 rounded-full flex-1 transition-all duration-300 ${
@@ -136,15 +134,13 @@ export default function Register() {
                   {step === 1 && "Create workspace"}
                   {step === 2 && "Admin email"}
                   {step === 3 && "Secure account"}
-                  {step === 4 && "Employee defaults"}
-                  {step === 5 && "Invite HR Team"}
+                  {step === 4 && "Invite HR Team"}
                 </h1>
                 <p className="text-slate-500 mt-3 text-lg">
                   {step === 1 && "Set up TradeVu HR for your organization."}
                   {step === 2 && "How should we contact you?"}
                   {step === 3 && "Create a secure password for your admin account."}
-                  {step === 4 && "Set the default password for new employee invites."}
-                  {step === 5 && "Invite your HR manager to help you set up."}
+                  {step === 4 && "Invite your HR manager to help you set up."}
                 </p>
               </>
             )}
@@ -224,35 +220,9 @@ export default function Register() {
                   </div>
                 )}
 
-                {step === 4 && (
-                  <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Default Employee Password</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
-                      </div>
-                      <Input
-                        type={showDefaultPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900 transition-colors"
-                        value={defaultEmployeePassword}
-                        onChange={(e) => setDefaultEmployeePassword(e.target.value)}
-                        autoFocus
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowDefaultPassword(!showDefaultPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
-                      >
-                        {showDefaultPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    <p className="text-sm text-slate-500 mt-2">All employees will use this password to sign up for the first time.</p>
-                  </div>
-                )}
 
-                {step === 5 && (
+
+                {step === 4 && (
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                     <label className="block text-sm font-medium text-slate-700 mb-2">HR Email Address (Optional)</label>
                     <div className="relative">
@@ -292,18 +262,14 @@ export default function Register() {
                     isSubmitting ||
                     (step === 1 && !orgName) || 
                     (step === 2 && !email) || 
-                    (step === 3 && !password) ||
-                    (step === 4 && !defaultEmployeePassword)
+                    (step === 3 && !password)
                   }
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  ) : (
-                    <>
-                      {step < 5 ? 'Continue' : 'Complete Setup'}
-                      {step < 5 && <ArrowRight className="w-5 h-5 ml-2" />}
-                    </>
-                  )}
+                  ) : null}
+                  {step === 4 ? "Complete Setup" : "Continue"}
+                  {step < 4 && !isSubmitting && <ArrowRight className="w-5 h-5 ml-2" />}
                 </Button>
               </div>
             </form>

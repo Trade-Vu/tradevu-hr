@@ -71,6 +71,7 @@ model Organization {
   updatedAt              DateTime                @updatedAt
   paymentSplit           Json?
   statutoryConfig        Json?
+  employeeClasses        Json?
   announcements          Announcement[]
   approvalWorkflows      ApprovalWorkflow[]
   compensationBands      CompensationBand[]
@@ -157,7 +158,6 @@ model Employee {
   hmoProvider             String?
   pensionAdministrator    String?
   employeeClass           String?
-  employeeGrade           String?
   paymentSplit            Json?
   assets                  Asset[]
   attendanceRecords       Attendance[]
@@ -237,7 +237,7 @@ model LeaveType {
   id                    String           @id @default(uuid())
   organizationId        String
   name                  String
-  daysPerYear           Int
+  daysPerYear           Float
   isPaid                Boolean          @default(true)
   requiresApproval      Boolean          @default(true)
   canCarryForward       Boolean          @default(false)

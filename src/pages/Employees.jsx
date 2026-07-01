@@ -156,8 +156,7 @@ export default function Employees() {
           hireDate: employeeData.start_date,
           basicSalary: parseFloat(employeeData.basic_salary) || 0,
           templateId: employeeData.template_id,
-          employeeClass: employeeData.employeeClass,
-          employeeGrade: employeeData.employeeGrade
+          employeeClass: employeeData.employeeClass
         }
       });
 
@@ -189,7 +188,8 @@ export default function Employees() {
         departmentId: emp.department_id || null,
         employmentType: 'FULL_TIME',
         hireDate: emp.start_date,
-        basicSalary: parseFloat(emp.basic_salary) || 0
+        basicSalary: parseFloat(emp.basic_salary) || 0,
+        statusHistory: emp.status_history || null
       }));
       console.log('[BulkImport] Payload sample:', payload[0]);
       const { bulkImportEmployees } = await gqlClient.request(mutation, { employees: payload });

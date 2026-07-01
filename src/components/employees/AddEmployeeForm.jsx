@@ -7,7 +7,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserPlus, Mail, Briefcase, Calendar, FileText } from "lucide-react";
 
 
+import { useQuery } from '@tanstack/react-query';
+import { gql } from 'graphql-request';
+import { gqlClient } from '@/api/graphqlClient';
+import { useAuth } from '@/lib/AuthContext';
+
+const GET_ORGANIZATION = gql`
+  query GetOrganization($id: ID!) {
+    organization(id: $id) {
+      id
+      employeeClasses
+    }
+  }
+`;
+
 export default function AddEmployeeForm({ templates, departments, onSubmit, onCancel, isSubmitting }) {
+  const { user } = useAuth();
+  
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', user?.organizationId],
+    queryFn: async () => {
+      if (!user?.organizationId) return null;
+      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
+      return res.organization;
+    },
+    enabled: !!user?.organizationId
+  });
+
+  const employeeClasses = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
+
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -18,8 +46,7 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
     status: "not_started",
     progress_percentage: 0,
     employment_type: "full_time",
-    employeeClass: "Permanent",
-    employeeGrade: "Entry Level 1",
+    employeeClass: "Permanent"
   });
 
   const handleSubmit = (e) => {
@@ -134,42 +161,9 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Permanent">Permanent</SelectItem>
-                    <SelectItem value="Probationary">Probationary</SelectItem>
-                    <SelectItem value="Contract">Contract</SelectItem>
-                    <SelectItem value="Consultant">Consultant</SelectItem>
-                    <SelectItem value="Intern">Intern</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="employeeGrade">Employee Grade</Label>
-                <Select value={formData.employeeGrade} onValueChange={(value) => handleChange("employeeGrade", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Entry Level 1">Entry Level 1</SelectItem>
-                    <SelectItem value="Entry Level 2">Entry Level 2</SelectItem>
-                    <SelectItem value="Entry Level 3">Entry Level 3</SelectItem>
-                    <SelectItem value="Entry Level 4">Entry Level 4</SelectItem>
-                    <SelectItem value="Entry Level 5">Entry Level 5</SelectItem>
-                    <SelectItem value="Mid-Level 1">Mid-Level 1</SelectItem>
-                    <SelectItem value="Mid-Level 2">Mid-Level 2</SelectItem>
-                    <SelectItem value="Mid-Level 3">Mid-Level 3</SelectItem>
-                    <SelectItem value="Mid-Level 4">Mid-Level 4</SelectItem>
-                    <SelectItem value="Mid-Level 5">Mid-Level 5</SelectItem>
-                    <SelectItem value="Senior Level 1">Senior Level 1</SelectItem>
-                    <SelectItem value="Senior Level 2">Senior Level 2</SelectItem>
-                    <SelectItem value="Senior Level 3">Senior Level 3</SelectItem>
-                    <SelectItem value="Senior Level 4">Senior Level 4</SelectItem>
-                    <SelectItem value="Senior Level 5">Senior Level 5</SelectItem>
-                    <SelectItem value="Management 1">Management 1</SelectItem>
-                    <SelectItem value="Management 2">Management 2</SelectItem>
-                    <SelectItem value="Management 3">Management 3</SelectItem>
-                    <SelectItem value="Management 4">Management 4</SelectItem>
-                    <SelectItem value="Management 5">Management 5</SelectItem>
-                    <SelectItem value="CEO">CEO</SelectItem>
+                    {employeeClasses.map(cls => (
+                      <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
