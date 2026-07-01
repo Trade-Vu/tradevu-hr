@@ -1,41 +1,38 @@
 // server/src/utils/benefitsMatrix.js
 
-export const calculateBenefits = async (emp, newGrade, prisma) => {
+export const calculateBenefits = async (emp, newClass, prisma) => {
   const organizationId = emp.organizationId;
   const band = await prisma.compensationBand.findUnique({
-    where: { organizationId_grade: { organizationId, grade: newGrade } }
+    where: { organizationId_grade: { organizationId, grade: newClass } }
   });
 
   let hmoPlan = "Bronze";
-  let annualLeaveDays = 15;
   let newBasicSalary = emp.basicSalary || 0;
   
   if (band) {
     hmoPlan = band.hmoPlan;
-    annualLeaveDays = band.annualLeaveDays;
     if (!emp.basicSalary || emp.basicSalary < band.minSalary) newBasicSalary = band.minSalary;
     else if (emp.basicSalary > band.maxSalary) newBasicSalary = band.maxSalary;
     else newBasicSalary = emp.basicSalary;
   } else {
-    if (newGrade === 'CEO') { annualLeaveDays = 28; hmoPlan = 'Platinum'; }
-    else if (newGrade === 'Department Head' || newGrade === 'Management') { annualLeaveDays = 25; hmoPlan = 'Platinum'; }
-    else if (newGrade === 'Senior Level') { annualLeaveDays = 15; hmoPlan = 'Gold'; }
-    else if (newGrade === 'Mid-Level') { annualLeaveDays = 15; hmoPlan = 'Silver'; }
-    else if (newGrade === 'Entry Level' || newGrade === 'Team Member') { annualLeaveDays = 15; hmoPlan = 'Bronze'; }
+    // Basic defaults if no band is found for the class
+    if (newClass === 'CEO' || newClass === 'Management') { hmoPlan = 'Platinum'; }
+    else if (newClass === 'Senior Level' || newClass === 'Permanent') { hmoPlan = 'Gold'; }
+    else { hmoPlan = 'Bronze'; }
   }
-  return { hmoPlan, annualLeaveDays, newBasicSalary };
+  return { hmoPlan, newBasicSalary };
 };
 
-export const applyDynamicBenefits = async (employeeId, newGrade, prisma) => {
-  if (!newGrade) return;
+export const applyDynamicBenefits = async (employeeId, newClass, prisma) => {
+  if (!newClass) return;
   const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!emp) return;
 
-  const { hmoPlan, annualLeaveDays, newBasicSalary } = await calculateBenefits(emp, newGrade, prisma);
+  const { hmoPlan, newBasicSalary } = await calculateBenefits(emp, newClass, prisma);
 
   const organizationId = emp.organizationId;
 
-  // 2. Update the Employee's salary and HMO
+  // 1. Update the Employee's salary and HMO
   await prisma.employee.update({
     where: { id: employeeId },
     data: {
@@ -44,26 +41,33 @@ export const applyDynamicBenefits = async (employeeId, newGrade, prisma) => {
     }
   });
 
-  // 3. Find the "Annual Leave" leave type for the organization
-  const annualLeaveType = await prisma.leaveType.findFirst({
+  // 2. Fetch all Leave Types for the organization
+  const allLeaveTypes = await prisma.leaveType.findMany({
     where: {
       organizationId,
-      name: {
-        contains: 'Annual',
-        mode: 'insensitive'
-      }
+      isActive: true
     }
   });
 
-  if (annualLeaveType) {
-    const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
+
+  // 3. Upsert LeaveBalance for each leave type based on class overrides
+  for (const leaveType of allLeaveTypes) {
+    let entitledDays = leaveType.daysPerYear;
     
-    // 4. Upsert the LeaveBalance for this year
+    // Check if there are class-specific overrides in applicableTo
+    if (leaveType.applicableTo && typeof leaveType.applicableTo === 'object') {
+      const overrides = leaveType.applicableTo;
+      if (overrides[newClass] !== undefined && overrides[newClass] !== null) {
+        entitledDays = Number(overrides[newClass]);
+      }
+    }
+
     const existingBalance = await prisma.leaveBalance.findUnique({
       where: {
         employeeId_leaveTypeId_year: {
           employeeId,
-          leaveTypeId: annualLeaveType.id,
+          leaveTypeId: leaveType.id,
           year: currentYear
         }
       }
@@ -72,12 +76,12 @@ export const applyDynamicBenefits = async (employeeId, newGrade, prisma) => {
     if (existingBalance) {
       // Recalculate available based on new entitled minus used/pending
       const usedAndPending = existingBalance.used + existingBalance.pending;
-      const newAvailable = annualLeaveDays - usedAndPending;
+      const newAvailable = entitledDays - usedAndPending;
       
       await prisma.leaveBalance.update({
         where: { id: existingBalance.id },
         data: {
-          totalEntitled: annualLeaveDays,
+          totalEntitled: entitledDays,
           available: newAvailable >= 0 ? newAvailable : 0
         }
       });
@@ -85,10 +89,10 @@ export const applyDynamicBenefits = async (employeeId, newGrade, prisma) => {
       await prisma.leaveBalance.create({
         data: {
           employeeId,
-          leaveTypeId: annualLeaveType.id,
+          leaveTypeId: leaveType.id,
           year: currentYear,
-          totalEntitled: annualLeaveDays,
-          available: annualLeaveDays,
+          totalEntitled: entitledDays,
+          available: entitledDays,
           used: 0,
           pending: 0
         }
@@ -96,3 +100,4 @@ export const applyDynamicBenefits = async (employeeId, newGrade, prisma) => {
     }
   }
 };
+

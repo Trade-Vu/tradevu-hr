@@ -29,7 +29,6 @@ export const typeDefs = `#graphql
     newJobTitle: String
     newDepartmentId: String
     newEmployeeClass: String
-    newEmployeeGrade: String
     isHeadOfDepartment: Boolean!
     status: String!
     isExecuted: Boolean!
@@ -94,6 +93,7 @@ export const typeDefs = `#graphql
     featuresEnabled: JSON
     paymentSplit: JSON
     statutoryConfig: JSON
+    employeeClasses: JSON
   }
 
   type Employee {
@@ -115,7 +115,6 @@ export const typeDefs = `#graphql
     bankAccountNumber: String
     pensionId: String
     employeeClass: String
-    employeeGrade: String
     department: Department
     employmentStatus: String!
     employmentType: String
@@ -188,7 +187,7 @@ export const typeDefs = `#graphql
   type LeaveType {
     id: ID!
     name: String!
-    daysPerYear: Int!
+    daysPerYear: Float!
     isPaid: Boolean!
     requiresApproval: Boolean!
     eligibleAfterDays: Int
@@ -408,15 +407,9 @@ export const typeDefs = `#graphql
     id: ID!
     employeeId: String!
     basicSalary: Float
-    employeeClass: String
-    employeeGrade: String
-    hmoPlan: String
-    hmoProvider: String
-    pensionAdministrator: String!
     allowances: String
     effectiveDate: String!
     reason: String
-    attachmentUrl: String!
     status: String!
     approvedBy: String
     createdAt: String!
@@ -682,6 +675,7 @@ export const typeDefs = `#graphql
     state: String
     phone: String
     email: String
+    employeeClasses: JSON
   }
 
   input RegisterInput {
@@ -700,7 +694,6 @@ export const typeDefs = `#graphql
     hireDate: String!
     basicSalary: Float
     employeeClass: String
-    employeeGrade: String
     hmoPlan: String
     hmoProvider: String
     pensionAdministrator: String
@@ -741,7 +734,6 @@ export const typeDefs = `#graphql
     newJobTitle: String
     newDepartmentId: String
     newEmployeeClass: String
-    newEmployeeGrade: String
     isHeadOfDepartment: Boolean
     effectiveDate: String!
   }
@@ -767,7 +759,6 @@ export const typeDefs = `#graphql
     bankAccountNumber: String
     pensionId: String
     employeeClass: String
-    employeeGrade: String
     hmoPlan: String
     hmoProvider: String
     pensionAdministrator: String
@@ -775,6 +766,18 @@ export const typeDefs = `#graphql
   }
 
   input LeaveRequestInput {
+    leaveTypeId: String!
+    startDate: String!
+    endDate: String!
+    selectedDates: [String!]
+    totalDays: Float!
+    isHalfDay: Boolean
+    reason: String
+    attachmentUrl: String
+  }
+
+  input LogPastLeaveInput {
+    employeeId: ID
     leaveTypeId: String!
     startDate: String!
     endDate: String!
@@ -808,6 +811,7 @@ export const typeDefs = `#graphql
     employmentType: String
     hireDate: String
     basicSalary: Float
+    statusHistory: String
   }
 
   type Mutation {
@@ -868,9 +872,10 @@ export const typeDefs = `#graphql
     processApproval(entityType: String!, entityId: ID!, action: String!, comments: String): ApprovalRecord!
 
     # Phase 2 Mutations
-    createLeaveType(name: String!, daysPerYear: Int!, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
-    updateLeaveType(id: ID!, name: String, daysPerYear: Int, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
+    createLeaveType(name: String!, daysPerYear: Float!, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
+    updateLeaveType(id: ID!, name: String, daysPerYear: Float, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
     submitLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
+    logPastLeave(input: LogPastLeaveInput!): LeaveRequest!
     approveLeaveRequest(id: ID!): LeaveRequest!
     rejectLeaveRequest(id: ID!, reason: String): LeaveRequest!
     cancelLeaveRequest(id: ID!, reason: String): LeaveRequest!

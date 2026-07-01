@@ -263,8 +263,8 @@ createEmployee: async (_, {
   }
 
   // Apply initial benefits and leave balances based on grade
-  if (emp.employeeGrade) {
-    await applyDynamicBenefits(emp.id, emp.employeeGrade, prisma);
+  if (emp.employeeClass) {
+    await applyDynamicBenefits(emp.id, emp.employeeClass, prisma);
   } else {
     // If no grade provided, apply a default base grade to generate the initial annual leave balance
     await applyDynamicBenefits(emp.id, 'Entry Level', prisma);
@@ -391,24 +391,76 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
         newValue: newEmployee
       });
 
+      // Handle status history if provided
+      if (empData.statusHistory) {
+        const statuses = empData.statusHistory.split(',').map(s => s.trim()).filter(s => s);
+        for (const statusEntry of statuses) {
+          const [statusStr, dateStr] = statusEntry.split(':').map(s => s.trim());
+          if (statusStr && dateStr) {
+            await prisma.employeeStatusHistory.create({
+              data: {
+                employeeId: newEmployee.id,
+                previousStatus: 'DRAFT', // Default fallback
+                newStatus: statusStr,
+                changedBy: user.id,
+                reason: 'Imported from status history',
+                createdAt: new Date(dateStr)
+              }
+            });
+          }
+        }
+      }
+
+      // Create User account and Reset Token
+      const { randomBytes, randomUUID } = await import('crypto');
+      const { hashPassword } = await import('../../utils/auth.js');
+      const secureRandomPassword = randomBytes(32).toString('hex');
+      const passwordHash = await hashPassword(secureRandomPassword);
+      
+      const newUser = await prisma.user.create({
+        data: {
+          email: empData.email,
+          passwordHash,
+          role: 'EMPLOYEE',
+          organizationId: user.organizationId,
+          employeeId: newEmployee.id,
+          isActive: true,
+          mustCompleteProfile: true
+        }
+      });
+
+      const token = randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 168); // 7 days for bulk import
+
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: newUser.id,
+          token,
+          expiresAt
+        }
+      });
+
       importedEmployees.push(newEmployee);
       
       // Fire-and-forget welcome email — do NOT await so the loop isn't blocked
       import('../../services/NotificationService.js').then(({ NotificationService }) => {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         NotificationService.notify({
-          // No userId — we use targetEmail directly so it goes to the new employee,
-          // not to the HR admin who triggered the import
           targetEmail: empData.email,
           category: 'employee_created',
           title: `Welcome to TradeVu HR, ${empData.fullName}!`,
-          message: `Your account has been created. You can log in at ${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`,
+          message: `Your account has been created. Please set your password to complete your setup.`,
           sendEmail: true,
           emailProps: {
             fullName: empData.fullName,
-            loginLink: `${process.env.FRONTEND_URL || 'https://staging.hr.tradevu.co'}/login`
+            loginLink: `${frontendUrl}/resetpassword?token=${token}`,
+            buttonText: 'Set Your Password'
           }
         });
       }).catch(err => {
+        console.error("Failed to send welcome email during bulk import:", err);
+      });
         console.error("Failed to send welcome email during bulk import:", err);
       });
     }
@@ -614,7 +666,6 @@ updateEmployee: async (_, {
         message: `Your employment profile has been updated with a new promotion: ${auditContext}`,
         emailProps: {
           newTitle: updateData.jobTitle || existing.jobTitle,
-          newGrade: updateData.employeeGrade || existing.employeeGrade,
           newClass: updateData.employeeClass || existing.employeeClass,
           effectiveDate: new Date().toLocaleDateString()
         },
@@ -624,8 +675,8 @@ updateEmployee: async (_, {
     }
 
     // Dynamically recalculate and apply benefits
-    if (updateData.employeeGrade || existing.employeeGrade) {
-      await applyDynamicBenefits(id, updateData.employeeGrade || existing.employeeGrade, prisma);
+    if (updateData.employeeClass || existing.employeeClass) {
+      await applyDynamicBenefits(id, updateData.employeeClass || existing.employeeClass, prisma);
     }
   }
     await checkAndPromoteEmployee(id, prisma);
