@@ -143,15 +143,22 @@ export const leaveResolvers = {
         
         if (missingTypes.length > 0) {
           for (const type of missingTypes) {
+            let assignedDays = type.daysPerYear;
+            if (type.applicableTo && type.applicableTo.classOverrides && employee.employeeClass) {
+              if (type.applicableTo.classOverrides[employee.employeeClass] !== undefined) {
+                assignedDays = type.applicableTo.classOverrides[employee.employeeClass];
+              }
+            }
+
             await prisma.leaveBalance.create({
               data: {
                 employeeId,
                 leaveTypeId: type.id,
                 year: currentYear,
-                totalEntitled: type.daysPerYear,
+                totalEntitled: assignedDays,
                 used: 0,
                 pending: 0,
-                available: type.daysPerYear,
+                available: assignedDays,
                 carriedForward: 0,
                 expired: 0
               }
@@ -221,11 +228,85 @@ export const leaveResolvers = {
   Mutation: {
     createLeaveType: async (_, { name, daysPerYear, isPaid = true, requiresApproval = true, eligibleAfterDays = 0, applicableTo }, { prisma, user, requireRole }) => {
       requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
-      return prisma.leaveType.create({
+      const newType = await prisma.leaveType.create({
         data: {
           name, daysPerYear, isPaid, requiresApproval, eligibleAfterDays, applicableTo, organizationId: user.organizationId
         }
       });
+      
+      const employees = await prisma.employee.findMany({ where: { organizationId: user.organizationId } });
+      const currentYear = new Date().getFullYear();
+      
+      const balancesData = employees.map(emp => {
+        let assignedDays = newType.daysPerYear;
+        if (newType.applicableTo && newType.applicableTo.classOverrides && emp.employeeClass) {
+          if (newType.applicableTo.classOverrides[emp.employeeClass] !== undefined) {
+            assignedDays = newType.applicableTo.classOverrides[emp.employeeClass];
+          }
+        }
+        return {
+          employeeId: emp.id,
+          leaveTypeId: newType.id,
+          year: currentYear,
+          totalEntitled: assignedDays,
+          used: 0,
+          pending: 0,
+          available: assignedDays,
+          carriedForward: 0,
+          expired: 0
+        };
+      });
+      if (balancesData.length > 0) {
+        await prisma.leaveBalance.createMany({ data: balancesData });
+      }
+      return newType;
+    },
+    updateLeaveType: async (_, { id, name, daysPerYear, isPaid, requiresApproval, eligibleAfterDays, applicableTo }, { prisma, user, requireRole }) => {
+      requireRole(['SUPER_ADMIN', 'HR_ADMIN']);
+      
+      const data = {};
+      if (name !== undefined) data.name = name;
+      if (daysPerYear !== undefined) data.daysPerYear = daysPerYear;
+      if (isPaid !== undefined) data.isPaid = isPaid;
+      if (requiresApproval !== undefined) data.requiresApproval = requiresApproval;
+      if (eligibleAfterDays !== undefined) data.eligibleAfterDays = eligibleAfterDays;
+      if (applicableTo !== undefined) data.applicableTo = applicableTo;
+      
+      const updatedType = await prisma.leaveType.update({
+        where: { id },
+        data
+      });
+      
+      // Retroactively update existing balances for the current year
+      const currentYear = new Date().getFullYear();
+      const balances = await prisma.leaveBalance.findMany({
+        where: { leaveTypeId: id, year: currentYear },
+        include: { employee: true }
+      });
+      
+      for (const balance of balances) {
+        let assignedDays = updatedType.daysPerYear;
+        if (updatedType.applicableTo && updatedType.applicableTo.classOverrides && balance.employee.employeeClass) {
+          if (updatedType.applicableTo.classOverrides[balance.employee.employeeClass] !== undefined) {
+            assignedDays = updatedType.applicableTo.classOverrides[balance.employee.employeeClass];
+          }
+        }
+        
+        // Calculate new available based on what's already used/pending
+        const newAvailable = assignedDays - balance.used - balance.pending;
+        
+        if (balance.totalEntitled !== assignedDays) {
+          await prisma.leaveBalance.update({
+            where: { id: balance.id },
+            data: {
+              totalEntitled: assignedDays,
+              available: newAvailable
+            }
+          });
+        }
+      }
+      
+      return updatedType;
     },
     submitLeaveRequest: async () => {
       throw new Error("This resolver is implemented in misc.resolver.js");
