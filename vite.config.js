@@ -25,6 +25,6 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['staging.hr.tradevu.co', 'hr.tradevu.co'],
+    allowedHosts: ['staging.hr.tradevu.co','hr.tradevu.co'],
   },
 });
