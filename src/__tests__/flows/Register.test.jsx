@@ -94,11 +94,6 @@ describe('Register — Step Navigation', () => {
     // Step 3
     await user.type(screen.getByPlaceholderText('••••••••'), 'Password123!');
     await user.click(screen.getByRole('button', { name: /continue/i }));
-    expect(screen.getByText('Employee defaults')).toBeInTheDocument();
-
-    // Step 4
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Default123!');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByText('Invite HR Team')).toBeInTheDocument();
   });
 
@@ -119,8 +114,6 @@ describe('Register — Step Navigation', () => {
     await user.type(screen.getByPlaceholderText('name@company.com'), 'ceo@tradevu.com');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.type(screen.getByPlaceholderText('••••••••'), 'Password123!');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Default123!');
     await user.click(screen.getByRole('button', { name: /continue/i }));
 
     // Step 5 — submit
@@ -153,8 +146,6 @@ describe('Register — Step Navigation', () => {
     await user.type(screen.getByPlaceholderText('name@company.com'), 'existing@tradevu.com');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.type(screen.getByPlaceholderText('••••••••'), 'Password123!');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Default123!');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.click(screen.getByRole('button', { name: /complete setup/i }));
 

@@ -461,8 +461,6 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
       }).catch(err => {
         console.error("Failed to send welcome email during bulk import:", err);
       });
-        console.error("Failed to send welcome email during bulk import:", err);
-      });
     }
 
     return importedEmployees;
