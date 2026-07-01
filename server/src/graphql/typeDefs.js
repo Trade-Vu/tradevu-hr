@@ -869,6 +869,7 @@ export const typeDefs = `#graphql
 
     # Phase 2 Mutations
     createLeaveType(name: String!, daysPerYear: Int!, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
+    updateLeaveType(id: ID!, name: String, daysPerYear: Int, isPaid: Boolean, requiresApproval: Boolean, eligibleAfterDays: Int, applicableTo: JSON): LeaveType!
     submitLeaveRequest(input: LeaveRequestInput!): LeaveRequest!
     approveLeaveRequest(id: ID!): LeaveRequest!
     rejectLeaveRequest(id: ID!, reason: String): LeaveRequest!
