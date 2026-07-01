@@ -1270,8 +1270,7 @@ requestPromotion: async (_, {
       data: {
         jobTitle: req.newJobTitle || undefined,
         departmentId: req.newDepartmentId || undefined,
-        employeeClass: req.newEmployeeClass || undefined,
-        employeeGrade: req.newEmployeeGrade || undefined
+        employeeClass: req.newEmployeeClass || undefined
       }
     });
     if (req.isHeadOfDepartment && req.newDepartmentId) {
@@ -1292,8 +1291,8 @@ requestPromotion: async (_, {
         employeeId: employeeId,
         previousTitle: currentEmployee.jobTitle,
         newTitle: req.newJobTitle || currentEmployee.jobTitle,
-        previousGrade: currentEmployee.employeeGrade,
-        newGrade: req.newEmployeeGrade || currentEmployee.employeeGrade,
+        previousClass: currentEmployee.employeeClass,
+        newClass: req.newEmployeeClass || currentEmployee.employeeClass,
         effectiveDate: parsedEffectiveDate,
         approvedBy: user.id
       }
@@ -1357,8 +1356,7 @@ approvePromotion: async (_, {
       data: {
         jobTitle: req.newJobTitle || undefined,
         departmentId: req.newDepartmentId || undefined,
-        employeeClass: req.newEmployeeClass || undefined,
-        employeeGrade: req.newEmployeeGrade || undefined
+        employeeClass: req.newEmployeeClass || undefined
       }
     });
     if (req.isHeadOfDepartment && req.newDepartmentId) {
@@ -1379,8 +1377,8 @@ approvePromotion: async (_, {
         employeeId: req.employeeId,
         previousTitle: currentEmployee.jobTitle,
         newTitle: req.newJobTitle || currentEmployee.jobTitle,
-        previousGrade: currentEmployee.employeeGrade,
-        newGrade: req.newEmployeeGrade || currentEmployee.employeeGrade,
+        previousClass: currentEmployee.employeeClass,
+        newClass: req.newEmployeeClass || currentEmployee.employeeClass,
         effectiveDate: new Date(req.effectiveDate),
         approvedBy: user.id
       }
@@ -2245,6 +2243,99 @@ submitLeaveRequest: async (_, {
     entityType: 'LeaveRequest',
     entityId: leaveRequest.id,
     action: 'CREATE'
+  });
+  
+  return leaveRequest;
+},
+logPastLeave: async (_, { input }, { prisma, user, requireAuth, ipAddress }) => {
+  requireAuth();
+  
+  const isAdmin = ['SUPER_ADMIN', 'HR_ADMIN'].includes(user.role);
+  
+  // Determine target employee
+  const targetEmployeeId = (isAdmin && input.employeeId) ? input.employeeId : user.employeeId;
+  if (!targetEmployeeId) throw new Error("Employee ID is required");
+  
+  const employee = await prisma.employee.findUnique({
+    where: { id: targetEmployeeId },
+    include: { manager: { include: { user: true } }, organization: true }
+  });
+  if (!employee) throw new Error("Employee not found");
+  
+  const leaveType = await prisma.leaveType.findUnique({ where: { id: input.leaveTypeId } });
+  if (!leaveType) throw new Error("Invalid leave type");
+
+  // Determine initial status based on who is logging it
+  const isLoggedByHR = isAdmin && (input.employeeId !== user.employeeId || input.employeeId === user.employeeId);
+  const initialStatus = isAdmin ? 'APPROVED' : 'PENDING';
+
+  const publicHolidays = await prisma.publicHoliday.findMany({
+    where: { organizationId: employee.organizationId, date: { gte: new Date(input.startDate), lte: new Date(input.endDate) } }
+  });
+
+  const calculatedTotalDays = input.isHalfDay 
+    ? 0.5 
+    : input.selectedDates?.length > 0 
+      ? input.selectedDates.length 
+      : calculateBusinessDays(new Date(input.startDate), new Date(input.endDate), publicHolidays.map(h => h.date));
+
+  if (calculatedTotalDays === 0) throw new Error("Requested period contains zero valid days.");
+
+  const balanceCheck = await validateLeaveBalance(employee.id, input.leaveTypeId, calculatedTotalDays, prisma);
+  if (!balanceCheck.isValid) throw new Error(balanceCheck.reason);
+
+  if (initialStatus === 'APPROVED') {
+    await prisma.leaveBalance.update({
+      where: { id: balanceCheck.balance.id },
+      data: {
+        available: { decrement: calculatedTotalDays },
+        used: { increment: calculatedTotalDays }
+      }
+    });
+  } else {
+    await prisma.leaveBalance.update({
+      where: { id: balanceCheck.balance.id },
+      data: {
+        available: { decrement: calculatedTotalDays },
+        pending: { increment: calculatedTotalDays }
+      }
+    });
+  }
+
+  const leaveRequest = await prisma.leaveRequest.create({
+    data: {
+      employeeId: employee.id,
+      leaveTypeId: input.leaveTypeId,
+      startDate: new Date(input.startDate),
+      endDate: new Date(input.endDate),
+      totalDays: calculatedTotalDays,
+      isHalfDay: input.isHalfDay || false,
+      selectedDates: input.selectedDates || null,
+      reason: input.reason || "Past leave logged",
+      attachmentUrl: input.attachmentUrl,
+      status: initialStatus
+    }
+  });
+
+  if (initialStatus === 'PENDING' && employee?.manager?.user?.id) {
+    await NotificationService.notify({
+      userId: employee.manager.user.id,
+      category: 'leave',
+      title: 'Past Leave Logged',
+      message: `${employee.fullName} has logged past leave pending your approval.`,
+      deepLink: '/PendingApprovals',
+      sendEmail: true
+    });
+  }
+  
+  await createAuditLog({
+    prisma,
+    ipAddress,
+    userId: user.id, 
+    organizationId: employee.organizationId,
+    entityType: 'LeaveRequest',
+    entityId: leaveRequest.id,
+    action: 'CREATE_PAST_LEAVE'
   });
   
   return leaveRequest;

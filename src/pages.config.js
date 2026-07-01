@@ -82,6 +82,7 @@ import Settings from './pages/Settings';
 import SettingsApprovalWorkflows from './pages/Settings/SettingsApprovalWorkflows';
 import SettingsShifts from './pages/Settings/SettingsShifts';
 import SettingsDepartments from './pages/Settings/SettingsDepartments';
+import SettingsClasses from './pages/Settings/SettingsClasses';
 import SettingsLeaveTypes from './pages/SettingsLeaveTypes';
 import SettingsPublicHolidays from './pages/SettingsPublicHolidays';
 import SettingsStatutory from './pages/SettingsStatutory';
@@ -133,6 +134,7 @@ export const PAGES = {
     "SettingsApprovalWorkflows": SettingsApprovalWorkflows,
     "SettingsShifts": SettingsShifts,
     "SettingsDepartments": SettingsDepartments,
+    "SettingsClasses": SettingsClasses,
     "SettingsLeaveTypes": SettingsLeaveTypes,
     "SettingsPublicHolidays": SettingsPublicHolidays,
     "SettingsStatutory": SettingsStatutory,

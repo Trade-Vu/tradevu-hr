@@ -119,7 +119,8 @@ organization: async (_, {
           country: input.country,
           state: input.state,
           phone: input.phone,
-          email: input.email
+          email: input.email,
+          employeeClasses: input.employeeClasses
         }
       });
       return updatedOrg;

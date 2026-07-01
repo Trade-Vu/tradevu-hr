@@ -305,6 +305,7 @@ export default function Layout({ children }) {
         { title: "Approval Workflows", url: createPageUrl("SettingsApprovalWorkflows"), icon: CheckCircle },
         { title: "Work Shifts", url: createPageUrl("SettingsShifts"), icon: Clock },
         { title: "Departments", url: createPageUrl("SettingsDepartments"), icon: Users },
+        { title: "Employee Classes", url: createPageUrl("SettingsClasses"), icon: Settings },
         { title: "Leave Types", url: createPageUrl("SettingsLeaveTypes"), icon: CalendarRange },
         { title: "Public Holidays", url: createPageUrl("SettingsPublicHolidays"), icon: Calendar },
         { title: "Audit Logs", url: createPageUrl("AuditLogs"), icon: ShieldCheck }

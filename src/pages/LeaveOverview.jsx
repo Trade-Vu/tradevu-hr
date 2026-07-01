@@ -32,6 +32,7 @@ export default function LeaveOverview() {
   const { user } = useAuth();
   const [employee, setEmployee] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [isPastLeave, setIsPastLeave] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR_ADMIN' || user?.is_organization_owner;
   const isManager = user?.role === 'MANAGER';
@@ -195,6 +196,69 @@ export default function LeaveOverview() {
     onError: (error) => {
       console.error(error);
       const msg = extractErrorMessage(error, "Failed to submit leave request.");
+      toast.error(msg);
+    }
+  });
+
+  const logPastLeaveMutation = useMutation({
+    mutationFn: async (data) => {
+      const LOG_PAST_LEAVE = gql`
+        mutation LogPastLeave($employeeId: ID, $leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
+          logPastLeave(input: {
+            employeeId: $employeeId,
+            leaveTypeId: $leaveTypeId,
+            startDate: $startDate,
+            endDate: $endDate,
+            totalDays: $totalDays,
+            reason: $reason,
+            attachmentUrl: $attachmentUrl,
+            isHalfDay: $isHalfDay,
+            selectedDates: $selectedDates
+          }) { id status }
+        }
+      `;
+      
+      const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
+      const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
+
+      const selectedEmp = employees.find(e => e.email === data.employee_email);
+      
+      return gqlClient.request(LOG_PAST_LEAVE, {
+        employeeId: selectedEmp ? selectedEmp.id : null,
+        leaveTypeId: data.leave_type,
+        startDate: new Date(start).toISOString(),
+        endDate: new Date(end).toISOString(),
+        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days),
+        reason: data.reason,
+        attachmentUrl: data.attachment_url,
+        isHalfDay: data.isHalfDay,
+        selectedDates: data.useMultipleDates ? data.selectedDates : []
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      refetchBalances();
+      setShowForm(false);
+      setFormData({
+        employee_email: employee?.email || '',
+        leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : '',
+        start_date: '',
+        end_date: '',
+        reason: '',
+        total_days: 0,
+        attachment_url: '',
+        isHalfDay: false,
+        useMultipleDates: false,
+        selectedDates: [],
+      });
+      toast.success("Past leave successfully logged");
+    },
+    onError: (error) => {
+      console.error(error);
+      const msg = extractErrorMessage(error, "Failed to log past leave.");
       toast.error(msg);
     }
   });
@@ -373,13 +437,21 @@ export default function LeaveOverview() {
             </p>
           </div>
           {leaveTypes.length > 0 && (
-            <Button 
-              onClick={() => setShowForm(!showForm)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Leave Request
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => { setShowForm(true); setIsPastLeave(true); }}
+                variant="outline"
+              >
+                Log Past Leave
+              </Button>
+              <Button 
+                onClick={() => { setShowForm(true); setIsPastLeave(false); }}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Leave Request
+              </Button>
+            </div>
           )}
         </div>
 
@@ -440,7 +512,7 @@ export default function LeaveOverview() {
         {showForm && (
           <Card className="border-slate-200">
             <CardHeader className="border-b border-slate-200">
-              <CardTitle>New Leave Request</CardTitle>
+              <CardTitle>{isPastLeave ? 'Log Past Leave' : 'New Leave Request'}</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <form 
@@ -457,7 +529,11 @@ export default function LeaveOverview() {
                     return;
                   }
 
-                  createLeaveMutation.mutate(formData);
+                  if (isPastLeave) {
+                    logPastLeaveMutation.mutate(formData);
+                  } else {
+                    createLeaveMutation.mutate(formData);
+                  }
                 }}
                 className="space-y-6"
               >
@@ -499,7 +575,7 @@ export default function LeaveOverview() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedLeaveTypeObj?.noticeDaysRequired > 0 && (
+                    {!isPastLeave && selectedLeaveTypeObj?.noticeDaysRequired > 0 && (
                       <p className="text-xs text-amber-600 mt-1">
                         Requires at least {selectedLeaveTypeObj.noticeDaysRequired} days notice.
                       </p>

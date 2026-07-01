@@ -49,6 +49,15 @@ import { uploadToCloudinary } from "@/utils/cloudinary";
 import OnboardingProgressWidget from "@/components/employee-detail/OnboardingProgressWidget";
 import { motion } from "framer-motion";
 
+const GET_ORGANIZATION = gql`
+  query GetOrganization($id: ID!) {
+    organization(id: $id) {
+      id
+      employeeClasses
+    }
+  }
+`;
+
 const menuItems = [
   { id: 'personal', label: 'Personal', icon: User },
   { id: 'job', label: 'Job Data & History', icon: Briefcase },
@@ -86,6 +95,18 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [assetToRemove, setAssetToRemove] = useState(null);
 
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', user?.organizationId],
+    queryFn: async () => {
+      if (!user?.organizationId) return null;
+      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
+      return res.organization;
+    },
+    enabled: !!user?.organizationId
+  });
+
+  const employeeClasses = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
+
   const { data: departmentsData } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
@@ -104,7 +125,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const departments = departmentsData || [];
 
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [promoteForm, setPromoteForm] = useState({ jobTitle: '', departmentId: '', employeeClass: '', employeeGrade: '', isHeadOfDepartment: false, effectiveDate: new Date().toISOString().split('T')[0] });
+  const [promoteForm, setPromoteForm] = useState({ jobTitle: '', departmentId: '', employeeClass: '', isHeadOfDepartment: false, effectiveDate: new Date().toISOString().split('T')[0] });
 
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [suspendForm, setSuspendForm] = useState({ startDate: '', endDate: '', reason: '', superAdminApproved: false });
@@ -121,7 +142,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
       const EMP_QUERY = gql`
         query GetEmployee($id: ID!) {
           employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator employeeGrade employeeClass
+            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator employeeClass
             promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
             statusHistory { id previousStatus newStatus changedBy reason createdAt }
           }
@@ -357,7 +378,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['employee', employeeId]);
       setShowPromoteDialog(false);
-      setPromoteForm({ jobTitle: '', departmentId: '', employeeClass: '', employeeGrade: '', isHeadOfDepartment: false, effectiveDate: new Date().toISOString().split('T')[0] });
+      setPromoteForm({ jobTitle: '', departmentId: '', employeeClass: '', isHeadOfDepartment: false, effectiveDate: new Date().toISOString().split('T')[0] });
       toast.success("Promotion requested successfully.");
     },
     onError: (err) => {
@@ -366,22 +387,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     }
   });
 
-  const { data: promotionPreview, isFetching: isFetchingPreview } = useQuery({
-    queryKey: ['promotionPreview', employee?.id, promoteForm.employeeGrade],
-    queryFn: async () => {
-      if (!promoteForm.employeeGrade) return null;
-      const PREVIEW_QUERY = gql`
-        query PreviewBenefits($employeeId: ID!, $newGrade: String!) {
-          previewPromotionBenefits(employeeId: $employeeId, newGrade: $newGrade) {
-            oldSalary newSalary oldLeaveDays newLeaveDays oldHmoPlan newHmoPlan
-          }
-        }
-      `;
-      const result = await gqlClient.request(PREVIEW_QUERY, { employeeId: employee.id, newGrade: promoteForm.employeeGrade });
-      return result.previewPromotionBenefits;
-    },
-    enabled: !!employee && !!promoteForm.employeeGrade
-  });
+
 
   const requestOffboardingMutation = useMutation({
     mutationFn: async ({ id, data }) => {
@@ -464,8 +470,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         hmoPlan: data.hmoPlan || undefined,
         hmoProvider: data.hmoProvider || undefined,
         pensionAdministrator: data.pensionAdministrator || undefined,
-        employeeClass: data.employeeClass || undefined,
-        employeeGrade: data.employeeGrade || undefined
+        employeeClass: data.employeeClass || undefined
       };
 
       Object.keys(input).forEach(key => input[key] === undefined && delete input[key]);
@@ -657,7 +662,6 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     const blob = new Blob([`Date,Status,Check In,Check Out\n${csvData}`], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
     a.download = `${employee.full_name}_attendance_${format(new Date(), 'yyyy-MM')}.csv`;
     a.click();
   };
@@ -906,43 +910,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                   >
                     <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Permanent">Permanent</SelectItem>
-                      <SelectItem value="Probationary">Probationary</SelectItem>
-                      <SelectItem value="Contract">Contract</SelectItem>
-                      <SelectItem value="Consultant">Consultant</SelectItem>
-                      <SelectItem value="Intern">Intern</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Employee Grade</Label>
-                  <Select
-                    value={editData.employeeGrade || ''}
-                    onValueChange={(value) => setEditData(prev => ({ ...prev, employeeGrade: value }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Entry Level 1">Entry Level 1</SelectItem>
-                      <SelectItem value="Entry Level 2">Entry Level 2</SelectItem>
-                      <SelectItem value="Entry Level 3">Entry Level 3</SelectItem>
-                      <SelectItem value="Entry Level 4">Entry Level 4</SelectItem>
-                      <SelectItem value="Entry Level 5">Entry Level 5</SelectItem>
-                      <SelectItem value="Mid-Level 1">Mid-Level 1</SelectItem>
-                      <SelectItem value="Mid-Level 2">Mid-Level 2</SelectItem>
-                      <SelectItem value="Mid-Level 3">Mid-Level 3</SelectItem>
-                      <SelectItem value="Mid-Level 4">Mid-Level 4</SelectItem>
-                      <SelectItem value="Mid-Level 5">Mid-Level 5</SelectItem>
-                      <SelectItem value="Senior Level 1">Senior Level 1</SelectItem>
-                      <SelectItem value="Senior Level 2">Senior Level 2</SelectItem>
-                      <SelectItem value="Senior Level 3">Senior Level 3</SelectItem>
-                      <SelectItem value="Senior Level 4">Senior Level 4</SelectItem>
-                      <SelectItem value="Senior Level 5">Senior Level 5</SelectItem>
-                      <SelectItem value="Management 1">Management 1</SelectItem>
-                      <SelectItem value="Management 2">Management 2</SelectItem>
-                      <SelectItem value="Management 3">Management 3</SelectItem>
-                      <SelectItem value="Management 4">Management 4</SelectItem>
-                      <SelectItem value="Management 5">Management 5</SelectItem>
-                      <SelectItem value="CEO">CEO</SelectItem>
+                      {employeeClasses.map(cls => (
+                        <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1018,7 +988,6 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                 <PremiumField icon={Building} label="Department" value={employee.department_name || employee.department_id || 'Not assigned'} />
                 <PremiumField icon={FileText} label="Employment Type" value={employee.employment_type?.replace('_', ' ')} />
                 <PremiumField icon={Shield} label="Employee Class" value={employee.employeeClass || 'Permanent'} />
-                <PremiumField icon={Star} label="Employee Grade" value={employee.employeeGrade || 'Not set'} />
                 <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="bg-green-100 text-green-700 hover:bg-green-200">{employee.employment_status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge>} />
                 <PremiumField icon={Calendar} label="Start Date" value={employee.start_date ? format(new Date(employee.start_date), 'MMM dd, yyyy') : 'Not set'} />
                 <PremiumField icon={User} label="Reports To" value={employee.manager_email || 'Not assigned'} />
@@ -2317,39 +2286,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               </Select>
               {employee.department_name && <p className="text-xs text-slate-500 mt-1">Current: {employee.department_name}</p>}
             </div>
-            <div className="space-y-2">
-              <Label>New Grade</Label>
-              <Select
-                value={promoteForm.employeeGrade}
-                onValueChange={(value) => setPromoteForm({ ...promoteForm, employeeGrade: value })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Entry Level 1">Entry Level 1</SelectItem>
-                  <SelectItem value="Entry Level 2">Entry Level 2</SelectItem>
-                  <SelectItem value="Entry Level 3">Entry Level 3</SelectItem>
-                  <SelectItem value="Entry Level 4">Entry Level 4</SelectItem>
-                  <SelectItem value="Entry Level 5">Entry Level 5</SelectItem>
-                  <SelectItem value="Mid-Level 1">Mid-Level 1</SelectItem>
-                  <SelectItem value="Mid-Level 2">Mid-Level 2</SelectItem>
-                  <SelectItem value="Mid-Level 3">Mid-Level 3</SelectItem>
-                  <SelectItem value="Mid-Level 4">Mid-Level 4</SelectItem>
-                  <SelectItem value="Mid-Level 5">Mid-Level 5</SelectItem>
-                  <SelectItem value="Senior Level 1">Senior Level 1</SelectItem>
-                  <SelectItem value="Senior Level 2">Senior Level 2</SelectItem>
-                  <SelectItem value="Senior Level 3">Senior Level 3</SelectItem>
-                  <SelectItem value="Senior Level 4">Senior Level 4</SelectItem>
-                  <SelectItem value="Senior Level 5">Senior Level 5</SelectItem>
-                  <SelectItem value="Management 1">Management 1</SelectItem>
-                  <SelectItem value="Management 2">Management 2</SelectItem>
-                  <SelectItem value="Management 3">Management 3</SelectItem>
-                  <SelectItem value="Management 4">Management 4</SelectItem>
-                  <SelectItem value="Management 5">Management 5</SelectItem>
-                  <SelectItem value="CEO">CEO</SelectItem>
-                </SelectContent>
-              </Select>
-              {employee.employeeGrade && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeGrade}</p>}
-            </div>
+
             <div className="space-y-2">
               <Label>New Class</Label>
               <Select
@@ -2358,11 +2295,9 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               >
                 <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Permanent">Permanent</SelectItem>
-                  <SelectItem value="Probationary">Probationary</SelectItem>
-                  <SelectItem value="Contract">Contract</SelectItem>
-                  <SelectItem value="Consultant">Consultant</SelectItem>
-                  <SelectItem value="Intern">Intern</SelectItem>
+                  {employeeClasses.map(cls => (
+                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {employee.employeeClass && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeClass}</p>}
@@ -2386,38 +2321,6 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
               />
             </div>
 
-            {promoteForm.employeeGrade && (
-              <div className="mt-4 p-4 bg-gray-50 border rounded-lg">
-                <h4 className="text-sm font-semibold mb-2">Benefits Preview</h4>
-                {isFetchingPreview ? (
-                  <p className="text-sm text-gray-500">Calculating new benefits...</p>
-                ) : promotionPreview ? (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Salary:</span>
-                      <span className="font-medium">
-                        {employee?.basicSalary?.toLocaleString() || 0} → {promotionPreview.newSalary.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Annual Leave:</span>
-                      <span className="font-medium">
-                        {promotionPreview.oldLeaveDays} days → {promotionPreview.newLeaveDays} days
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">HMO Plan:</span>
-                      <span className="font-medium">
-                        {promotionPreview.oldHmoPlan} → {promotionPreview.newHmoPlan}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">Select a valid grade to preview benefits.</p>
-                )}
-              </div>
-            )}
-
             <Button
               onClick={() => {
                 requestPromotionMutation.mutate({
@@ -2425,12 +2328,11 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                   newJobTitle: promoteForm.jobTitle || undefined,
                   newDepartmentId: promoteForm.departmentId || undefined,
                   newEmployeeClass: promoteForm.employeeClass || undefined,
-                  newEmployeeGrade: promoteForm.employeeGrade || undefined,
                   isHeadOfDepartment: promoteForm.isHeadOfDepartment,
                   effectiveDate: promoteForm.effectiveDate
                 });
               }}
-              disabled={requestPromotionMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass && !promoteForm.employeeGrade)}
+              disabled={requestPromotionMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass)}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {requestPromotionMutation.isPending ? 'Requesting...' : 'Confirm Promotion'}

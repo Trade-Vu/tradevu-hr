@@ -136,6 +136,26 @@ export const inviteResolvers = {
         });
         const employeeCode = `EMP-${(count + 1).toString().padStart(6, '0')}`;
         
+        let departmentId = null;
+        if (invite.role === 'HR_ADMIN') {
+          let hrDept = await tx.department.findFirst({
+            where: {
+              organizationId: invite.organizationId,
+              name: 'Human Resources'
+            }
+          });
+          if (!hrDept) {
+            hrDept = await tx.department.create({
+              data: {
+                name: 'Human Resources',
+                code: 'HR',
+                organizationId: invite.organizationId
+              }
+            });
+          }
+          departmentId = hrDept.id;
+        }
+
         const emp = await tx.employee.create({
           data: {
             organizationId: invite.organizationId,
@@ -145,9 +165,17 @@ export const inviteResolvers = {
             hireDate: new Date(),
             jobTitle: invite.role === 'HR_ADMIN' ? 'HR Manager' : 'Employee',
             employmentStatus: 'DRAFT',
+            departmentId
           }
         });
         employeeId = emp.id;
+
+        if (invite.role === 'HR_ADMIN' && departmentId) {
+          await tx.department.update({
+            where: { id: departmentId },
+            data: { headEmployeeId: employeeId }
+          });
+        }
 
         const user = await tx.user.create({
           data: {
