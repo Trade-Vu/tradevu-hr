@@ -139,7 +139,7 @@ export class NotificationService {
 
             try {
               const info = await transporter.sendMail({
-                from: fromEmail.includes('<') ? fromEmail : `TradeVu HR <${fromEmail}>`,
+                from: fromEmail.includes('<') ? fromEmail : `Tradevu HR <${fromEmail}>`,
                 to: recipientEmail,
                 subject: title,
                 html: htmlContent

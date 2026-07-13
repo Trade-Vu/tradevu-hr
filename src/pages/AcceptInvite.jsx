@@ -162,7 +162,7 @@ export default function AcceptInvite() {
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Welcome to TradeVu HR</h3>
+              <h3 className="text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
               <p className="text-slate-600">
                 Your account has been created successfully. Redirecting you to your dashboard...
               </p>
@@ -170,7 +170,7 @@ export default function AcceptInvite() {
           ) : (
             <>
               <div className="text-center">
-                <img src="/logo-icon.png" alt="TradeVu Logo" className="w-12 h-auto mx-auto mb-6" />
+                <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
                 <p className="text-slate-500 mt-2 text-base">
                   You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>

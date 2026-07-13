@@ -22,8 +22,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center gap-3">
-              <img src="/logo-icon.png" alt="TradeVu HR" className="h-10 w-auto" />
-              <span className="text-xl font-bold tracking-tight text-slate-900">TradeVu HR</span>
+              <img src="/logo-icon.png" alt="Tradevu HR" className="h-10 w-auto" />
+              <span className="text-xl font-bold tracking-tight text-slate-900">Tradevu HR</span>
             </div>
             <div className="flex items-center gap-4">
               <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
@@ -112,10 +112,10 @@ export default function Home() {
       <footer className="bg-slate-900 text-slate-400 py-12 relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
-            <img src="/logo-icon.png" alt="TradeVu" className="h-8 w-auto brightness-0 invert opacity-80" />
-            <span className="text-lg font-bold text-white tracking-tight">TradeVu HR</span>
+            <img src="/logo-icon.png" alt="Tradevu" className="h-8 w-auto brightness-0 invert opacity-80" />
+            <span className="text-lg font-bold text-white tracking-tight">Tradevu HR</span>
           </div>
-          <p className="text-sm">© {new Date().getFullYear()} TradeVu. All rights reserved.</p>
+          <p className="text-sm">© {new Date().getFullYear()} Tradevu. All rights reserved.</p>
         </div>
       </footer>
     </div>

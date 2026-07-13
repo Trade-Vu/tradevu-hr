@@ -36,9 +36,9 @@ export default function RoleSelection() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
       <div className="max-w-4xl w-full">
         <div className="text-center mb-12">
-          <img src="/logo-icon.png" alt="TradeVu Logo" className="w-16 h-auto mx-auto mb-6" />
+          <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mx-auto mb-6" />
           <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">Select your view</h1>
-          <p className="text-lg text-slate-500">Choose how you want to use TradeVu today.</p>
+          <p className="text-lg text-slate-500">Choose how you want to use Tradevu today.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

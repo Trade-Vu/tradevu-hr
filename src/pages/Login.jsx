@@ -72,9 +72,9 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-24 relative z-10">
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
-            <img src="/logo-icon.png" alt="TradeVu Logo" className="w-16 h-auto mb-8" />
+            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
-            <p className="text-slate-500 mt-3 text-lg">Sign in to your TradeVu HR workspace.</p>
+            <p className="text-slate-500 mt-3 text-lg">Sign in to your Tradevu HR workspace.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -181,7 +181,7 @@ export default function Login() {
         {/* Background Image */}
         <img 
           src="/bg-login.png" 
-          alt="TradeVu Abstract" 
+          alt="Tradevu Abstract" 
           className="absolute inset-0 w-full h-full object-cover opacity-90 scale-105" 
         />
         

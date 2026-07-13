@@ -14,7 +14,7 @@ export const SuspensionNoticeEmail = ({ fullName, startDate, endDate, reason }) 
       </Text>
 
       <Text className="text-base text-slate-700 leading-relaxed mb-4">
-        This email serves as official notification that your employment with TradeVu has been temporarily suspended.
+        This email serves as official notification that your employment with Tradevu has been temporarily suspended.
       </Text>
 
       <Section className="bg-red-50 rounded-lg p-6 mb-6 border border-red-100">

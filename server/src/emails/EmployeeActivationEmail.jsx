@@ -4,7 +4,7 @@ import { Text, Button, Section } from '@react-email/components';
 
 export const EmployeeActivationEmail = ({ fullName, deepLink }) => {
   return (
-    <BaseTemplate previewText="Your TradeVu HR Account is Active!">
+    <BaseTemplate previewText="Your Tradevu HR Account is Active!">
       <Text className="text-2xl font-bold text-slate-900 mb-4 mt-0">
         Account Activated 🎉
       </Text>
@@ -14,7 +14,7 @@ export const EmployeeActivationEmail = ({ fullName, deepLink }) => {
       </Text>
 
       <Text className="text-base text-slate-700 leading-relaxed mb-4">
-        Great news! Your employee profile has been fully approved and activated. You now have full access to the TradeVu HR Portal.
+        Great news! Your employee profile has been fully approved and activated. You now have full access to the Tradevu HR Portal.
       </Text>
 
       {deepLink && (

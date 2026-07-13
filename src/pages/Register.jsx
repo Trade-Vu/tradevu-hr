@@ -101,7 +101,7 @@ export default function Register() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-24 relative z-10">
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
-            <img src="/logo-icon.png" alt="TradeVu Logo" className="w-16 h-auto mb-8" />
+            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
             
             {/* Step Indicators */}
             {!isComplete && (
@@ -137,7 +137,7 @@ export default function Register() {
                   {step === 4 && "Invite HR Team"}
                 </h1>
                 <p className="text-slate-500 mt-3 text-lg">
-                  {step === 1 && "Set up TradeVu HR for your organization."}
+                  {step === 1 && "Set up Tradevu HR for your organization."}
                   {step === 2 && "How should we contact you?"}
                   {step === 3 && "Create a secure password for your admin account."}
                   {step === 4 && "Invite your HR manager to help you set up."}
@@ -292,7 +292,7 @@ export default function Register() {
         
         <img 
           src="/bg-login.png" 
-          alt="TradeVu Abstract" 
+          alt="Tradevu Abstract" 
           className="absolute inset-0 w-full h-full object-cover opacity-90 scale-105" 
         />
         

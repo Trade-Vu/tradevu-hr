@@ -386,7 +386,7 @@ export default function Layout({ children }) {
         </button>
         <div className="flex items-center gap-2">
           <img src="/logo-icon.png" alt="Logo" className="w-6 h-6" />
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">TradeVu</h1>
+          <h1 className="text-lg font-bold text-slate-900 tracking-tight">Tradevu</h1>
         </div>
         <div className="ml-auto flex items-center gap-2">
 
@@ -400,7 +400,7 @@ export default function Layout({ children }) {
         
         {/* Logo */}
         <div className="mb-8 w-10 h-10 flex items-center justify-center">
-          <img src={isDark ? "/logo-icon-white.png" : "/logo-icon.png"} alt="TradeVu" className="w-8 h-8 object-contain" />
+          <img src={isDark ? "/logo-icon-white.png" : "/logo-icon.png"} alt="Tradevu" className="w-8 h-8 object-contain" />
         </div>
 
         {/* Icons */}
