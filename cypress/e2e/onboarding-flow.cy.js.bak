@@ -18,7 +18,7 @@ describe('CEO → HR Onboarding Critical Path', () => {
   const CEO_PASSWORD = 'SecureCeo1!';
   const HR_EMAIL = 'hr-test@tradevu.com';
   const HR_PASSWORD = 'SecureHr1!';
-  const ORG_NAME = 'TradeVu Test Org';
+  const ORG_NAME = 'Tradevu Test Org';
   const VALID_INVITE_TOKEN = 'valid-test-invite-token-001';
 
   function interceptGQL(operationName, aliasName, fixture) {

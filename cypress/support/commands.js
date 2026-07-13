@@ -37,7 +37,7 @@ Cypress.Commands.add('loginByApi', (email, password) => {
   // Intercept layout queries to prevent hanging if backend is down
   cy.interceptGQL('GetOrg', {
     data: {
-      organization: { id: 'org1', name: 'TradeVu HR' }
+      organization: { id: 'org1', name: 'Tradevu HR' }
     }
   })
 

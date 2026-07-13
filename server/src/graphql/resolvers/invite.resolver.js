@@ -14,7 +14,7 @@ export const inviteResolvers = {
         if (existingUser.organizationId === user.organizationId) {
           throw new Error('This user is already a member of your organization.');
         } else {
-          throw new Error('This email is already registered to an organization in TradeVu HR.');
+          throw new Error('This email is already registered to an organization in Tradevu HR.');
         }
       }
 
@@ -66,8 +66,8 @@ export const inviteResolvers = {
       await NotificationService.notify({
         targetEmail: email,
         category: 'invite',
-        title: `You've been invited to join TradeVu HR`,
-        message: `You've been invited to join your organization on TradeVu HR.`,
+        title: `You've been invited to join Tradevu HR`,
+        message: `You've been invited to join your organization on Tradevu HR.`,
         sendEmail: true,
         emailProps: {
           inviterName: user.email,

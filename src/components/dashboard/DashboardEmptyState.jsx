@@ -106,7 +106,7 @@ export default function DashboardEmptyState({ user }) {
             <span className="text-xs font-medium text-slate-200">Workspace Ready</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300">
-            Welcome to TradeVu HR, {firstName}!
+            Welcome to Tradevu HR, {firstName}!
           </h1>
           <p className="text-base sm:text-lg text-slate-400 font-normal leading-relaxed max-w-xl">
             {isCEO 

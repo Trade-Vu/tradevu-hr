@@ -4,13 +4,13 @@ import { Text, Button, Section } from '@react-email/components';
 
 export const WelcomeEmail = ({ fullName, onboardingLink }) => {
   return (
-    <BaseTemplate previewText="Welcome to TradeVu!">
+    <BaseTemplate previewText="Welcome to Tradevu!">
       <Text className="text-2xl font-bold text-slate-900 mb-4 mt-0">
         Welcome to the team, {fullName}! 🎉
       </Text>
       
       <Text className="text-base text-slate-700 leading-relaxed mb-6">
-        We are absolutely thrilled to have you join us at TradeVu. Your onboarding journey starts here, and we've prepared everything you need to hit the ground running.
+        We are absolutely thrilled to have you join us at Tradevu. Your onboarding journey starts here, and we've prepared everything you need to hit the ground running.
       </Text>
 
       <Section className="text-center mb-6">

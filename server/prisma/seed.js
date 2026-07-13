@@ -4,13 +4,13 @@ import bcrypt from 'bcryptjs'
 async function main() {
   // Check if organization already exists
   let org = await prisma.organization.findFirst({
-    where: { name: 'TradeVu' }
+    where: { name: 'Tradevu' }
   });
 
   if (!org) {
     org = await prisma.organization.create({
       data: {
-        name: 'TradeVu',
+        name: 'Tradevu',
         ownerEmail: 'superadmin@tradevu.com',
       }
     });

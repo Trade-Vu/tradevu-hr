@@ -28,8 +28,8 @@ async function main() {
   await NotificationService.notify({
     userId: inviter.id,
     category: 'invite',
-    title: `You've been invited to join TradeVu HR`,
-    message: `You've been invited to join your organization on TradeVu HR.`,
+    title: `You've been invited to join Tradevu HR`,
+    message: `You've been invited to join your organization on Tradevu HR.`,
     sendEmail: true,
     emailProps: {
       inviterName: inviter.email,
