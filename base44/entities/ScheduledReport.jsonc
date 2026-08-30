@@ -1,0 +1,103 @@
+{
+  "name": "ScheduledReport",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "report_name": {
+      "type": "string",
+      "description": "Name of the scheduled report"
+    },
+    "report_type": {
+      "type": "string",
+      "enum": [
+        "attendance",
+        "payroll",
+        "overtime",
+        "leave",
+        "turnover",
+        "headcount",
+        "performance",
+        "custom"
+      ],
+      "description": "Type of report"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "yearly"
+      ],
+      "description": "How often to generate report"
+    },
+    "day_of_week": {
+      "type": "string",
+      "enum": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ],
+      "description": "Day of week for weekly reports"
+    },
+    "day_of_month": {
+      "type": "number",
+      "description": "Day of month for monthly reports"
+    },
+    "recipients": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Email addresses to receive report"
+    },
+    "filters": {
+      "type": "object",
+      "description": "Report filters (department, date range, etc.)"
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "pdf",
+        "excel",
+        "csv"
+      ],
+      "default": "pdf",
+      "description": "Report file format"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether schedule is active"
+    },
+    "last_sent": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time report was sent"
+    },
+    "next_scheduled": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Next scheduled send time"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Who created the schedule"
+    }
+  },
+  "required": [
+    "organization_id",
+    "report_name",
+    "report_type",
+    "frequency",
+    "recipients"
+  ]
+}

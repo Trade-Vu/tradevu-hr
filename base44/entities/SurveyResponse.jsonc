@@ -1,0 +1,42 @@
+{
+  "name": "SurveyResponse",
+  "type": "object",
+  "properties": {
+    "survey_id": {
+      "type": "string",
+      "description": "Survey ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee who responded (null if anonymous)"
+    },
+    "responses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Question-answer pairs"
+    },
+    "submitted_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Submission timestamp"
+    },
+    "sentiment_score": {
+      "type": "number",
+      "description": "AI sentiment analysis score (-1 to 1)"
+    }
+  },
+  "required": [
+    "survey_id",
+    "responses"
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "name": "Loan",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "loan_type": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "emergency",
+        "advance",
+        "personal"
+      ],
+      "default": "standard",
+      "description": "Type of loan"
+    },
+    "loan_amount": {
+      "type": "number",
+      "description": "Total loan amount"
+    },
+    "loan_reason": {
+      "type": "string",
+      "description": "Reason for loan request"
+    },
+    "duration_months": {
+      "type": "number",
+      "description": "Loan duration in months"
+    },
+    "monthly_installment": {
+      "type": "number",
+      "description": "Monthly installment amount"
+    },
+    "start_month": {
+      "type": "string",
+      "description": "First installment month (YYYY-MM)"
+    },
+    "paid_from": {
+      "type": "string",
+      "description": "Source (e.g., New Era LLC)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "active",
+        "completed",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Loan status"
+    },
+    "amount_paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Amount paid so far"
+    },
+    "remaining_amount": {
+      "type": "number",
+      "description": "Remaining loan balance"
+    },
+    "installments_paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of installments paid"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Who approved the loan"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Approval date"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "loan_amount",
+    "duration_months"
+  ]
+}

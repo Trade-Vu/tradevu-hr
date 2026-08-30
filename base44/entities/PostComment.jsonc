@@ -1,0 +1,37 @@
+{
+  "name": "PostComment",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "post_id": {
+      "type": "string",
+      "description": "Company post ID"
+    },
+    "commenter_email": {
+      "type": "string",
+      "description": "Commenter's email"
+    },
+    "commenter_name": {
+      "type": "string",
+      "description": "Commenter's name"
+    },
+    "comment": {
+      "type": "string",
+      "description": "Comment text"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Comment timestamp"
+    }
+  },
+  "required": [
+    "organization_id",
+    "post_id",
+    "commenter_email",
+    "comment"
+  ]
+}

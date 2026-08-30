@@ -1,0 +1,83 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "project_manager": {
+      "type": "string",
+      "description": "Email of project manager"
+    },
+    "team_members": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of employee emails"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planning",
+        "in_progress",
+        "on_hold",
+        "completed",
+        "cancelled"
+      ],
+      "default": "planning",
+      "description": "Project status"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium",
+      "description": "Project priority"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Project start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Project end date"
+    },
+    "completion_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Overall project completion %"
+    },
+    "budget": {
+      "type": "number",
+      "description": "Project budget"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Project tags"
+    }
+  },
+  "required": [
+    "organization_id",
+    "project_name",
+    "project_manager"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "name": "AttendanceSettings",
+  "type": "object",
+  "properties": {
+    "zkteco_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether ZKTeco integration is enabled"
+    },
+    "zkteco_device_ip": {
+      "type": "string",
+      "description": "ZKTeco device IP address"
+    },
+    "zkteco_device_port": {
+      "type": "number",
+      "default": 4370,
+      "description": "ZKTeco device port"
+    },
+    "zkteco_last_sync": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last sync timestamp"
+    },
+    "work_start_time": {
+      "type": "string",
+      "default": "09:00",
+      "description": "Standard work start time (HH:MM)"
+    },
+    "work_end_time": {
+      "type": "string",
+      "default": "17:00",
+      "description": "Standard work end time (HH:MM)"
+    },
+    "late_threshold_minutes": {
+      "type": "number",
+      "default": 15,
+      "description": "Minutes after start time to mark as late"
+    },
+    "auto_sync_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable automatic sync from ZKTeco"
+    },
+    "sync_interval_minutes": {
+      "type": "number",
+      "default": 60,
+      "description": "Auto sync interval in minutes"
+    }
+  },
+  "required": []
+}

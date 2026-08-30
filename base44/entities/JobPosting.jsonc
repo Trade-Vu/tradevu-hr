@@ -1,0 +1,89 @@
+{
+  "name": "JobPosting",
+  "type": "object",
+  "properties": {
+    "job_title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "department": {
+      "type": "string",
+      "description": "Department"
+    },
+    "location": {
+      "type": "string",
+      "description": "Job location"
+    },
+    "employment_type": {
+      "type": "string",
+      "enum": [
+        "full_time",
+        "part_time",
+        "contract",
+        "internship"
+      ],
+      "default": "full_time",
+      "description": "Employment type"
+    },
+    "salary_range": {
+      "type": "string",
+      "description": "Salary range"
+    },
+    "description": {
+      "type": "string",
+      "description": "Job description"
+    },
+    "requirements": {
+      "type": "string",
+      "description": "Job requirements"
+    },
+    "responsibilities": {
+      "type": "string",
+      "description": "Key responsibilities"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "paused",
+        "closed"
+      ],
+      "default": "draft",
+      "description": "Posting status"
+    },
+    "posted_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date posted"
+    },
+    "closing_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Application deadline"
+    },
+    "published_to": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "internal",
+          "bayt",
+          "linkedin",
+          "facebook"
+        ]
+      },
+      "description": "Platforms where job is posted"
+    },
+    "applicants_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of applicants"
+    }
+  },
+  "required": [
+    "job_title",
+    "department",
+    "description"
+  ]
+}

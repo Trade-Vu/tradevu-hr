@@ -1,0 +1,57 @@
+{
+  "name": "OnboardingTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Template name (e.g., Engineer, Designer, Sales)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Template description"
+    },
+    "role_type": {
+      "type": "string",
+      "description": "Job role this template is for"
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Pre-defined tasks for this template",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "deadline_days": {
+            "type": "number",
+            "description": "Days from start date"
+          },
+          "required_documents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required_documents": {
+      "type": "array",
+      "description": "List of required documents",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "role_type"
+  ]
+}
