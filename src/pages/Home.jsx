@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { useAuth } from '@/lib/AuthContext';
 import { ArrowRight, CheckCircle2, Users, Building2, ShieldCheck, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,9 +11,9 @@ export default function Home() {
   // If already logged in, redirect to their dashboard
   if (isAuthenticated && user) {
     if (user.role === 'EMPLOYEE') {
-      return <Navigate to="/employeeselfservice" replace />;
+      return <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} replace />;
     }
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={PAGE_ROUTES.DASHBOARD} replace />;
   }
 
   return (
@@ -26,10 +27,10 @@ export default function Home() {
               <span className="text-xl font-bold tracking-tight text-slate-900">Tradevu HR</span>
             </div>
             <div className="flex items-center gap-4">
-              <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              <Link to={PAGE_ROUTES.LOGIN} className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
                 Log in
               </Link>
-              <Link to="/register">
+              <Link to={PAGE_ROUTES.REGISTER}>
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm rounded-full px-6">
                   Get Started
                 </Button>
@@ -53,13 +54,13 @@ export default function Home() {
             Manage your workforce, run payroll, and streamline operations in one unified platform built for speed and security.
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-            <Link to="/register">
+            <Link to={PAGE_ROUTES.REGISTER}>
               <Button size="lg" className="h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-200">
                 Start your free trial
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Link to="/login">
+            <Link to={PAGE_ROUTES.LOGIN}>
               <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full border-slate-200 text-slate-700 hover:bg-slate-50">
                 Sign in to workspace
               </Button>

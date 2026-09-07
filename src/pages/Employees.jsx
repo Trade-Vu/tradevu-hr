@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { employeesApi, departmentsApi } from "@/api";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { ArrowLeft, Plus, Upload, Grid, List, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -57,50 +57,52 @@ export default function Employees() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [page, setPage] = useState(1);
   const limit = 10;
+
+  const handleOpenDetail = (empOrId) => {
+    if (typeof empOrId === 'object' && empOrId !== null) {
+      setSelectedEmployee(empOrId);
+      setSelectedEmployeeId(empOrId.id || empOrId._id);
+    } else {
+      setSelectedEmployeeId(empOrId);
+      setSelectedEmployee(null);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedEmployeeId(null);
+    setSelectedEmployee(null);
+  };
 
   const { data: paginatedData, isLoading: loadingPaginated, isFetching } = useQuery({
     queryKey: ['paginatedEmployees', page, limit, searchTerm, statusFilter],
     queryFn: async () => {
-      const query = gql`
-        query GetPaginatedEmployeesList($page: Int, $limit: Int, $search: String, $employmentStatus: String) {
-          paginatedEmployees(page: $page, limit: $limit, search: $search, employmentStatus: $employmentStatus) {
-            employees {
-              id
-              employeeCode
-              fullName
-              email
-              phone
-              jobTitle
-              department {
-                name
-              }
-              employmentStatus
-              onboardingStatus
-              onboardingProgress
-              hireDate
-            }
-            totalCount
-            totalPages
-            currentPage
-          }
-        }
-      `;
-      const data = await gqlClient.request(query, { page, limit, search: searchTerm, employmentStatus: statusFilter });
+      const params = { page, limit };
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+
+      const res = await employeesApi.getEmployees(params);
+      const list = Array.isArray(res) ? res : res?.data || [];
+      const meta = res?.meta || {};
+
       return {
-        ...data.paginatedEmployees,
-        employees: data.paginatedEmployees.employees.map(emp => ({
+        employees: list.map(emp => ({
           ...emp,
+          id: emp._id || emp.id,
           full_name: emp.fullName,
           job_title: emp.jobTitle,
           phone: emp.phone,
-          department_name: emp.department?.name,
+          department_name: emp.departmentId?.name || emp.department?.name || emp.department,
           employment_status: emp.employmentStatus,
-          onboarding_status: emp.onboardingStatus,
-          progress_percentage: emp.onboardingProgress,
+          onboarding_status: emp.onboardingStatus || (emp.employmentStatus === 'ACTIVE' ? 'completed' : 'in_progress'),
+          progress_percentage: emp.onboardingProgress ?? (emp.employmentStatus === 'ACTIVE' ? 100 : 50),
           start_date: emp.hireDate
-        }))
+        })),
+        totalCount: meta.total ?? list.length,
+        totalPages: meta.totalPages ?? 1,
+        currentPage: meta.page ?? page
       };
     },
     placeholderData: keepPreviousData,
@@ -110,7 +112,6 @@ export default function Employees() {
   useEffect(() => {
     setPage(1);
   }, [searchTerm, statusFilter]);
-
 
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
@@ -125,92 +126,88 @@ export default function Employees() {
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
-      const query = gql`
-        query GetDepartments {
-          departments { id name }
-        }
-      `;
-      const data = await gqlClient.request(query);
-      return data.departments || [];
+      const res = await departmentsApi.getDepartments();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(d => ({
+        ...d,
+        id: d._id || d.id,
+        name: d.name,
+      }));
     },
     initialData: [],
   });
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (employeeData) => {
-      const mutation = gql`
-        mutation CreateEmployee($input: EmployeeInput!) {
-          createEmployee(input: $input) {
-            id
-          }
-        }
-      `;
-      
-      const { createEmployee } = await gqlClient.request(mutation, {
-        input: {
-          fullName: employeeData.full_name,
-          email: employeeData.email,
-          jobTitle: employeeData.job_title,
-          departmentId: employeeData.department_id,
-          employmentType: employeeData.employment_type,
-          hireDate: employeeData.start_date,
-          basicSalary: parseFloat(employeeData.basic_salary) || 0,
-          templateId: employeeData.template_id,
-          employeeClass: employeeData.employeeClass
-        }
-      });
+      let isoHireDate = undefined;
+      if (employeeData.start_date) {
+        const d = new Date(employeeData.start_date);
+        if (!isNaN(d.getTime())) isoHireDate = d.toISOString();
+      }
 
-      return createEmployee;
+      const payload = {
+        fullName: employeeData.full_name,
+        email: employeeData.email,
+        jobTitle: employeeData.job_title,
+        departmentId: employeeData.department_id || undefined,
+        employmentType: employeeData.employment_type || 'FULL_TIME',
+        hireDate: isoHireDate,
+        basicSalary: parseFloat(employeeData.basic_salary) || 0,
+        templateId: employeeData.template_id || undefined,
+        employeeClass: employeeData.employeeClass || undefined,
+        frontendUrl: window.location.origin,
+      };
+
+      return employeesApi.createEmployee(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast.success('Employee created and invitation email sent!');
       setShowAddForm(false);
-      navigate('/Employees');
+      navigate(PAGE_ROUTES.EMPLOYEES);
     },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to create employee');
+    }
   });
 
   const bulkCreateEmployeesMutation = useMutation({
     mutationFn: async (employeesData) => {
-      console.log('[BulkImport] Starting mutation with', employeesData.length, 'employees');
-      console.log('[BulkImport] Sample row:', employeesData[0]);
-      const mutation = gql`
-        mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
-          bulkImportEmployees(employees: $employees) { id }
+      const payload = employeesData.map(emp => {
+        let isoHireDate = undefined;
+        if (emp.start_date) {
+          const d = new Date(emp.start_date);
+          if (!isNaN(d.getTime())) isoHireDate = d.toISOString();
         }
-      `;
-      const payload = employeesData.map(emp => ({
-        fullName: emp.full_name,
-        email: emp.email,
-        jobTitle: emp.job_title,
-        departmentId: emp.department_id || null,
-        employmentType: 'FULL_TIME',
-        hireDate: emp.start_date,
-        basicSalary: parseFloat(emp.basic_salary) || 0,
-        statusHistory: emp.status_history || null
-      }));
-      console.log('[BulkImport] Payload sample:', payload[0]);
-      const { bulkImportEmployees } = await gqlClient.request(mutation, { employees: payload });
-      console.log('[BulkImport] Success, imported:', bulkImportEmployees.length);
-      return bulkImportEmployees;
+        return {
+          fullName: emp.full_name,
+          email: emp.email,
+          jobTitle: emp.job_title,
+          departmentId: emp.department_id || undefined,
+          employmentType: 'FULL_TIME',
+          hireDate: isoHireDate,
+          basicSalary: parseFloat(emp.basic_salary) || 0,
+          statusHistory: emp.status_history || undefined,
+        };
+      });
+
+      return employeesApi.bulkImport(payload);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       setShowImportDialog(false);
-      if (data.length > 0) {
-        toast.success(`Successfully imported ${data.length} employee${data.length !== 1 ? 's' : ''}!`);
+      if (data?.created > 0) {
+        toast.success(`Successfully imported ${data.created} employee${data.created !== 1 ? 's' : ''}!`);
       } else {
-        toast.info('No new employees were imported — all emails already exist in the system.');
+        toast.info(data?.errors?.[0]?.message || 'No new employees were imported.');
       }
     },
     onError: (error) => {
-      const msg = error?.response?.errors?.[0]?.message
-        || error?.message
-        || 'Failed to import employees.';
-      toast.error(msg);
+      toast.error(error.message || 'Failed to import employees.');
     }
   });
 
@@ -248,7 +245,7 @@ export default function Employees() {
               className="mt-1 rounded-xl border-slate-200 hover:bg-slate-50"
               onClick={() => {
                 setShowAddForm(false);
-                navigate('/Employees');
+                navigate(PAGE_ROUTES.EMPLOYEES);
               }}
             >
               <ArrowLeft className="w-4 h-4 text-slate-600" />
@@ -308,7 +305,7 @@ export default function Employees() {
             onSubmit={(data) => createEmployeeMutation.mutate(data)}
             onCancel={() => {
               setShowAddForm(false);
-              navigate('/Employees');
+              navigate(PAGE_ROUTES.EMPLOYEES);
             }}
             isSubmitting={createEmployeeMutation.isPending}
           />
@@ -334,10 +331,15 @@ export default function Employees() {
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-100 shadow-lg">
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="on_leave">On Leave</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="terminated">Terminated</SelectItem>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="PROBATION">Probation</SelectItem>
+                      <SelectItem value="PENDING_ONBOARDING">Pending Onboarding</SelectItem>
+                      <SelectItem value="ON_LEAVE">On Leave</SelectItem>
+                      <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                      <SelectItem value="RESIGNED">Resigned</SelectItem>
+                      <SelectItem value="TERMINATED">Terminated</SelectItem>
+                      <SelectItem value="OFFBOARDED">Offboarded</SelectItem>
+                      <SelectItem value="ARCHIVED">Archived</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -366,7 +368,7 @@ export default function Employees() {
           {loadingPaginated && !paginatedData ? (
             viewMode === 'list' ? (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <EmployeeList employees={[]} isLoading={true} onOpenDetail={setSelectedEmployeeId} />
+                <EmployeeList employees={[]} isLoading={true} onOpenDetail={handleOpenDetail} />
               </div>
             ) : (
               <CardSkeleton />
@@ -384,7 +386,7 @@ export default function Employees() {
               {(loadingPaginated || isFetching) && (
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none" />
               )}
-              <EmployeeList employees={currentEmployees} isLoading={false} onOpenDetail={setSelectedEmployeeId} />
+              <EmployeeList employees={currentEmployees} isLoading={false} onOpenDetail={handleOpenDetail} />
             </div>
           ) : (
             <motion.div 
@@ -400,7 +402,7 @@ export default function Employees() {
                 <motion.div key={employee.id} variants={itemVariants}>
                   <EmployeeCard 
                     employee={employee} 
-                    onOpenDetail={setSelectedEmployeeId}
+                    onOpenDetail={handleOpenDetail}
                   />
                 </motion.div>
               ))}
@@ -449,14 +451,15 @@ export default function Employees() {
         onClose={() => setShowInviteDialog(false)}
       />
 
-      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && setSelectedEmployeeId(null)}>
+      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && handleCloseDetail()}>
         <DialogContent className="max-w-6xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-transparent" hideCloseButton>
           <DialogTitle className="sr-only">Employee Detail</DialogTitle>
           <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
           {selectedEmployeeId && (
             <EmployeeDetail 
               employeeIdProp={selectedEmployeeId} 
-              onClose={() => setSelectedEmployeeId(null)} 
+              employeeDetail={selectedEmployee}
+              onClose={handleCloseDetail} 
             />
           )}
         </DialogContent>

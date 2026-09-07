@@ -4,30 +4,25 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Activity, Shield, User, FileText, Settings, Key, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
-
-const GET_RECENT_AUDIT_LOGS = gql`
-  query GetRecentAuditLogs {
-    auditLogs(limit: 50) {
-      id
-      actor {
-        email
-      }
-      entityType
-      action
-      createdAt
-    }
-  }
-`;
+import { auditLogsApi } from "@/api";
 
 export default function RecentActivity() {
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
 
-  const { data: { auditLogs = [] } = {}, isLoading } = useQuery({
+  const { data: auditLogs = [], isLoading } = useQuery({
     queryKey: ['recentAuditLogs'],
-    queryFn: () => gqlClient.request(GET_RECENT_AUDIT_LOGS),
+    queryFn: async () => {
+      const res = await auditLogsApi.getAuditLogs({ limit: 50 });
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(log => ({
+        id: log._id || log.id,
+        actor: { email: log.userId?.email || log.userId?.fullName || 'System' },
+        entityType: log.entity || '',
+        action: log.action || 'ACTIVITY',
+        createdAt: log.createdAt,
+      }));
+    },
   });
 
   const totalPages = Math.ceil(auditLogs.length / itemsPerPage);
@@ -77,7 +72,7 @@ export default function RecentActivity() {
                       By <span className="font-medium text-slate-700">{log.actor?.email || 'System'}</span>
                     </p>
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                      {format(new Date(parseInt(log.createdAt)), "MMM d, h:mm a")}
+                      {format(new Date(isNaN(Number(log.createdAt)) ? log.createdAt : Number(log.createdAt)), "MMM d, h:mm a")}
                     </span>
                   </div>
                 </div>

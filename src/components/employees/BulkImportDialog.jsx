@@ -1,6 +1,4 @@
-
 import React, { useState } from "react";
-import { gqlClient } from "@/api/graphqlClient";
 import {
   Dialog,
   DialogContent,

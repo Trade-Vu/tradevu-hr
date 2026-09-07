@@ -2,8 +2,7 @@ import React, { useState, useRef } from "react";
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import countryList from 'country-list';
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import apiClient from "@/api/client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,68 +18,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const UPDATE_EMPLOYEE = gql`
-  mutation UpdateEmployeeSelf($input: UpdateEmployeeInput!) {
-    updateEmployeeSelf(input: $input) {
-      id
-    }
-  }
-`;
-
-const GET_EMPLOYEE = gql`
-  query GetEmployee($id: ID!) {
-    employee(id: $id) {
-      id
-      phone
-      workEmail
-      privateEmail
-      dateOfBirth
-      gender
-      maritalStatus
-      nationality
-      nationalId
-      passportNumber
-    }
-  }
-`;
-
-const UPLOAD_DOCUMENT = gql`
-  mutation UploadDocument($employeeId: ID!, $name: String!, $category: String!, $fileUrl: String!, $fileType: String!, $visibilityLevel: String!) {
-    uploadDocument(employeeId: $employeeId, name: $name, category: $category, fileUrl: $fileUrl, fileType: $fileType, visibilityLevel: $visibilityLevel) {
-      id
-    }
-  }
-`;
-
-const CLEAR_PROFILE_GATE = gql`
-  mutation ClearProfileGate {
-    clearProfileGate {
-      id
-      mustCompleteProfile
-    }
-  }
-`;
-
-const GET_DEPARTMENTS = gql`
-  query GetDepartments {
-    departments {
-      id
-      name
-      code
-    }
-  }
-`;
-
-const BULK_IMPORT_EMPLOYEES = gql`
-  mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
-    bulkImportEmployees(employees: $employees) {
-      id
-      fullName
-      email
-    }
-  }
-`;
 
 /**
  * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
@@ -130,7 +67,7 @@ function parseEmployeeCSV(csvText, departments = []) {
 
 export default function ProfileCompletionWizard() {
   const { user, checkAppState } = useAuth();
-  const employeeId = user?.employeeId;
+  const employeeId = user?.employeeId?._id || user?.employeeId || user?.employee?._id || user?.employee?.id;
   const isHRAdmin = user?.role === 'HR_ADMIN';
   // HR admins get an extra Step 3 for CSV import (if feature is enabled)
   const hasCSVStep = isHRAdmin && isFeatureEnabled('CSV_IMPORT');
@@ -163,13 +100,19 @@ export default function ProfileCompletionWizard() {
 
   const { data: employeeDataObj } = useQuery({
     queryKey: ['employee', employeeId],
-    queryFn: () => gqlClient.request(GET_EMPLOYEE, { id: employeeId }),
+    queryFn: async () => {
+      const res = await apiClient.get(`/employees/${employeeId}`);
+      return { employee: res?.data || res };
+    },
     enabled: !!employeeId
   });
 
   const { data: departmentsData } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => gqlClient.request(GET_DEPARTMENTS),
+    queryFn: async () => {
+      const res = await apiClient.get('/departments');
+      return { departments: Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []) };
+    },
     enabled: hasCSVStep
   });
   const departments = departmentsData?.departments || [];
@@ -195,12 +138,20 @@ export default function ProfileCompletionWizard() {
         phone: emp.phone || prev.phone,
         privateEmail: emp.privateEmail || prev.privateEmail,
         dateOfBirth: formattedDob || prev.dateOfBirth,
-        gender: emp.gender || prev.gender,
-        maritalStatus: emp.maritalStatus || prev.maritalStatus,
+        gender: emp.gender ? (emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1).toLowerCase()) : prev.gender,
+        maritalStatus: emp.maritalStatus ? (emp.maritalStatus.charAt(0).toUpperCase() + emp.maritalStatus.slice(1).toLowerCase()) : prev.maritalStatus,
         nationality: emp.nationality || prev.nationality,
         nationalId: emp.nationalId || prev.nationalId,
         passportNumber: emp.passportNumber || prev.passportNumber,
       }));
+
+      if (emp.nationalId) {
+        setIdentityType('nationalId');
+        setIdentityNumber(emp.nationalId);
+      } else if (emp.passportNumber) {
+        setIdentityType('passport');
+        setIdentityNumber(emp.passportNumber);
+      }
     }
   }, [employeeDataObj]);
 
@@ -252,9 +203,10 @@ export default function ProfileCompletionWizard() {
       setIsImporting(true);
       const text = await csvFile.text();
       const employees = parseEmployeeCSV(text, departments);
-      const result = await gqlClient.request(BULK_IMPORT_EMPLOYEES, { employees });
-      setImportResults(result.bulkImportEmployees);
-      toast.success(`Successfully imported ${result.bulkImportEmployees.length} employees!`);
+      const res = await apiClient.post('/employees/bulk-import', { employees });
+      const createdCount = res?.data?.created ?? res?.created ?? employees.length;
+      setImportResults(employees);
+      toast.success(`Successfully imported ${createdCount} employees!`);
     } catch (err) {
       console.error('CSV import error:', err);
       toast.error(err.message || 'Failed to import employees. Please check your CSV format.');
@@ -277,13 +229,18 @@ export default function ProfileCompletionWizard() {
       setIsSubmitting(true);
       
       const finalFormData = { 
-        ...formData, 
-        nationalId: identityType === 'nationalId' ? identityNumber : '', 
-        passportNumber: identityType === 'passport' ? identityNumber : '' 
+        phone: formData.phone,
+        privateEmail: formData.privateEmail,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender?.toUpperCase(),
+        maritalStatus: formData.maritalStatus?.toUpperCase(),
+        nationality: formData.nationality,
+        nationalId: identityType === 'nationalId' ? identityNumber : undefined,
+        passportNumber: identityType === 'passport' ? identityNumber : undefined,
       };
 
-      // 1. Update Employee Profile
-      await gqlClient.request(UPDATE_EMPLOYEE, { input: finalFormData });
+      // 1. Update Employee Profile via HTTP PATCH /employees/:id
+      await apiClient.patch(`/employees/${employeeId}`, finalFormData);
       
       // 2. Upload Document to Cloudinary
       const uploadResult = await uploadToCloudinary(documentData.file);
@@ -292,14 +249,14 @@ export default function ProfileCompletionWizard() {
         throw new Error("Failed to upload document to cloud storage: missing secure_url");
       }
       
-      // 3. Save Document Record
-      await gqlClient.request(UPLOAD_DOCUMENT, {
+      // 3. Save Document Record via HTTP POST /documents
+      await apiClient.post('/documents', {
         employeeId,
         name: documentData.name,
-        category: documentData.category,
+        category: 'id',
         fileUrl: uploadResult.secure_url,
         fileType: documentData.file.name.split('.').pop() || 'pdf',
-        visibilityLevel: 'employee'
+        fileSize: documentData.file.size,
       });
       
       // 4. Clear the gate — or if HR with CSV step, advance to step 3 instead
@@ -307,14 +264,14 @@ export default function ProfileCompletionWizard() {
         toast.success("Identity verified! Now let's import your employees.");
         setStep(3);
       } else {
-        await gqlClient.request(CLEAR_PROFILE_GATE);
+        await apiClient.post('/users/clear-profile-gate');
         toast.success("Profile completed successfully!");
         // Re-fetch user data so App.jsx redirects to Dashboard
         await checkAppState();
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to complete profile. Please try again.");
+      toast.error(error.message || "Failed to complete profile. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -324,12 +281,12 @@ export default function ProfileCompletionWizard() {
   const handleFinishAfterCSV = async () => {
     try {
       setIsSubmitting(true);
-      await gqlClient.request(CLEAR_PROFILE_GATE);
+      await apiClient.post('/users/clear-profile-gate');
       toast.success("Setup complete! Taking you to your dashboard...");
       await checkAppState();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to finalize setup. Please try again.");
+      toast.error(error.message || "Failed to finalize setup. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

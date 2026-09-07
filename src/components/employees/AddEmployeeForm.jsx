@@ -5,36 +5,23 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, Mail, Briefcase, Calendar, FileText } from "lucide-react";
-
-
 import { useQuery } from '@tanstack/react-query';
-import { gql } from 'graphql-request';
-import { gqlClient } from '@/api/graphqlClient';
-import { useAuth } from '@/lib/AuthContext';
+import { organizationsApi } from '@/api';
+import { toast } from 'sonner';
 
-const GET_ORGANIZATION = gql`
-  query GetOrganization($id: ID!) {
-    organization(id: $id) {
-      id
-      employeeClasses
-    }
-  }
-`;
-
-export default function AddEmployeeForm({ templates, departments, onSubmit, onCancel, isSubmitting }) {
-  const { user } = useAuth();
-  
+export default function AddEmployeeForm({ templates = [], departments = [], onSubmit, onCancel, isSubmitting }) {
   const { data: orgData } = useQuery({
-    queryKey: ['organization', user?.organizationId],
+    queryKey: ['organization', 'me'],
     queryFn: async () => {
-      if (!user?.organizationId) return null;
-      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
-      return res.organization;
+      const res = await organizationsApi.getMyOrganization();
+      return res?.data || res;
     },
-    enabled: !!user?.organizationId
+    staleTime: 5 * 60 * 1000,
   });
 
-  const employeeClasses = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
+  const employeeClasses = orgData?.employeeClasses?.length 
+    ? orgData.employeeClasses.map(c => c.toUpperCase())
+    : ["PERMANENT", "PROBATIONARY", "CONTRACT", "CONSULTANT", "INTERN", "MANAGERIAL"];
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -45,14 +32,14 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
     start_date: "",
     status: "not_started",
     progress_percentage: 0,
-    employment_type: "full_time",
-    employeeClass: "Permanent"
+    employment_type: "FULL_TIME",
+    employeeClass: "PERMANENT"
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.template_id) {
-      alert("Please select an onboarding template.");
+      toast.error("Please select an onboarding template.");
       return;
     }
     const submissionData = {
@@ -185,7 +172,7 @@ export default function AddEmployeeForm({ templates, departments, onSubmit, onCa
                 <SelectContent>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.name} - {template.role_type}
+                      {template.name}{template.role_type ? ` - ${template.role_type}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

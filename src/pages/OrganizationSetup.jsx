@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { organizationsApi } from "@/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,22 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building2, Users, Rocket, CheckCircle } from "lucide-react";
 import { Country, State } from 'country-state-city';
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-
-const UPDATE_ORGANIZATION_MUTATION = `
-  mutation UpdateOrganization($input: UpdateOrganizationInput!) {
-    updateOrganization(input: $input) {
-      id
-      industry
-      size
-      country
-      state
-      phone
-      email
-    }
-  }
-`;
 
 export default function OrganizationSetup({ asModal = false, onComplete }) {
   const navigate = useNavigate();
@@ -42,22 +29,49 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
     subscription_plan: 'trial',
   });
 
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: async () => {
+      try {
+        return await organizationsApi.getMyOrganization();
+      } catch (err) {
+        console.warn("Could not fetch organization data:", err);
+        return null;
+      }
+    },
+    enabled: !!user?.organizationId,
+  });
+
+  useEffect(() => {
+    if (orgData) {
+      setFormData(prev => ({
+        ...prev,
+        industry: orgData.industry || prev.industry,
+        size: orgData.companySize || orgData.size || prev.size,
+        country: orgData.country || prev.country,
+        state: orgData.state || prev.state,
+        phone: orgData.phone || prev.phone,
+        email: orgData.email || user?.email || prev.email,
+      }));
+    } else if (user?.email) {
+      setFormData(prev => ({ ...prev, email: prev.email || user.email }));
+    }
+  }, [orgData, user]);
+
   const updateOrganizationMutation = useMutation({
     mutationFn: async (data) => {
-      const input = {
+      return organizationsApi.updateMyOrganization({
         industry: data.industry,
-        size: data.size,
+        companySize: data.size,
         country: data.country,
         state: data.state,
         phone: data.phone,
         email: data.email,
-      };
-      
-      const result = await gqlClient.request(UPDATE_ORGANIZATION_MUTATION, { input });
-      return result.updateOrganization;
+        setupCompleted: true,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({ queryKey: ['organization', 'me'] });
       toast({
         title: "Success",
         description: "Organization details updated.",
@@ -67,16 +81,19 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
       } else {
         setStep(3);
         setTimeout(() => {
-          navigate('/Dashboard');
+          navigate(PAGE_ROUTES.DASHBOARD);
         }, 2000);
       }
     },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update organization details.",
+        variant: "destructive",
+      });
+      console.error("Failed to update organization:", error);
+    },
   });
-
-  const handleLoginBypass = () => {
-    localStorage.setItem('token', 'mock_ceo_token');
-    window.location.href = '/dashboard';
-  };
 
   const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
   const selectedCountryCode = countries.find(c => c.name === formData.country)?.isoCode;

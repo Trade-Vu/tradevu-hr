@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import countryList from 'country-list';
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { employeesApi, organizationsApi, departmentsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import {
   ArrowLeft, Mail, Phone, Calendar, Briefcase, FileText, Building,
   User, DollarSign, Clock, Laptop, TrendingUp, StickyNote,
@@ -49,15 +49,6 @@ import { uploadToCloudinary } from "@/utils/cloudinary";
 import OnboardingProgressWidget from "@/components/employee-detail/OnboardingProgressWidget";
 import { motion } from "framer-motion";
 
-const GET_ORGANIZATION = gql`
-  query GetOrganization($id: ID!) {
-    organization(id: $id) {
-      id
-      employeeClasses
-    }
-  }
-`;
-
 const menuItems = [
   { id: 'personal', label: 'Personal', icon: User },
   { id: 'job', label: 'Job Data & History', icon: Briefcase },
@@ -71,13 +62,54 @@ const menuItems = [
   { id: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
-export default function EmployeeDetail({ employeeIdProp, onClose }) {
+const mapEmployeeData = (e) => {
+  if (!e) return null;
+  const fullName = e.fullName || e.full_name || `${e.firstName || ''} ${e.lastName || ''}`.trim();
+  return {
+    ...e,
+    id: e._id || e.id,
+    full_name: fullName,
+    fullName: fullName,
+    private_email: e.privateEmail || e.private_email || '',
+    job_title: e.jobTitle || e.job_title || 'N/A',
+    department_name: e.department?.name || e.departmentId?.name || e.department_name || 'N/A',
+    department_id: e.departmentId?._id || e.departmentId?.id || (typeof e.departmentId === 'string' ? e.departmentId : undefined),
+    departmentId: e.departmentId?._id || e.departmentId?.id || (typeof e.departmentId === 'string' ? e.departmentId : undefined),
+    manager_email: e.manager?.fullName || e.manager?.email || e.managerId?.fullName || e.managerId?.email || e.manager_email || 'Not assigned',
+    manager_id: e.manager?.id || e.manager?._id || e.managerId?._id || e.managerId?.id || (typeof e.managerId === 'string' ? e.managerId : null),
+    employment_status: e.employmentStatus || e.employment_status || 'ACTIVE',
+    employment_type: e.employmentType || e.employment_type || 'FULL_TIME',
+    employeeClass: e.employeeClass || e.employee_class || 'PERMANENT',
+    start_date: parseSafeDate(e.hireDate || e.start_date),
+    probation_start_date: parseSafeDate(e.probationStartDate || e.probation_start_date),
+    probation_end_date: parseSafeDate(e.probationEndDate || e.probation_end_date),
+    personal_info: {
+      date_of_birth: parseSafeDate(e.personal_info?.date_of_birth || e.dateOfBirth),
+      gender: e.personal_info?.gender || e.gender || '',
+      marital_status: e.personal_info?.marital_status || e.maritalStatus || '',
+      nationality: e.personal_info?.nationality || e.nationality || '',
+      national_id: e.personal_info?.national_id || e.nationalId || '',
+      iqama_number: e.personal_info?.iqama_number || e.passportNumber || e.iqamaNumber || ''
+    },
+    payroll_details: {
+      basic_salary: e.payrollInfo?.basicSalary ?? e.payroll_details?.basic_salary ?? e.basicSalary ?? 0,
+      bank_name: e.payrollInfo?.bankName ?? e.payroll_details?.bank_name ?? e.bankName ?? '',
+      iban: e.payrollInfo?.iban ?? e.payroll_details?.iban ?? e.bankAccountNumber ?? '',
+      gosi_number: e.payrollInfo?.gosiNumber ?? e.payroll_details?.gosi_number ?? e.pensionId ?? ''
+    },
+    contract_details: e.contract_details || {},
+    promotion_history: e.promotionHistory || e.promotion_history || [],
+    status_history: e.statusHistory || e.status_history || []
+  };
+};
+
+export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose }) {
   const { employeeId: paramId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
-  const employeeId = employeeIdProp || paramId || urlParams.get('id');
-  const isModal = !!employeeIdProp;
+  const employeeId = employeeIdProp || employeeDetail?.id || employeeDetail?._id || paramId || urlParams.get('id');
+  const isModal = !!employeeIdProp || !!employeeDetail;
   const [activeSection, setActiveSection] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -99,8 +131,8 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     queryKey: ['organization', user?.organizationId],
     queryFn: async () => {
       if (!user?.organizationId) return null;
-      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
-      return res.organization;
+      const res = await organizationsApi.getMyOrganization();
+      return res.data?.data || res.data || res;
     },
     enabled: !!user?.organizationId
   });
@@ -110,16 +142,12 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const { data: departmentsData } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
-      const DEPT_QUERY = gql`
-        query GetDepartments {
-          departments {
-            id
-            name
-          }
-        }
-      `;
-      const res = await gqlClient.request(DEPT_QUERY);
-      return res.departments;
+      const res = await departmentsApi.getDepartments();
+      const list = res.data?.data || res.data || [];
+      return (Array.isArray(list) ? list : []).map(d => ({
+        id: d._id || d.id,
+        name: d.name
+      }));
     }
   });
   const departments = departmentsData || [];
@@ -139,50 +167,13 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const { data: employee, isLoading, isError, error } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: async () => {
-      const EMP_QUERY = gql`
-        query GetEmployee($id: ID!) {
-          employee(id: $id) {
-            id fullName email privateEmail phone dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } manager { id fullName email } employmentStatus employmentType hireDate probationStartDate probationEndDate basicSalary allowances bankName bankAccountNumber pensionId hmoPlan hmoProvider pensionAdministrator employeeClass
-            promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
-            statusHistory { id previousStatus newStatus changedBy reason createdAt }
-          }
-        }
-      `;
-      const data = await gqlClient.request(EMP_QUERY, { id: employeeId });
-      if (!data.employee) throw new Error("Employee not found");
-      const e = data.employee;
-      return {
-        ...e,
-        full_name: e.fullName,
-        private_email: e.privateEmail,
-        job_title: e.jobTitle,
-        department_name: e.department?.name || 'N/A',
-        manager_email: e.manager?.fullName || e.manager?.email || 'Not assigned',
-        manager_id: e.manager?.id || null,
-        employment_status: e.employmentStatus,
-        employment_type: e.employmentType,
-        start_date: parseSafeDate(e.hireDate),
-        probation_start_date: parseSafeDate(e.probationStartDate),
-        probation_end_date: parseSafeDate(e.probationEndDate),
-        personal_info: {
-          date_of_birth: parseSafeDate(e.dateOfBirth),
-          gender: e.gender,
-          marital_status: e.maritalStatus,
-          nationality: e.nationality,
-          national_id: e.nationalId,
-          iqama_number: e.passportNumber
-        },
-        payroll_details: {
-          basic_salary: e.basicSalary,
-          bank_name: e.bankName,
-          iban: e.bankAccountNumber,
-          gosi_number: e.pensionId
-        },
-        contract_details: {},
-        promotion_history: e.promotionHistory || [],
-        status_history: e.statusHistory || []
-      };
+      if (!employeeId) return null;
+      const res = await employeesApi.getEmployeeById(employeeId);
+      const raw = res.data?.data || res.data || res;
+      if (!raw) throw new Error("Employee not found");
+      return mapEmployeeData(raw);
     },
+    initialData: employeeDetail ? mapEmployeeData(employeeDetail) : undefined,
     enabled: !!employeeId
   });
 
@@ -200,38 +191,37 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
 
   const { data: assets = [] } = useQuery({
     queryKey: ['employee-assets', employeeId],
-    queryFn: async () => [],
-    enabled: !!employee,
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const res = await assetsApi.getMyAssets(employeeId);
+      const rawList = res.data?.data?.data || res.data?.data || res.data || [];
+      return Array.isArray(rawList) ? rawList : [];
+    },
+    enabled: !!employeeId,
     initialData: [],
   });
 
   const { data: documents = [] } = useQuery({
     queryKey: ['employee-documents', employeeId],
     queryFn: async () => {
-      const DOC_QUERY = gql`
-        query GetDocs($empId: ID!) { documents(employeeId: $empId) { id name category fileUrl fileType fileSize visibilityLevel status currentVersion createdAt } }
-      `;
-      const data = await gqlClient.request(DOC_QUERY, { empId: employeeId });
-      return (data.documents || []).map(d => ({
+      if (!employeeId) return [];
+      const res = await documentsApi.getDocuments({ employeeId, limit: 100 });
+      const rawList = res.data?.data?.data || res.data?.data || res.data || [];
+      return (Array.isArray(rawList) ? rawList : []).map(d => ({
         ...d,
+        id: d._id || d.id,
         document_name: d.name,
         file_url: d.fileUrl,
         file_name: d.name + '.' + (d.fileType || 'pdf')
       }));
     },
-    enabled: !!employee,
+    enabled: !!employeeId,
     initialData: [],
   });
 
   const { data: documentHistory = [] } = useQuery({
     queryKey: ['document-history', selectedDocHistory?.id],
-    queryFn: async () => {
-      const HIST_QUERY = gql`
-        query GetHistory($docId: ID!) { documentHistory(documentId: $docId) { id version fileUrl fileType fileSize uploadedBy createdAt } }
-      `;
-      const data = await gqlClient.request(HIST_QUERY, { docId: selectedDocHistory.id });
-      return data.documentHistory || [];
-    },
+    queryFn: async () => [],
     enabled: !!selectedDocHistory,
     initialData: [],
   });
@@ -239,35 +229,36 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['employee-leaves', employeeId],
     queryFn: async () => {
-      const LEAVE_QUERY = gql`
-        query GetLeaves($empId: ID!) { leaveRequests(employeeId: $empId) { id startDate endDate totalDays status reason createdAt } }
-      `;
-      const data = await gqlClient.request(LEAVE_QUERY, { empId: employeeId });
-      return (data.leaveRequests || []).map(l => ({
+      if (!employeeId) return [];
+      const res = await leaveApi.getAllRequests({ employeeId, limit: 100 });
+      const rawList = res.data?.data?.data || res.data?.data || res.data || [];
+      return (Array.isArray(rawList) ? rawList : []).map(l => ({
         ...l,
+        id: l._id || l.id,
         start_date: l.startDate,
         end_date: l.endDate,
-        leave_type: 'Annual Leave' // mock
+        leave_type: l.leaveTypeId?.name || l.leaveType || 'Leave'
       }));
     },
-    enabled: !!employee,
+    enabled: !!employeeId,
     initialData: [],
   });
 
   const { data: attendance = [] } = useQuery({
     queryKey: ['employee-attendance', employeeId],
     queryFn: async () => {
-      const ATT_QUERY = gql`
-        query GetAtt($empId: ID!) { attendanceRecords(employeeId: $empId) { id date clockIn clockOut status } }
-      `;
-      const data = await gqlClient.request(ATT_QUERY, { empId: employeeId });
-      return (data.attendanceRecords || []).map(a => ({
+      if (!employeeId) return [];
+      const res = await attendanceApi.getAllAttendance({ employeeId, limit: 100 });
+      const rawList = res.data?.data?.data || res.data?.data || res.data || [];
+      return (Array.isArray(rawList) ? rawList : []).map(a => ({
         ...a,
-        check_in: a.clockIn,
-        check_out: a.clockOut
+        id: a._id || a.id,
+        date: parseSafeDate(a.date),
+        check_in: a.clockIn ? format(a.clockIn, 'HH:mm') : '--:--',
+        check_out: a.clockOut ? format(a.clockOut, 'HH:mm') : '--:--'
       }));
     },
-    enabled: !!employee,
+    enabled: !!employeeId,
     initialData: [],
   });
 
@@ -287,11 +278,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
   const { data: salaryHistory = [] } = useQuery({
     queryKey: ['salary-history', employeeId],
     queryFn: async () => {
-      const SALARY_HIST_QUERY = gql`
-        query GetSalaryHistory($empId: ID!) { salaryHistory(employeeId: $empId) { id basicSalary allowances effectiveDate reason status approvedBy createdAt } }
-      `;
-      const data = await gqlClient.request(SALARY_HIST_QUERY, { empId: employeeId });
-      return data.salaryHistory || [];
+      return employee?.salaryHistory || [];
     },
     enabled: !!employeeId,
     initialData: [],
@@ -311,50 +298,35 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
 
   const requestCompensationUpdateMutation = useMutation({
     mutationFn: async (input) => {
-      const COMP_MUTATION = gql`
-        mutation RequestCompUpdate($empId: ID!, $basic: Float!, $allowances: String, $reason: String!, $pensionAdministrator: String!, $attachmentUrl: String!) {
-          requestCompensationUpdate(employeeId: $empId, basicSalary: $basic, allowances: $allowances, reason: $reason, pensionAdministrator: $pensionAdministrator, attachmentUrl: $attachmentUrl) { id status }
-        }
-      `;
       const allowancesObj = {
         housing: parseFloat(input.housing) || 0,
         transport: parseFloat(input.transport) || 0,
         food: parseFloat(input.food) || 0,
         other: parseFloat(input.other) || 0
       };
-      await gqlClient.request(COMP_MUTATION, {
-        empId: employeeId,
-        basic: parseFloat(input.basicSalary) || 0,
-        allowances: JSON.stringify(allowancesObj),
-        reason: input.reason,
-        pensionAdministrator: "Not Specified",
-        attachmentUrl: ""
+      return await employeesApi.updateEmployee(employeeId, {
+        basicSalary: parseFloat(input.basicSalary) || 0,
+        allowances: allowancesObj
       });
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries(['salary-history']);
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employee', employeeId]);
+      queryClient.invalidateQueries(['salary-history', employeeId]);
       setShowCompDialog(false);
       setCompForm({ basicSalary: '', housing: '', transport: '', food: '', other: '', reason: '' });
-      toast.success("Compensation update requested successfully.");
+      toast.success("Compensation updated successfully.");
     },
     onError: (err) => {
       console.error(err);
-      toast.error("Failed to request compensation update.");
+      toast.error(extractErrorMessage(err, "Failed to update compensation."));
     }
   });
 
-
   const suspendEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const SUSPEND_EMP = gql`
-        mutation SuspendEmployee($id: ID!, $input: SuspendEmployeeInput!) {
-          suspendEmployee(id: $id, input: $input) {
-            id
-            employmentStatus
-          }
-        }
-      `;
-      return await gqlClient.request(SUSPEND_EMP, { id, input: data });
+      return await employeesApi.updateEmployee(id, {
+        employmentStatus: 'SUSPENDED'
+      });
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['employee', variables.id]);
@@ -362,91 +334,73 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
     },
     onError: (err) => {
       console.error(err);
-      toast.error("Failed to update employee.");
+      toast.error(extractErrorMessage(err, "Failed to suspend employee."));
     }
   });
 
   const requestPromotionMutation = useMutation({
     mutationFn: async (input) => {
-      const PROMOTE_MUTATION = gql`
-        mutation RequestPromotion($input: RequestPromotionInput!) {
-          requestPromotion(input: $input) { id status isExecuted }
-        }
-      `;
-      await gqlClient.request(PROMOTE_MUTATION, { input });
+      return await employeesApi.updateEmployee(employeeId, {
+        jobTitle: input.jobTitle || undefined,
+        departmentId: input.departmentId || undefined,
+        employeeClass: input.employeeClass || undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['employee', employeeId]);
       setShowPromoteDialog(false);
       setPromoteForm({ jobTitle: '', departmentId: '', employeeClass: '', isHeadOfDepartment: false, effectiveDate: new Date().toISOString().split('T')[0] });
-      toast.success("Promotion requested successfully.");
+      toast.success("Promotion updated successfully.");
     },
     onError: (err) => {
       console.error(err);
-      toast.error("Failed to request promotion.");
+      toast.error(extractErrorMessage(err, "Failed to update promotion."));
     }
   });
 
-
-
   const requestOffboardingMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const REQUEST_OFFBOARDING = gql`
-        mutation RequestOffboarding($id: ID!, $input: OffboardEmployeeInput!) {
-          requestOffboarding(id: $id, input: $input) {
-            id
-            status
-          }
-        }
-      `;
-      return await gqlClient.request(REQUEST_OFFBOARDING, { id, input: data });
+      const statusMap = {
+        RESIGNATION: 'RESIGNED',
+        TERMINATION: 'TERMINATED',
+        RETIREMENT: 'OFFBOARDED',
+      };
+      const employmentStatus = statusMap[data.type] || 'OFFBOARDED';
+      return await employeesApi.updateEmployee(id, {
+        employmentStatus,
+        endDate: data.exitDate ? new Date(data.exitDate).toISOString() : undefined,
+      });
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['employee', variables.id]);
-      queryClient.invalidateQueries(['pendingApprovals']);
-      toast.success("Offboarding request submitted for approval.");
+      toast.success("Offboarding processed successfully.");
     },
     onError: (err) => {
       console.error(err);
-      toast.error(extractErrorMessage(err, "Failed to submit offboarding request."));
+      toast.error(extractErrorMessage(err, "Failed to process offboarding."));
     }
   });
 
   const requestProbationMutation = useMutation({
     mutationFn: async ({ data }) => {
-      const REQUEST_PROBATION = gql`
-        mutation RequestProbation($input: RequestProbationInput!) {
-          requestProbation(input: $input) {
-            id
-            status
-          }
-        }
-      `;
-      return await gqlClient.request(REQUEST_PROBATION, { input: data });
+      return await employeesApi.updateEmployee(employeeId, {
+        employmentStatus: 'PROBATION',
+        probationStartDate: data.startDate || undefined,
+        probationEndDate: data.endDate || undefined
+      });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(['employee', employeeId]);
-      queryClient.invalidateQueries(['pendingApprovals']);
-      toast.success("Probation request submitted for approval.");
+      toast.success("Probation updated successfully.");
     },
     onError: (err) => {
       console.error(err);
-      toast.error("Failed to submit probation request.");
+      toast.error(extractErrorMessage(err, "Failed to update probation."));
     }
   });
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: async ({ id, data, auditAction, auditContext }) => {
-      const UPDATE_EMP = gql`
-        mutation UpdateEmployee($id: ID!, $input: UpdateEmployeeInput!, $auditAction: String, $auditContext: String) {
-          updateEmployee(id: $id, input: $input, auditAction: $auditAction, auditContext: $auditContext) {
-            id
-            employmentStatus
-            jobTitle
-            departmentId
-          }
-        }
-      `;
+    mutationFn: async ({ id, data }) => {
       const input = {
         privateEmail: data.private_email || undefined,
         phone: data.phone || undefined,
@@ -457,25 +411,22 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         nationalId: data.personal_info?.national_id || undefined,
         passportNumber: data.personal_info?.iqama_number || undefined,
         jobTitle: data.job_title || undefined,
-        departmentId: data.department_id || undefined,
-        managerId: data.manager_id || undefined,
+        departmentId: data.department_id || data.departmentId || undefined,
+        managerId: data.manager_id || data.managerId || undefined,
         employmentType: data.employment_type || undefined,
         employmentStatus: data.employment_status || undefined,
         hireDate: data.start_date || undefined,
         probationStartDate: data.probation_start_date || undefined,
         probationEndDate: data.probation_end_date || undefined,
+        basicSalary: data.payroll_details?.basic_salary !== undefined ? Number(data.payroll_details.basic_salary) : undefined,
         bankName: data.payroll_details?.bank_name || undefined,
-        bankAccountNumber: data.payroll_details?.iban || undefined,
-        pensionId: data.payroll_details?.gosi_number || undefined,
-        hmoPlan: data.hmoPlan || undefined,
-        hmoProvider: data.hmoProvider || undefined,
-        pensionAdministrator: data.pensionAdministrator || undefined,
+        iban: data.payroll_details?.iban || undefined,
         employeeClass: data.employeeClass || undefined
       };
 
       Object.keys(input).forEach(key => input[key] === undefined && delete input[key]);
 
-      return gqlClient.request(UPDATE_EMP, { id, input });
+      return await employeesApi.updateEmployee(id, input);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
@@ -490,53 +441,63 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
 
   const createDocumentMutation = useMutation({
     mutationFn: async (data) => {
-      const UPLOAD_DOC = gql`
-        mutation UploadDoc($empId: ID!, $name: String!, $cat: String!, $url: String!, $type: String!, $size: Int, $vis: String!) {
-          uploadDocument(employeeId: $empId, name: $name, category: $cat, fileUrl: $url, fileType: $type, fileSize: $size, visibilityLevel: $vis) { id }
-        }
-      `;
-      return gqlClient.request(UPLOAD_DOC, {
-        empId: employeeId,
+      return await documentsApi.uploadDocument({
+        employeeId,
         name: data.document_name,
-        cat: data.category || 'General',
-        url: data.file_url || '',
-        type: data.file_type || 'PDF',
-        size: data.file_size || 0,
-        vis: data.visibility_level || 'employee'
+        category: data.category || 'General',
+        fileUrl: data.file_url || '',
+        fileType: data.file_type || 'PDF',
+        fileSize: data.file_size || 0,
       });
     },
-    onSuccess: async (newDoc) => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       setShowDocDialog(false);
       setDocForm({ document_name: '', file_url: '', file_name: '', file_type: 'PDF', file_size: 0, category: 'Employment Contract', visibility_level: 'hr_only' });
+      toast.success("Document uploaded successfully.");
     },
+    onError: (err) => {
+      console.error(err);
+      toast.error(extractErrorMessage(err, "Failed to upload document."));
+    }
   });
 
   const replaceDocumentVersionMutation = useMutation({
     mutationFn: async ({ id, fileUrl, fileType, fileSize }) => {
-      const REPLACE_DOC = gql`
-        mutation ReplaceDoc($id: ID!, $url: String!, $type: String!, $size: Int) {
-          replaceDocumentVersion(id: $id, fileUrl: $url, fileType: $type, fileSize: $size) { id currentVersion }
-        }
-      `;
-      return gqlClient.request(REPLACE_DOC, { id, url: fileUrl, type: fileType, size: fileSize });
+      return await documentsApi.uploadDocument({
+        employeeId,
+        name: docToReplace?.document_name || docToReplace?.name || 'Updated Document',
+        category: docToReplace?.category || 'General',
+        fileUrl,
+        fileType: fileType || 'PDF',
+        fileSize: fileSize || 0,
+      });
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
       setShowReplaceDialog(false);
       setDocToReplace(null);
       setReplaceForm({ file_url: '', file_name: '', file_type: 'PDF', file_size: 0 });
+      toast.success("Document replaced successfully.");
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(extractErrorMessage(err, "Failed to replace document."));
     }
   });
 
   const deleteDocumentMutation = useMutation({
     mutationFn: async (id) => {
-      // Mocked for now
-      return { id };
+      return await documentsApi.deleteDocument(id);
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      toast.success("Document deleted successfully.");
     },
+    onError: (err) => {
+      console.error(err);
+      toast.error(extractErrorMessage(err, "Failed to delete document."));
+    }
   });
 
   const unassignAssetMutation = useMutation({
@@ -2225,15 +2186,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={async () => {
                         try {
-                          const APPROVE_EMPLOYEE = gql`
-                              mutation ApproveEmployeeData($employeeId: ID!) {
-                                approveEmployeeData(employeeId: $employeeId) {
-                                  id
-                                  employmentStatus
-                                }
-                              }
-                            `;
-                          await gqlClient.request(APPROVE_EMPLOYEE, { employeeId });
+                          await employeesApi.updateEmployee(employeeId, { employmentStatus: 'ACTIVE' });
                           toast.success("Employee data approved!");
                           queryClient.invalidateQueries(['employee', employeeId]);
                         } catch (err) {
@@ -2514,7 +2467,7 @@ export default function EmployeeDetail({ employeeIdProp, onClose }) {
         animate="visible"
       >
         <motion.div variants={itemVariants}>
-          <Button variant="ghost" onClick={() => navigate('/Employees')}>
+          <Button variant="ghost" onClick={() => navigate(PAGE_ROUTES.EMPLOYEES)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Employees
           </Button>

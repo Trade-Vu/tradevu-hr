@@ -60,8 +60,9 @@ export const inviteResolvers = {
         }
       }
 
-      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
-      const inviteLink = `${process.env.FRONTEND_URL || fallbackUrl}/accept-invite?token=${token}`;
+      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'http://localhost:5173';
+      const baseFrontendUrl = (process.env.FRONTEND_URL || fallbackUrl).replace(/\/+$/, '');
+      const inviteLink = `${baseFrontendUrl}/accept-invite?token=${token}`;
 
       await NotificationService.notify({
         targetEmail: email,

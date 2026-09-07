@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -470,7 +471,7 @@ export default function LeaveOverview() {
                 <Button 
                   variant="outline" 
                   className="mt-6"
-                  onClick={() => window.location.href = '/settings'}
+                  onClick={() => window.location.href = PAGE_ROUTES.SETTINGS}
                 >
                   Configure Leave Types in Settings
                 </Button>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus, FileText, BarChart3, Users } from "lucide-react";
 import { motion } from "framer-motion";
@@ -10,28 +10,28 @@ const actions = [
     title: "Add New Hire",
     description: "Onboard a new employee",
     icon: UserPlus,
-    url: createPageUrl("Employees?action=add"),
+    url: `${PAGE_ROUTES.EMPLOYEES}?action=add`,
     color: "blue",
   },
   {
     title: "Create Template",
     description: "Build onboarding template",
     icon: FileText,
-    url: createPageUrl("Templates?action=add"),
+    url: `${PAGE_ROUTES.TEMPLATES}?action=add`,
     color: "indigo",
   },
   {
     title: "View Analytics",
     description: "Check performance metrics",
     icon: BarChart3,
-    url: createPageUrl("Analytics"),
+    url: PAGE_ROUTES.ANALYTICS,
     color: "purple",
   },
   {
     title: "Manage Employees",
     description: "View all employees",
     icon: Users,
-    url: createPageUrl("Employees"),
+    url: PAGE_ROUTES.EMPLOYEES,
     color: "green",
   },
 ];

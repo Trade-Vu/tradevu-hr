@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { Plus, FileText, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TemplateList from "../components/templates/TemplateList";
@@ -28,7 +29,7 @@ export default function Templates() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       setShowForm(false);
-      navigate('/Templates');
+      navigate(PAGE_ROUTES.TEMPLATES);
     },
   });
 
@@ -43,7 +44,7 @@ export default function Templates() {
                 size="icon"
                 onClick={() => {
                   setShowForm(false);
-                  navigate('/Templates');
+                  navigate(PAGE_ROUTES.TEMPLATES);
                 }}
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -75,7 +76,7 @@ export default function Templates() {
             onSubmit={(data) => createTemplateMutation.mutate(data)}
             onCancel={() => {
               setShowForm(false);
-              navigate('/Templates');
+              navigate(PAGE_ROUTES.TEMPLATES);
             }}
             isSubmitting={createTemplateMutation.isPending}
           />

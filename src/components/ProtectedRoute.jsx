@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 
 const DefaultFallback = () => (
   <div className="fixed inset-0 flex items-center justify-center">
@@ -24,12 +25,12 @@ export default function ProtectedRoute({ fallback = <DefaultFallback />, require
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={PAGE_ROUTES.LOGIN} replace />;
   }
 
   // Role-based guard: if requiredRoles is provided, check user's role
   if (requiredRoles && user && !requiredRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={PAGE_ROUTES.DASHBOARD} replace />;
   }
 
   return <Outlet />;

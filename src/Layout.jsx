@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { 
   LayoutDashboard, Users, FileText, BarChart3, UserCircle, LogOut, Menu,
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
@@ -34,10 +34,10 @@ const navigationStructure = [
     icon: LayoutDashboard,
     isParent: true,
     children: [
-      { title: "Overview", url: "/", icon: LayoutDashboard },
-      { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
-      import.meta.env.DEV && { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
-      { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
+      { title: "Overview", url: PAGE_ROUTES.HOME, icon: LayoutDashboard },
+      { title: "Approvals", url: PAGE_ROUTES.PENDING_APPROVALS, icon: CheckCircle },
+      import.meta.env.DEV && { title: "Assets", url: PAGE_ROUTES.ASSETS, icon: Laptop },
+      { title: "Tasks & Projects", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
     ].filter(Boolean)
   },
   {
@@ -45,10 +45,10 @@ const navigationStructure = [
     icon: Users,
     isParent: true,
     children: [
-      { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
-      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      import.meta.env.DEV && { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
+      { title: "All Employees", url: PAGE_ROUTES.EMPLOYEES, icon: Users },
+      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
+      { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
+      import.meta.env.DEV && { title: "Attendance", url: PAGE_ROUTES.ATTENDANCE, icon: Calendar },
     ].filter(Boolean)
   },
   {
@@ -56,13 +56,13 @@ const navigationStructure = [
     icon: DollarSign,
     isParent: true,
     children: [
-      { title: "Payroll", url: createPageUrl("Payroll"), icon: DollarSign },
-      { title: "Compensation", url: createPageUrl("Compensation"), icon: DollarSign },
-      { title: "Adjustments", url: createPageUrl("PayrollAdjustments"), icon: DollarSign },
-      { title: "Reports", url: createPageUrl("PayrollReports"), icon: TrendingUp },
-      { title: "Statutory", url: createPageUrl("SettingsStatutory"), icon: Settings },
-      { title: "Loans", url: createPageUrl("Loans"), icon: DollarSign },
-      { title: "Expenses", url: createPageUrl("Expenses"), icon: Receipt },
+      { title: "Payroll", url: PAGE_ROUTES.PAYROLL, icon: DollarSign },
+      { title: "Compensation", url: PAGE_ROUTES.COMPENSATION, icon: DollarSign },
+      { title: "Adjustments", url: PAGE_ROUTES.PAYROLL_ADJUSTMENTS, icon: DollarSign },
+      { title: "Reports", url: PAGE_ROUTES.PAYROLL_REPORTS, icon: TrendingUp },
+      { title: "Statutory", url: PAGE_ROUTES.SETTINGS_STATUTORY, icon: Settings },
+      { title: "Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
+      { title: "Expenses", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
     ]
   },
   {
@@ -70,9 +70,9 @@ const navigationStructure = [
     icon: UserPlus,
     isParent: true,
     children: [
-      { title: "Job Postings", url: createPageUrl("Recruitment"), icon: UserPlus },
-      { title: "Onboarding", url: createPageUrl("Templates"), icon: CheckCircle },
-      { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle },
+      { title: "Job Postings", url: PAGE_ROUTES.RECRUITMENT, icon: UserPlus },
+      { title: "Onboarding", url: PAGE_ROUTES.TEMPLATES, icon: CheckCircle },
+      { title: "Offboarding", url: PAGE_ROUTES.OFFBOARDING, icon: CheckCircle },
     ]
   },
   import.meta.env.DEV && {
@@ -80,8 +80,8 @@ const navigationStructure = [
     icon: Video,
     isParent: true,
     children: [
-      { title: "Training", url: createPageUrl("Training"), icon: Video },
-      { title: "Evaluations", url: createPageUrl("Evaluations"), icon: ClipboardCheck },
+      { title: "Training", url: PAGE_ROUTES.TRAINING, icon: Video },
+      { title: "Evaluations", url: PAGE_ROUTES.EVALUATIONS, icon: ClipboardCheck },
     ]
   },
   import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
@@ -89,7 +89,7 @@ const navigationStructure = [
     icon: Target,
     isParent: true,
     children: [
-      { title: "Reviews", url: createPageUrl("Performance"), icon: Target }
+      { title: "Reviews", url: PAGE_ROUTES.PERFORMANCE, icon: Target }
     ]
   },
   import.meta.env.DEV && {
@@ -97,11 +97,11 @@ const navigationStructure = [
     icon: ShieldCheck,
     isParent: true,
     children: [
-      { title: "AI Compliance Monitor", url: createPageUrl("ComplianceDashboard"), icon: ShieldCheck },
-      { title: "Knowledge Bank", url: createPageUrl("KnowledgeBank"), icon: BookOpen },
-      { title: "HR Letters", url: createPageUrl("HRLetters"), icon: FileText },
-      { title: "Surveys", url: createPageUrl("Surveys"), icon: MessageSquare },
-      { title: "Templates", url: createPageUrl("Templates"), icon: FileText },
+      { title: "AI Compliance Monitor", url: PAGE_ROUTES.COMPLIANCE_DASHBOARD, icon: ShieldCheck },
+      { title: "Knowledge Bank", url: PAGE_ROUTES.KNOWLEDGE_BANK, icon: BookOpen },
+      { title: "HR Letters", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
+      { title: "Surveys", url: PAGE_ROUTES.SURVEYS, icon: MessageSquare },
+      { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: FileText },
     ]
   },
   import.meta.env.DEV && {
@@ -109,9 +109,9 @@ const navigationStructure = [
     icon: BarChart3,
     isParent: true,
     children: [
-      { title: "Analytics", url: createPageUrl("Analytics"), icon: BarChart3 },
-      { title: "Advanced Analytics", url: createPageUrl("AdvancedAnalytics"), icon: TrendingUp },
-      { title: "Organogram", url: createPageUrl("Organogram"), icon: Users },
+      { title: "Analytics", url: PAGE_ROUTES.ANALYTICS, icon: BarChart3 },
+      { title: "Advanced Analytics", url: PAGE_ROUTES.ADVANCED_ANALYTICS, icon: TrendingUp },
+      { title: "Organogram", url: PAGE_ROUTES.ORGANOGRAM, icon: Users },
     ]
   },
 ].filter(Boolean);
@@ -122,9 +122,9 @@ const employeeNavigation = [
     icon: Home,
     isParent: true,
     children: [
-      { title: "My Portal", url: createPageUrl("EmployeeSelfService"), icon: Briefcase },
-      { title: "My Tasks", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      { title: "My Portal", url: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, icon: Briefcase },
+      { title: "My Tasks", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
+      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -132,10 +132,10 @@ const employeeNavigation = [
     icon: FileText,
     isParent: true,
     children: [
-      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      { title: "My Loans", url: createPageUrl("Loans"), icon: DollarSign },
-      { title: "Expense Claims", url: createPageUrl("Expenses"), icon: Receipt },
-      { title: "Request HR Letter", url: createPageUrl("HRLetters"), icon: FileText },
+      { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
+      { title: "My Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
+      { title: "Expense Claims", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
+      { title: "Request HR Letter", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
     ]
   },
   import.meta.env.DEV && {
@@ -143,7 +143,7 @@ const employeeNavigation = [
     icon: Video,
     isParent: true,
     children: [
-      { title: "My Training", url: createPageUrl("Training"), icon: Video },
+      { title: "My Training", url: PAGE_ROUTES.TRAINING, icon: Video },
     ]
   }
 ].filter(Boolean);
@@ -159,7 +159,7 @@ export default function Layout({ children }) {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate(PAGE_ROUTES.LOGIN);
     } catch (error) {
       console.error("Error during logout:", error);
     }
@@ -225,23 +225,23 @@ export default function Layout({ children }) {
     refetchInterval: 10000,
   });
 
-  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.isOrgOwner;
+  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN', 'admin'].includes(user?.role) || user?.isOrgOwner;
   
   const allEmployees = pendingData?.employees || [];
 
   const pendingProfileReviews = allEmployees.filter(e => 
-    e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
+    e.employmentStatus === 'PENDING_APPROVAL' && (['NOT_STARTED', 'not_started'].includes(e.onboardingStatus) || !e.onboardingStatus)
   ).length;
 
   const pendingTasksReviews = allEmployees.filter(e => {
     if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
       return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
     }
-    return e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'in_progress' || e.onboardingStatus === 'tasks_completed');
+    return e.employmentStatus === 'PENDING_APPROVAL' && (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
   }).length;
 
   const pendingProbationSetups = allEmployees.filter(e => {
-    if (e.employmentStatus === 'PENDING_APPROVAL' && e.onboardingStatus === 'probation_pending') return true;
+    if (e.employmentStatus === 'PENDING_APPROVAL' && ['PROBATION_PENDING', 'probation_pending'].includes(e.onboardingStatus)) return true;
     
     if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
       if (e.onboardingTasks && e.onboardingTasks.length > 0) {
@@ -301,14 +301,14 @@ export default function Layout({ children }) {
       icon: Settings,
       isParent: true,
       children: [
-        { title: "General Settings", url: createPageUrl("Settings"), icon: Settings },
-        { title: "Approval Workflows", url: createPageUrl("SettingsApprovalWorkflows"), icon: CheckCircle },
-        { title: "Work Shifts", url: createPageUrl("SettingsShifts"), icon: Clock },
-        { title: "Departments", url: createPageUrl("SettingsDepartments"), icon: Users },
-        { title: "Employee Classes", url: createPageUrl("SettingsClasses"), icon: Settings },
-        { title: "Leave Types", url: createPageUrl("SettingsLeaveTypes"), icon: CalendarRange },
-        { title: "Public Holidays", url: createPageUrl("SettingsPublicHolidays"), icon: Calendar },
-        { title: "Audit Logs", url: createPageUrl("AuditLogs"), icon: ShieldCheck }
+        { title: "General Settings", url: PAGE_ROUTES.SETTINGS, icon: Settings },
+        { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
+        { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
+        { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
+        { title: "Employee Classes", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
+        { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
+        { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
+        { title: "Audit Logs", url: PAGE_ROUTES.AUDIT_LOGS, icon: ShieldCheck }
       ]
     });
   }
@@ -474,7 +474,7 @@ export default function Layout({ children }) {
               </div>
               <DropdownMenuItem onClick={() => {
                 changeViewMode('EMPLOYEE');
-                navigate('/employeeselfservice');
+                navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
               }}>
                 <UserCircle className="w-4 h-4 mr-2" />
                 My Profile
@@ -483,7 +483,7 @@ export default function Layout({ children }) {
                 <DropdownMenuItem onClick={() => {
                   const newMode = viewMode === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
                   changeViewMode(newMode);
-                  navigate(newMode === 'ADMIN' ? '/' : '/employeeselfservice');
+                  navigate(newMode === 'ADMIN' ? PAGE_ROUTES.HOME : PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
                 }}>
                   {viewMode === 'ADMIN' ? <Briefcase className="w-4 h-4 mr-2" /> : <Users className="w-4 h-4 mr-2" />}
                   Switch to {viewMode === 'ADMIN' ? 'Employee Portal' : 'Admin Panel'}
@@ -516,7 +516,7 @@ export default function Layout({ children }) {
               className="space-y-1"
             >
               {activePrimary?.children?.map(child => {
-                const isActive = location.pathname === child.url;
+                const isActive = location.pathname.toLowerCase() === child.url.toLowerCase();
                 return (
                   <Link 
                     key={child.title}

@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from "react";
 import countryList from 'country-list';
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
-import { createPageUrl } from "@/utils";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  employeesApi,
+  payrollApi,
+  leaveApi,
+  attendanceApi,
+  documentsApi,
+  onboardingApi,
+  assetsApi,
+  expensesApi,
+} from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +34,13 @@ import { motion } from "framer-motion";
 export default function EmployeeSelfService() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const employeeId = user?.employeeId;
+  const { user, isLoadingAuth } = useAuth();
+  const employeeId =
+    user?.employeeId?._id ||
+    user?.employeeId?.id ||
+    user?.employee?._id ||
+    user?.employee?.id ||
+    (typeof user?.employeeId === 'string' ? user?.employeeId : null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -38,23 +51,14 @@ export default function EmployeeSelfService() {
     queryKey: ['employee', employeeId],
     queryFn: async () => {
       if (!employeeId) return null;
-      const EMP_QUERY = gql`
-        query GetEmployeeSelfService($id: ID!) {
-          employee(id: $id) {
-            id fullName email phone privateEmail dateOfBirth gender maritalStatus nationality nationalId passportNumber jobTitle departmentId department { name } hireDate employmentStatus
-            promotionHistory { id previousTitle newTitle previousGrade newGrade effectiveDate approvedBy createdAt }
-            statusHistory { id previousStatus newStatus changedBy reason createdAt }
-          }
-        }
-      `;
-      const data = await gqlClient.request(EMP_QUERY, { id: employeeId });
-      if (!data.employee) return null;
-      const emp = data.employee;
+      const emp = await employeesApi.getEmployeeById(employeeId);
+      if (!emp) return null;
       return {
         ...emp,
+        id: emp._id || emp.id,
         full_name: emp.fullName,
         job_title: emp.jobTitle,
-        department_id: emp.department?.name || emp.departmentId,
+        department_id: emp.department?.name || emp.departmentId?.name || emp.departmentId,
         start_date: emp.hireDate,
         employment_status: emp.employmentStatus,
         promotion_history: emp.promotionHistory || [],
@@ -73,22 +77,16 @@ export default function EmployeeSelfService() {
   const { data: payrolls = [] } = useQuery({
     queryKey: ['my-payrolls', employee?.id],
     queryFn: async () => {
-      const PAYROLL_QUERY = gql`
-        query {
-          myPayrollRecords {
-            id basicSalary allowances grossPay deductions netPay
-            payrollRun { id month startDate endDate status }
-          }
-        }
-      `;
-      const data = await gqlClient.request(PAYROLL_QUERY);
-      return data.myPayrollRecords.map(r => ({
+      const res = await payrollApi.getMyPayslips();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(r => ({
         ...r,
-        month: r.payrollRun.month,
-        status: r.payrollRun.status,
-        basic_salary: r.basicSalary,
-        net_salary: r.netPay,
-        total_earnings: r.grossPay
+        id: r._id || r.id,
+        month: r.payrollRunId?.month || r.month || 'N/A',
+        status: r.payrollRunId?.status || r.status || 'draft',
+        basic_salary: r.basicSalary || 0,
+        net_salary: r.netPay || 0,
+        total_earnings: r.grossPay || 0,
       }));
     },
     enabled: !!employee,
@@ -96,14 +94,58 @@ export default function EmployeeSelfService() {
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['my-leaves', employee?.id],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await leaveApi.getMyRequests();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(l => ({
+        ...l,
+        id: l._id || l.id,
+        leave_type: l.leaveTypeId?.name || l.leave_type || 'Leave',
+        start_date: l.startDate || l.start_date,
+        end_date: l.endDate || l.end_date,
+        status: l.status,
+      }));
+    },
     enabled: !!employee,
     initialData: [],
   });
 
+  const { data: leaveBalances = [] } = useQuery({
+    queryKey: ['my-leave-balances', employee?.id],
+    queryFn: async () => {
+      if (!employee?.id) return [];
+      const res = await leaveApi.getBalances(employee.id);
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+    enabled: !!employee?.id,
+    initialData: [],
+  });
+
+  const annualBalance = leaveBalances.find(b => b.leaveTypeId?.name?.toLowerCase().includes('annual') || b.leaveType?.toLowerCase().includes('annual'));
+  const sickBalance = leaveBalances.find(b => b.leaveTypeId?.name?.toLowerCase().includes('sick') || b.leaveType?.toLowerCase().includes('sick'));
+
+  const annualLeaveTotal = annualBalance?.allocatedDays ?? employee?.leave_balances?.annual_leave_total ?? 21;
+  const annualLeaveUsed = annualBalance?.usedDays ?? employee?.leave_balances?.annual_leave_used ?? 0;
+  const annualLeaveRemaining = annualLeaveTotal - annualLeaveUsed;
+
+  const sickLeaveTotal = sickBalance?.allocatedDays ?? employee?.leave_balances?.sick_leave_total ?? 30;
+  const sickLeaveUsed = sickBalance?.usedDays ?? employee?.leave_balances?.sick_leave_used ?? 0;
+  const sickLeaveRemaining = sickLeaveTotal - sickLeaveUsed;
+
   const { data: attendance = [] } = useQuery({
     queryKey: ['my-attendance', employee?.id],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await attendanceApi.getMyAttendance();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(a => ({
+        ...a,
+        id: a._id || a.id,
+        date: a.date,
+        status: a.status,
+        check_in: a.clockIn,
+        check_out: a.clockOut,
+      }));
+    },
     enabled: !!employee,
     initialData: [],
   });
@@ -111,18 +153,15 @@ export default function EmployeeSelfService() {
   const { data: myTasks = [] } = useQuery({
     queryKey: ['my-onboarding-tasks', employee?.id],
     queryFn: async () => {
-      const TASKS_QUERY = gql`
-        query GetTasks($employeeId: ID) {
-          onboardingTasks(employeeId: $employeeId) {
-            id
-            isCompleted
-          }
-        }
-      `;
-      const data = await gqlClient.request(TASKS_QUERY, { employeeId: employee.id });
-      return data.onboardingTasks || [];
+      const res = await onboardingApi.getMyTasks();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(t => ({
+        ...t,
+        id: t._id || t.id,
+        isCompleted: t.status === 'completed' || t.status === 'DONE' || !!t.isCompleted,
+      }));
     },
-    enabled: !!employee?.id
+    enabled: !!employee?.id,
   });
 
   const pendingTasksCount = myTasks.filter(t => !t.isCompleted).length;
@@ -133,28 +172,19 @@ export default function EmployeeSelfService() {
 
   const completeAllMutation = useMutation({
     mutationFn: async (taskIds) => {
-      const UPDATE_TASK = gql`
-        mutation UpdateOnboardingTask($id: ID!, $status: String!) {
-          updateOnboardingTask(id: $id, status: $status) {
-            id
-            isCompleted
-            status
-          }
-        }
-      `;
       for (const id of taskIds) {
-        await gqlClient.request(UPDATE_TASK, { id, status: 'DONE' });
+        await onboardingApi.updateTask(id, { status: 'completed' });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-onboarding-tasks', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['my-onboarding-tasks', employee?.id] });
       setHideBanner(true);
       toast.success("All tasks marked as completed!");
     },
     onError: (error) => {
       toast.error("Failed to complete tasks: " + error.message);
       console.error(error);
-    }
+    },
   });
 
   const handleCompleteAll = () => {
@@ -172,15 +202,39 @@ export default function EmployeeSelfService() {
   };
 
   const { data: assets = [] } = useQuery({
-    queryKey: ['my-assets', employee?.email],
-    queryFn: async () => [],
-    enabled: !!employee,
+    queryKey: ['my-assets', employee?.id],
+    queryFn: async () => {
+      if (!employee?.id) return [];
+      const res = await assetsApi.getMyAssets(employee.id);
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(a => ({
+        ...a,
+        id: a._id || a.id,
+        asset_name: a.name || a.asset_name,
+        asset_type: a.type || a.asset_type,
+        serial_number: a.serialNumber || a.serial_number,
+        status: a.status,
+      }));
+    },
+    enabled: !!employee?.id,
     initialData: [],
   });
 
   const { data: expenses = [] } = useQuery({
     queryKey: ['my-expenses', employee?.id],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await expensesApi.getMyExpenses();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(e => ({
+        ...e,
+        id: e._id || e.id,
+        expense_type: e.category || e.type || e.expense_type || 'expense',
+        amount: e.amount || 0,
+        date: e.date || e.createdAt,
+        description: e.description || '',
+        status: e.status,
+      }));
+    },
     enabled: !!employee,
     initialData: [],
   });
@@ -189,19 +243,18 @@ export default function EmployeeSelfService() {
     queryKey: ['my-documents', employeeId],
     queryFn: async () => {
       if (!employeeId) return [];
-      const DOCS_QUERY = gql`
-        query GetMyDocuments($employeeId: ID!) {
-          documents(employeeId: $employeeId) {
-            id name category fileUrl fileType status
-          }
-        }
-      `;
-      const data = await gqlClient.request(DOCS_QUERY, { employeeId });
-      return data.documents.map(d => ({
+      const res = await documentsApi.getMyDocuments();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(d => ({
         ...d,
+        id: d._id || d.id,
         document_name: d.name,
-        file_name: d.name + '.' + (d.fileType || 'pdf'),
-        file_url: d.fileUrl
+        category: d.category,
+        file_name: d.name + (d.fileType ? '.' + d.fileType : ''),
+        file_url: d.fileUrl,
+        fileUrl: d.fileUrl,
+        fileType: d.fileType,
+        status: d.status,
       }));
     },
     enabled: !!employeeId,
@@ -210,14 +263,7 @@ export default function EmployeeSelfService() {
 
   const updateEmployeeMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const mutation = gql`
-        mutation UpdateEmployeeSelf($input: UpdateEmployeeInput!) {
-          updateEmployeeSelf(input: $input) {
-            id
-          }
-        }
-      `;
-      const input = {
+      const payload = {
         phone: data.phone,
         privateEmail: data.privateEmail,
         dateOfBirth: data.dateOfBirth,
@@ -225,9 +271,9 @@ export default function EmployeeSelfService() {
         maritalStatus: data.maritalStatus,
         nationality: data.nationality,
         nationalId: data.nationalId,
-        passportNumber: data.passportNumber
+        passportNumber: data.passportNumber,
       };
-      return gqlClient.request(mutation, { input });
+      return employeesApi.updateEmployee(id, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
@@ -237,20 +283,12 @@ export default function EmployeeSelfService() {
     onError: (error) => {
       toast.error("Failed to update profile: " + error.message);
       console.error(error);
-    }
+    },
   });
 
   const submitProfileMutation = useMutation({
     mutationFn: async () => {
-      const mutation = gql`
-        mutation SubmitProfileForReview($employeeId: ID!) {
-          submitProfileForReview(employeeId: $employeeId) {
-            id
-            employmentStatus
-          }
-        }
-      `;
-      return gqlClient.request(mutation, { employeeId });
+      return employeesApi.submitForReview(employeeId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
@@ -259,22 +297,18 @@ export default function EmployeeSelfService() {
     onError: (error) => {
       toast.error("Failed to submit profile: " + error.message);
       console.error(error);
-    }
+    },
   });
 
   const uploadDocumentMutation = useMutation({
     mutationFn: async (input) => {
-      const MUTATION = gql`
-        mutation UploadDocument($employeeId: ID!, $name: String!, $category: String!, $fileUrl: String!, $fileType: String!, $visibilityLevel: String!) {
-          uploadDocument(employeeId: $employeeId, name: $name, category: $category, fileUrl: $fileUrl, fileType: $fileType, visibilityLevel: $visibilityLevel) {
-            id
-          }
-        }
-      `;
-      // Ensure visibilityLevel is lowercase 'employee'
-      return gqlClient.request(MUTATION, {
-        ...input,
-        visibilityLevel: input.visibilityLevel?.toLowerCase() || 'employee'
+      return documentsApi.uploadDocument({
+        employeeId: input.employeeId,
+        name: input.name,
+        category: input.category,
+        fileUrl: input.fileUrl,
+        fileType: input.fileType,
+        visibilityLevel: input.visibilityLevel?.toLowerCase() || 'employee',
       });
     },
     onSuccess: () => {
@@ -286,7 +320,7 @@ export default function EmployeeSelfService() {
     onError: (error) => {
       toast.error("Failed to upload document: " + error.message);
       console.error(error);
-    }
+    },
   });
 
   const handleSave = () => {
@@ -298,42 +332,47 @@ export default function EmployeeSelfService() {
   const handleDownloadPayslip = async (payroll) => {
     try {
       setIsGeneratingPdf(true);
-      const MUTATION = gql`
-        mutation GeneratePayslip($recordId: ID!) {
-          generatePayslip(recordId: $recordId)
-        }
-      `;
-      const response = await gqlClient.request(MUTATION, { recordId: payroll.id });
-      const base64Data = response.generatePayslip;
-      
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      
-      const url = URL.createObjectURL(blob);
+      const blob = await payrollApi.downloadPayslipPdf(payroll.id);
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Payslip_${payroll.month}.pdf`;
+      a.download = `Payslip_${payroll.month || payroll.id}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.success("Payslip downloaded successfully");
     } catch (error) {
-      toast.error("Failed to generate PDF payslip");
+      toast.error("Failed to download PDF payslip: " + error.message);
       console.error(error);
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  if (!employee) {
+  if (isLoadingAuth || (isLoadingEmployee && employeeId)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50/50 p-4">
+        <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-slate-200 max-w-md w-full">
+          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">No Employee Profile Found</h3>
+          <p className="text-slate-500 text-sm mb-6">
+            Your account is not associated with an active employee record, or the profile could not be loaded.
+          </p>
+          <Button onClick={() => navigate(PAGE_ROUTES.HOME)} className="w-full">
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     );
@@ -378,13 +417,13 @@ export default function EmployeeSelfService() {
           <div className="absolute top-0 left-0 right-0 bg-[#F4F5F7] border-b border-[#DFE1E6] py-5 px-4 md:px-8 flex flex-col xl:flex-row items-center justify-between text-base text-[#172B4D] shadow-sm z-50 rounded-none">
             <div className="flex-1 mb-3 xl:mb-0 pr-4 font-medium">
               You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete. Review your assigned tasks to ensure your profile and onboarding are fully set up.
-              <span className="text-[#0052CC] hover:underline cursor-pointer ml-2" onClick={() => navigate(createPageUrl("TaskManager"))}>View task list</span>
+              <span className="text-[#0052CC] hover:underline cursor-pointer ml-2" onClick={() => navigate(PAGE_ROUTES.TASK_MANAGER)}>View task list</span>
             </div>
             <div className="flex items-center gap-2 whitespace-nowrap font-medium text-sm">
               <button className="px-4 py-2 rounded text-[#5E6C84] hover:text-[#172B4D] hover:bg-slate-200/50 transition-colors" onClick={handleRemindLater}>
                 Remind me later
               </button>
-              <button className="px-4 py-2 rounded border border-[#DFE1E6] text-[#172B4D] hover:bg-slate-200/50 transition-colors bg-transparent" onClick={() => navigate(createPageUrl("TaskManager"))}>
+              <button className="px-4 py-2 rounded border border-[#DFE1E6] text-[#172B4D] hover:bg-slate-200/50 transition-colors bg-transparent" onClick={() => navigate(PAGE_ROUTES.TASK_MANAGER)}>
                 Only view tasks
               </button>
               <button 
@@ -422,7 +461,7 @@ export default function EmployeeSelfService() {
           <motion.div 
             variants={itemVariants} 
             className="bg-yellow-50/80 backdrop-blur-md border border-yellow-200/60 text-yellow-800 rounded-2xl p-4 mb-6 shadow-sm cursor-pointer hover:bg-yellow-100/80 transition-colors"
-            onClick={() => navigate(createPageUrl("EmployeePortal"))}
+            onClick={() => navigate(PAGE_ROUTES.EMPLOYEE_PORTAL)}
           >
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <span className="w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
@@ -468,7 +507,7 @@ export default function EmployeeSelfService() {
             </div>
             <Button 
               className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
-              onClick={() => navigate(createPageUrl("TaskManager"))}
+              onClick={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
             >
               View My Tasks
             </Button>
@@ -480,7 +519,7 @@ export default function EmployeeSelfService() {
           <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
             <Card 
               className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
-              onClick={() => navigate(createPageUrl("LeaveManagement"))}
+              onClick={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
@@ -489,7 +528,7 @@ export default function EmployeeSelfService() {
                   </div>
                 </div>
                 <p className="text-3xl font-bold text-slate-900 mt-4">
-                  {(employee.leave_balances?.annual_leave_total || 21) - (employee.leave_balances?.annual_leave_used || 0)}
+                  {annualLeaveRemaining}
                 </p>
                 <p className="text-sm text-slate-600 font-medium mt-1">Leave Days Remaining</p>
               </CardContent>
@@ -794,7 +833,7 @@ export default function EmployeeSelfService() {
             <div className="grid md:grid-cols-2 gap-6">
               <Card 
                 className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
-                onClick={() => navigate(createPageUrl("LeaveManagement"))}
+                onClick={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
               >
                 <CardHeader className="border-b border-slate-200">
                   <CardTitle>Leave Balance</CardTitle>
@@ -804,19 +843,19 @@ export default function EmployeeSelfService() {
                     <div className="p-4 bg-blue-50 rounded-lg">
                       <p className="text-sm text-slate-600">Annual Leave</p>
                       <p className="text-3xl font-bold text-blue-700">
-                        {(employee.leave_balances?.annual_leave_total || 21) - (employee.leave_balances?.annual_leave_used || 0)}
+                        {annualLeaveRemaining}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {employee.leave_balances?.annual_leave_used || 0} used of {employee.leave_balances?.annual_leave_total || 21}
+                        {annualLeaveUsed} used of {annualLeaveTotal}
                       </p>
                     </div>
                     <div className="p-4 bg-green-50 rounded-lg">
                       <p className="text-sm text-slate-600">Sick Leave</p>
                       <p className="text-3xl font-bold text-green-700">
-                        {(employee.leave_balances?.sick_leave_total || 30) - (employee.leave_balances?.sick_leave_used || 0)}
+                        {sickLeaveRemaining}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {employee.leave_balances?.sick_leave_used || 0} used of {employee.leave_balances?.sick_leave_total || 30}
+                        {sickLeaveUsed} used of {sickLeaveTotal}
                       </p>
                     </div>
                   </div>
@@ -825,7 +864,7 @@ export default function EmployeeSelfService() {
 
               <Card 
                 className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 transition-colors"
-                onClick={() => navigate(createPageUrl("LeaveManagement"))}
+                onClick={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
               >
                 <CardHeader className="border-b border-slate-200">
                   <CardTitle>Leave History</CardTitle>
