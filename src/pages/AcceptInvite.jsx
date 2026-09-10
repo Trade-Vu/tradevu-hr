@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { useAuth } from '@/lib/AuthContext';
+import { toast } from 'sonner';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
@@ -41,17 +42,17 @@ export default function AcceptInvite() {
     }
 
     if (!firstName || !lastName) {
-      setError('Please enter your first and last name.');
+      toast.error('Please enter your first and last name.');
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      toast.error('Password must be at least 8 characters long');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import './App.css'
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "sonner"
@@ -6,7 +7,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { setupIframeMessaging } from './lib/iframe-messaging';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -19,6 +20,7 @@ import ResetPassword from './pages/ResetPassword';
 import AcceptInvite from './pages/AcceptInvite';
 
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
+import { isAdmin, isSuperAdmin, isHrAdmin } from '@/lib/roleUtils';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -31,8 +33,19 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin, viewMode } = useAuth();
+  const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin, viewMode, changeViewMode } = useAuth();
   const location = useLocation();
+
+  const userIsSuperAdmin = isSuperAdmin(user);
+  const userIsAdmin = isAdmin(user);
+  const userIsHrAdmin = isHrAdmin(user);
+
+  useEffect(() => {
+    if (userIsSuperAdmin && viewMode !== 'ADMIN') {
+      changeViewMode('ADMIN');
+    }
+  }, [userIsSuperAdmin, viewMode, changeViewMode]);
+
   const currentPath = location.pathname.toLowerCase();
   const isLoginPage = currentPath.includes(PAGE_ROUTES.LOGIN);
   const isPublicPage = (!isAuthenticated && currentPath === PAGE_ROUTES.HOME) || 
@@ -75,30 +88,33 @@ const AuthenticatedApp = () => {
     }
   }
 
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner || user?.is_organization_owner;
-  const isAdmin = user?.role?.includes('ADMIN') || user?.role === 'admin' || isSuperAdmin;
-
   // Force profile completion for new employees (skip for SUPER_ADMIN)
-  if (user?.mustCompleteProfile && !isSuperAdmin) {
+  if (user?.mustCompleteProfile && !userIsSuperAdmin) {
     return <ProfileCompletionWizard />;
   }
 
-  // Intercept for Role Selection if user has admin privileges but hasn't picked a view
+  // SUPER_ADMIN must never access role selection or employee-only self service views
+  if (userIsSuperAdmin) {
+    if (
+      currentPath === PAGE_ROUTES.ROLE_SELECTION.toLowerCase() ||
+      currentPath === PAGE_ROUTES.EMPLOYEE_SELF_SERVICE.toLowerCase() ||
+      currentPath === PAGE_ROUTES.EMPLOYEE_PORTAL.toLowerCase()
+    ) {
+      return <Navigate to={PAGE_ROUTES.DASHBOARD} replace />;
+    }
+  }
+
+  // Intercept for Role Selection: ONLY HR_ADMIN gets the choice to select view
   if (user && !viewMode) {
-    const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
-    const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-
-    console.log({ user, viewMode, isTrue: user && !viewMode, hasDualRoles, isAdmin });
-
-    if (hasDualRoles && Pages.RoleSelection) {
+    if (!userIsSuperAdmin && userIsHrAdmin && Pages.RoleSelection) {
       return <Pages.RoleSelection />;
     }
   }
 
-  const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
-  const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-
-  const effectiveViewMode = viewMode || (hasDualRoles ? 'ADMIN' : 'EMPLOYEE');
+  // SUPER_ADMIN unconditionally has ADMIN viewMode; other users default based on role
+  const effectiveViewMode = userIsSuperAdmin
+    ? 'ADMIN'
+    : (viewMode || (userIsHrAdmin ? 'ADMIN' : 'EMPLOYEE'));
 
   // Render the main app
   return (

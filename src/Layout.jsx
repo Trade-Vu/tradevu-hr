@@ -6,14 +6,16 @@ import {
   LayoutDashboard, Users, FileText, BarChart3, UserCircle, LogOut, Menu,
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
   MessageSquare, Settings, CheckSquare, Plane, MessageCircle, Home,
-  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange
+  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange,
+  LayoutDashboardIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { organizationsApi, approvalsApi } from "@/api";
+import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges } from "@/lib/roleUtils";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,7 @@ const navigationStructure = [
     icon: LayoutDashboard,
     isParent: true,
     children: [
+      // { title: "Dashboard", url: PAGE_ROUTES.DASHBOARD, icon: LayoutDashboardIcon },
       { title: "Overview", url: PAGE_ROUTES.HOME, icon: LayoutDashboard },
       { title: "Approvals", url: PAGE_ROUTES.PENDING_APPROVALS, icon: CheckCircle },
       import.meta.env.DEV && { title: "Assets", url: PAGE_ROUTES.ASSETS, icon: Laptop },
@@ -46,74 +49,75 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "All Employees", url: PAGE_ROUTES.EMPLOYEES, icon: Users },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
+      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
       { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
       import.meta.env.DEV && { title: "Attendance", url: PAGE_ROUTES.ATTENDANCE, icon: Calendar },
     ].filter(Boolean)
   },
-  {
-    title: "Payroll",
-    icon: DollarSign,
-    isParent: true,
-    children: [
-      { title: "Payroll", url: PAGE_ROUTES.PAYROLL, icon: DollarSign },
-      { title: "Compensation", url: PAGE_ROUTES.COMPENSATION, icon: DollarSign },
-      { title: "Adjustments", url: PAGE_ROUTES.PAYROLL_ADJUSTMENTS, icon: DollarSign },
-      { title: "Reports", url: PAGE_ROUTES.PAYROLL_REPORTS, icon: TrendingUp },
-      { title: "Statutory", url: PAGE_ROUTES.SETTINGS_STATUTORY, icon: Settings },
-      { title: "Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
-      { title: "Expenses", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
-    ]
-  },
-  {
-    title: "Recruitment",
-    icon: UserPlus,
-    isParent: true,
-    children: [
-      { title: "Job Postings", url: PAGE_ROUTES.RECRUITMENT, icon: UserPlus },
-      { title: "Onboarding", url: PAGE_ROUTES.TEMPLATES, icon: CheckCircle },
-      { title: "Offboarding", url: PAGE_ROUTES.OFFBOARDING, icon: CheckCircle },
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Training LMS",
-    icon: Video,
-    isParent: true,
-    children: [
-      { title: "Training", url: PAGE_ROUTES.TRAINING, icon: Video },
-      { title: "Evaluations", url: PAGE_ROUTES.EVALUATIONS, icon: ClipboardCheck },
-    ]
-  },
-  import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
-    title: "Performance",
-    icon: Target,
-    isParent: true,
-    children: [
-      { title: "Reviews", url: PAGE_ROUTES.PERFORMANCE, icon: Target }
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Compliance",
-    icon: ShieldCheck,
-    isParent: true,
-    children: [
-      { title: "AI Compliance Monitor", url: PAGE_ROUTES.COMPLIANCE_DASHBOARD, icon: ShieldCheck },
-      { title: "Knowledge Bank", url: PAGE_ROUTES.KNOWLEDGE_BANK, icon: BookOpen },
-      { title: "HR Letters", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
-      { title: "Surveys", url: PAGE_ROUTES.SURVEYS, icon: MessageSquare },
-      { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: FileText },
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Analytics",
-    icon: BarChart3,
-    isParent: true,
-    children: [
-      { title: "Analytics", url: PAGE_ROUTES.ANALYTICS, icon: BarChart3 },
-      { title: "Advanced Analytics", url: PAGE_ROUTES.ADVANCED_ANALYTICS, icon: TrendingUp },
-      { title: "Organogram", url: PAGE_ROUTES.ORGANOGRAM, icon: Users },
-    ]
-  },
+  // {
+  //   title: "Payroll",
+  //   icon: DollarSign,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Payroll", url: PAGE_ROUTES.PAYROLL, icon: DollarSign },
+  //     { title: "Compensation", url: PAGE_ROUTES.COMPENSATION, icon: DollarSign },
+  //     { title: "Adjustments", url: PAGE_ROUTES.PAYROLL_ADJUSTMENTS, icon: DollarSign },
+  //     { title: "Reports", url: PAGE_ROUTES.PAYROLL_REPORTS, icon: TrendingUp },
+  //     { title: "Statutory", url: PAGE_ROUTES.SETTINGS_STATUTORY, icon: Settings },
+  //     { title: "Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
+  //     { title: "Expenses", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
+  //   ]
+  // },
+  // {
+  //   title: "Recruitment",
+  //   icon: UserPlus,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Job Postings", url: PAGE_ROUTES.RECRUITMENT, icon: UserPlus },
+  //     { title: "Onboarding", url: PAGE_ROUTES.TEMPLATES, icon: CheckCircle },
+  //     { title: "Offboarding", url: PAGE_ROUTES.OFFBOARDING, icon: CheckCircle },
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Training LMS",
+  //   icon: Video,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Training", url: PAGE_ROUTES.TRAINING, icon: Video },
+  //     { title: "Evaluations", url: PAGE_ROUTES.EVALUATIONS, icon: ClipboardCheck },
+  //   ]
+  // },
+  // import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
+  //   title: "Performance",
+  //   icon: Target,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Reviews", url: PAGE_ROUTES.PERFORMANCE, icon: Target }
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Compliance",
+  //   icon: ShieldCheck,
+  //   isParent: true,
+  //   children: [
+  //     { title: "AI Compliance Monitor", url: PAGE_ROUTES.COMPLIANCE_DASHBOARD, icon: ShieldCheck },
+  //     { title: "Knowledge Bank", url: PAGE_ROUTES.KNOWLEDGE_BANK, icon: BookOpen },
+  //     { title: "HR Letters", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
+  //     { title: "Surveys", url: PAGE_ROUTES.SURVEYS, icon: MessageSquare },
+  //     { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: FileText },
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Analytics",
+  //   icon: BarChart3,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Analytics", url: PAGE_ROUTES.ANALYTICS, icon: BarChart3 },
+  //     { title: "Advanced Analytics", url: PAGE_ROUTES.ADVANCED_ANALYTICS, icon: TrendingUp },
+  //     { title: "Organogram", url: PAGE_ROUTES.ORGANOGRAM, icon: Users },
+  //   ]
+  // },
+
 ].filter(Boolean);
 
 const employeeNavigation = [
@@ -124,7 +128,7 @@ const employeeNavigation = [
     children: [
       { title: "My Portal", url: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, icon: Briefcase },
       { title: "My Tasks", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
+      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -138,21 +142,20 @@ const employeeNavigation = [
       { title: "Request HR Letter", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
     ]
   },
-  import.meta.env.DEV && {
-    title: "Training",
-    icon: Video,
-    isParent: true,
-    children: [
-      { title: "My Training", url: PAGE_ROUTES.TRAINING, icon: Video },
-    ]
-  }
+  // import.meta.env.DEV && {
+  //   title: "Training",
+  //   icon: Video,
+  //   isParent: true,
+  //   children: [
+  //     { title: "My Training", url: PAGE_ROUTES.TRAINING, icon: Video },
+  //   ]
+  // }
 ].filter(Boolean);
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, viewMode, changeViewMode } = useAuth();
-  const [organization, setOrganization] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("sidebarTheme") || "dark");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -174,123 +177,38 @@ export default function Layout({ children }) {
   
   const isEmployee = !!user?.employeeId;
 
-  useEffect(() => {
-    if (user?.organizationId) {
-      const loadOrg = async () => {
-        try {
-          const ORG_QUERY = gql`
-            query GetOrg($id: ID!) {
-               organization(id: $id) {
-                 id
-                 name
-               }
-            }
-          `;
-          const data = await gqlClient.request(ORG_QUERY, { id: user.organizationId });
-          setOrganization(data.organization);
-        } catch (error) {
-          console.error("Error loading organization:", error);
-        }
-      };
-      loadOrg();
-    }
-  }, [user]);
+  const { data: organization } = useQuery({
+    queryKey: ['myOrganization', user?.organizationId],
+    queryFn: () => organizationsApi.getMyOrganization(),
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [manualActivePrimary, setManualActivePrimary] = useState(null);
 
-  const GET_PENDING_COUNTS = gql`
-    query GetPendingCounts {
-      employees { 
-        id 
-        employmentStatus 
-        onboardingStatus
-        probationEndDate
-        onboardingTasks {
-          isCompleted
-          status
-        }
-      }
-      documents { id status employeeId }
-      leaveRequests { id status employeeId employee { email } }
-      profileUpdateRequests { id status employeeId }
-      allProbationRequests { id status employeeId }
-      allOffboardings { id status employeeId }
-    }
-  `;
+  const userIsAdmin = isAdmin(user);
+  const userIsSuperAdmin = isSuperAdmin(user);
+  const userIsHrAdmin = isHrAdmin(user);
+  const userHasPrivileges = hasAdminPrivileges(user);
 
   const { data: pendingData } = useQuery({
     queryKey: ['pendingApprovalsCount'],
-    queryFn: () => gqlClient.request(GET_PENDING_COUNTS),
-    enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.is_organization_owner || user?.role === 'MANAGER'),
+    queryFn: () => approvalsApi.getPendingCounts(),
+    enabled: !!user?.organizationId && userHasPrivileges,
     refetchInterval: 10000,
   });
 
-  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN', 'admin'].includes(user?.role) || user?.isOrgOwner;
-  
-  const allEmployees = pendingData?.employees || [];
+  const totalApprovalsCount = pendingData?.totalApprovalsCount || 0;
+  const pendingOffboardingCount = pendingData?.pendingOffboardingCount || 0;
+  const pendingLeaveCount = pendingData?.pendingLeaveCount || 0;
+  const pendingProfilesCount = pendingData?.pendingProfilesCount || 0;
 
-  const pendingProfileReviews = allEmployees.filter(e => 
-    e.employmentStatus === 'PENDING_APPROVAL' && (['NOT_STARTED', 'not_started'].includes(e.onboardingStatus) || !e.onboardingStatus)
-  ).length;
+  // The SUPER_ADMIN should only have an adminView and they should not have the choice to select the employee view.
+  // ONLY the HR_ADMIN can have the option to switch between views.
+  const canSwitchViews = userIsHrAdmin && !userIsSuperAdmin;
 
-  const pendingTasksReviews = allEmployees.filter(e => {
-    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
-      return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
-    }
-    return e.employmentStatus === 'PENDING_APPROVAL' && (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
-  }).length;
-
-  const pendingProbationSetups = allEmployees.filter(e => {
-    if (e.employmentStatus === 'PENDING_APPROVAL' && ['PROBATION_PENDING', 'probation_pending'].includes(e.onboardingStatus)) return true;
-    
-    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
-      if (e.onboardingTasks && e.onboardingTasks.length > 0) {
-        return e.onboardingTasks.every(t => t.status === 'approved');
-      }
-    }
-    return false;
-  }).length;
-
-  const safeDate = (val) => {
-    if (!val) return '';
-    const asNum = Number(val);
-    const parsed = new Date(isNaN(asNum) ? val : asNum);
-    return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
-  };
-
-  const pendingProbationEnds = allEmployees.filter(e => 
-    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
-  ).length;
-
-  const pendingEmployeesCount = pendingProfileReviews + pendingTasksReviews + pendingProbationSetups + pendingProbationEnds;
-  const pendingDocumentCount = pendingData?.documents?.filter(d => {
-    if (d.status !== 'PENDING') return false;
-    const emp = pendingData.employees?.find(e => e.id === d.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
-  }).length || 0;
-  const pendingLeaveCount = pendingData?.leaveRequests?.filter(l => {
-    if (l.employee?.email === user?.email || l.employeeId === user?.employeeId) return false;
-    if (isAdmin) return l.status === 'PENDING_HR' || l.status === 'PENDING_SUPER_ADMIN';
-    return l.status === 'PENDING';
-  }).length || 0;
-  const pendingProfilesCount = pendingData?.profileUpdateRequests?.filter(p => {
-    if (p.status !== 'PENDING') return false;
-    const emp = pendingData.employees?.find(e => e.id === p.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
-  }).length || 0;
-  const pendingProbationCount = pendingData?.allProbationRequests?.filter(p => p.status === 'PENDING').length || 0;
-  const pendingOffboardingCount = pendingData?.allOffboardings?.filter(o => o.status === 'PENDING').length || 0;
-
-  const totalApprovalsCount = pendingEmployeesCount + pendingDocumentCount + pendingLeaveCount + pendingProfilesCount + pendingProbationCount + pendingOffboardingCount;
-
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner;
-  const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
-  
-  // Determine if the user has dual roles
-  const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-  
-  // Determine if the user is allowed to see admin views
-  const canSeeAdminViews = hasDualRoles && viewMode === 'ADMIN';
+  // Determine if the user is allowed to see admin views (SUPER_ADMIN always sees admin views)
+  const canSeeAdminViews = userIsSuperAdmin || (userIsAdmin && (viewMode === 'ADMIN' || !viewMode));
 
   let baseNavItems = canSeeAdminViews ? [...navigationStructure] : employeeNavigation;
 
@@ -471,15 +389,27 @@ export default function Layout({ children }) {
               <div className="px-2 py-2 border-b border-slate-100 mb-1">
                 <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</p>
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-slate-50 text-slate-600 border-slate-200">
+                  {userIsSuperAdmin ? 'Super Admin' : userIsHrAdmin ? 'HR Admin' : user?.role || 'User'}
+                </Badge>
               </div>
-              <DropdownMenuItem onClick={() => {
-                changeViewMode('EMPLOYEE');
-                navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
-              }}>
-                <UserCircle className="w-4 h-4 mr-2" />
-                My Profile
-              </DropdownMenuItem>
-              {hasDualRoles && (
+              {userIsSuperAdmin ? (
+                <DropdownMenuItem onClick={() => navigate(PAGE_ROUTES.SETTINGS)}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+              ) : (
+                  <DropdownMenuItem onClick={() => {
+                    if (canSwitchViews) {
+                      changeViewMode('EMPLOYEE');
+                    }
+                    navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
+                  }}>
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    My Profile
+                  </DropdownMenuItem>
+              )}
+              {canSwitchViews && (
                 <DropdownMenuItem onClick={() => {
                   const newMode = viewMode === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
                   changeViewMode(newMode);

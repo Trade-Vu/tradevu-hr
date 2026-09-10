@@ -1,82 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { gql } from 'graphql-request';
-import { gqlClient } from '@/api/graphqlClient';
+import { approvalsApi, employeesApi } from '@/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { CheckCircle2, XCircle, FileText, UserCircle, Loader2, AlertCircle, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const GET_EMPLOYEE_DETAILS = gql`
-  query GetEmployeeDetails($id: ID!) {
-    employee(id: $id) {
-      id
-      phone
-      gender
-      maritalStatus
-      nationality
-      dateOfBirth
-      privateEmail
-      nationalId
-    }
-  }
-`;
-
-const APPROVE_EMPLOYEE = gql`
-  mutation ApproveEmployee($employeeId: ID!) {
-    approveEmployeeData(employeeId: $employeeId) {
-      id
-      employmentStatus
-    }
-  }
-`;
-
-const REJECT_EMPLOYEE = gql`
-  mutation RejectEmployee($employeeId: ID!, $reason: String) {
-    rejectEmployeeData(employeeId: $employeeId, reason: $reason) {
-      id
-      employmentStatus
-    }
-  }
-`;
-
-const APPROVE_DOCUMENT = gql`
-  mutation ApproveDocument($id: ID!) {
-    approveDocument(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_DOCUMENT = gql`
-  mutation RejectDocument($id: ID!, $reason: String, $attachmentUrl: String) {
-    rejectDocument(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
-      id
-      status
-    }
-  }
-`;
-
-const APPROVE_PROFILE = gql`
-  mutation ApproveProfile($id: ID!) {
-    approveProfileUpdateRequest(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_PROFILE = gql`
-  mutation RejectProfile($id: ID!, $reason: String, $attachmentUrl: String!) {
-    rejectProfileUpdateRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
-      id
-      status
-    }
-  }
-`;
 
 const RejectInline = ({ onReject, className }) => {
   const [reason, setReason] = useState("");
@@ -127,54 +57,60 @@ export default function UnifiedProfileReviewDialog({
 
   const { data: employeeData, isLoading: loadingEmployee } = useQuery({
     queryKey: ['employeeDetails', employeeId],
-    queryFn: () => gqlClient.request(GET_EMPLOYEE_DETAILS, { id: employeeId }),
+    queryFn: () => employeesApi.getEmployeeById(employeeId),
     enabled: !!employeeId && open,
   });
   
-  const empInfo = employeeData?.employee;
+  const empInfo = employeeData;
 
   const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+    queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
+    queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.invalidateQueries({ queryKey: ['employees'] });
+    queryClient.invalidateQueries({ queryKey: ['employeeDetails'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
   };
 
   const handleError = (err) => {
-    const errMsg = err.response?.errors?.[0]?.message || err.message || "Operation failed.";
+    const errMsg = err.response?.data?.message || err.message || "Operation failed.";
     toast.error(errMsg);
   };
 
   const { mutateAsync: approveEmployee } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_EMPLOYEE, variables),
+    mutationFn: (variables) => approvalsApi.approveEmployee(variables.employeeId || variables.id),
     onSuccess: () => { toast.success("Activation approved!"); invalidate(); },
     onError: handleError
   });
 
   const { mutateAsync: rejectEmployee } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_EMPLOYEE, variables),
+    mutationFn: (variables) => approvalsApi.rejectEmployee(variables.employeeId || variables.id, variables.reason),
     onSuccess: () => { toast.success("Activation rejected."); invalidate(); onOpenChange(false); },
     onError: handleError
   });
 
   const { mutateAsync: approveDocument } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_DOCUMENT, variables),
+    mutationFn: (variables) => approvalsApi.approveDocument(variables.id, variables.notes),
     onSuccess: () => { toast.success("Document approved!"); invalidate(); },
     onError: handleError
   });
 
   const { mutateAsync: rejectDocument } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_DOCUMENT, variables),
+    mutationFn: (variables) => approvalsApi.rejectDocument(variables.id, variables.reason),
     onSuccess: () => { toast.success("Document rejected!"); invalidate(); },
     onError: handleError
   });
 
   const { mutateAsync: approveProfile } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_PROFILE, variables),
+    mutationFn: (variables) => approvalsApi.approveProfileUpdate(variables.id),
     onSuccess: () => { toast.success("Profile update approved!"); invalidate(); },
     onError: handleError
   });
 
   const { mutateAsync: rejectProfile } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_PROFILE, variables),
+    mutationFn: (variables) => approvalsApi.rejectProfileUpdate(variables.id, variables.reason),
     onSuccess: () => { toast.success("Profile update rejected!"); invalidate(); },
     onError: handleError
   });
@@ -255,7 +191,9 @@ export default function UnifiedProfileReviewDialog({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Date of Birth</p>
-                  <p className="text-sm text-slate-900 font-medium">{empInfo.dateOfBirth ? new Date(parseInt(empInfo.dateOfBirth)).toLocaleDateString() : '-'}</p>
+                  <p className="text-sm text-slate-900 font-medium">
+                    {empInfo.dateOfBirth ? (isNaN(Number(empInfo.dateOfBirth)) ? new Date(empInfo.dateOfBirth) : new Date(Number(empInfo.dateOfBirth))).toLocaleDateString() : '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Gender</p>

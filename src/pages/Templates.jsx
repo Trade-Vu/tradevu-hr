@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { gqlClient } from "@/api/graphqlClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
+import { onboardingApi } from "@/api/onboarding.api";
+import { toast } from "sonner";
 import { Plus, FileText, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TemplateList from "../components/templates/TemplateList";
@@ -17,20 +18,38 @@ export default function Templates() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await onboardingApi.getTemplates();
+      return Array.isArray(res) ? res : (res?.data || []);
+    },
     initialData: [],
   });
 
   const createTemplateMutation = useMutation({
     mutationFn: async (templateData) => {
-      console.log("Mock create template", templateData);
-      return templateData;
+      const payload = {
+        name: templateData.name,
+        description: templateData.description,
+        department: templateData.role_type || undefined,
+        tasks: (templateData.tasks || []).map(t => ({
+          title: t.title,
+          description: t.description,
+          category: t.department || 'General',
+          dueOffset: t.deadline_days || 7,
+          isRequired: true,
+        })),
+      };
+      return await onboardingApi.createTemplate(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
+      toast.success("Onboarding template created successfully!");
       setShowForm(false);
       navigate(PAGE_ROUTES.TEMPLATES);
     },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create template");
+    }
   });
 
   return (

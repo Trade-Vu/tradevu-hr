@@ -17,8 +17,28 @@ export const documentsApi = {
     return apiClient.delete(`/documents/${id}`);
   },
 
-  getCloudinarySignature: async () => {
-    return apiClient.get('/documents/cloudinary-signature');
+  getDocumentById: async (id) => {
+    return apiClient.get(`/documents/${id}`);
+  },
+
+  replaceDocumentVersion: async (id, dto) => {
+    return apiClient.post(`/documents/${id}/replace`, dto);
+  },
+
+  getDocumentHistory: async (id) => {
+    return apiClient.get(`/documents/${id}/history`);
+  },
+
+  archiveDocument: async (id) => {
+    return apiClient.put(`/documents/${id}/archive`);
+  },
+
+  approveDocument: async (id, notes) => {
+    return apiClient.put(`/documents/${id}/approve`, { notes });
+  },
+
+  rejectDocument: async (id, notes) => {
+    return apiClient.put(`/documents/${id}/reject`, { notes });
   },
 };
 
