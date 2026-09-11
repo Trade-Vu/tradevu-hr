@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
-import { gql } from 'graphql-request';
-import { gqlClient } from '@/api/graphqlClient';
+import { approvalsApi, departmentsApi, employeesApi } from '@/api';
+import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin } from '@/lib/roleUtils';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -18,246 +18,6 @@ import { extractErrorMessage } from '../lib/utils';
 import { motion } from 'framer-motion';
 import EmployeeDetail from './EmployeeDetail';
 import UnifiedProfileReviewDialog from '../components/UnifiedProfileReviewDialog';
-
-const GET_PENDING_APPROVALS = gql`
-  query GetPendingApprovals {
-    employees {
-      id
-      fullName
-      jobTitle
-      employmentStatus
-      onboardingStatus
-      probationEndDate
-      hireDate
-      onboardingTasks {
-        id
-        title
-        status
-        category
-        isCompleted
-      }
-      department {
-        name
-      }
-    }
-
-    documents {
-      id
-      name
-      category
-      status
-      employeeId
-      fileUrl
-      fileType
-      createdAt
-    }
-    leaveRequests {
-      id
-      employeeId
-      leaveTypeId
-      startDate
-      endDate
-      totalDays
-      status
-      reason
-      attachmentUrl
-      createdAt
-      employee {
-        email
-      }
-    }
-    profileUpdateRequests {
-      id
-      employeeId
-      fieldName
-      currentValue
-      requestedValue
-      status
-      createdAt
-    }
-    allOffboardings {
-      id
-      employeeId
-      exitType
-      exitDate
-      reason
-      status
-      employee {
-        fullName
-      }
-    }
-    allProbationRequests {
-      id
-      employeeId
-      startDate
-      endDate
-      status
-      employee {
-        fullName
-      }
-    }
-  }
-`;
-
-const GET_PENDING_DEPARTMENTS = gql`
-  query GetPendingDepartments {
-    departments {
-      id
-      name
-      code
-      status
-    }
-  }
-`;
-
-const APPROVE_EMPLOYEE = gql`
-  mutation ApproveEmployee($employeeId: ID!) {
-    approveEmployeeData(employeeId: $employeeId) {
-      id
-      employmentStatus
-    }
-  }
-`;
-
-const APPROVE_DEPARTMENT = gql`
-  mutation ApproveDepartment($id: ID!) {
-    approveDepartment(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const APPROVE_COMPLETED_TASKS = gql`
-  mutation ApproveCompletedTasks($employeeId: ID!, $taskIds: [ID!]!) {
-    approveCompletedTasks(employeeId: $employeeId, taskIds: $taskIds) {
-      id
-      onboardingStatus
-      employmentStatus
-    }
-  }
-`;
-
-const APPROVE_PROBATION_SETUP = gql`
-  mutation ApproveProbationSetup($employeeId: ID!, $startDate: String!, $endDate: String!) {
-    approveProbationSetup(employeeId: $employeeId, startDate: $startDate, endDate: $endDate) {
-      id
-      employmentStatus
-      onboardingStatus
-      probationStartDate
-      probationEndDate
-    }
-  }
-`;
-
-const APPROVE_PROBATION_END = gql`
-  mutation ApproveProbationEnd($employeeId: ID!) {
-    approveProbationEnd(employeeId: $employeeId) {
-      id
-      employmentStatus
-    }
-  }
-`;
-
-const REQUEST_OFFBOARDING = gql`
-  mutation RequestOffboarding($id: ID!, $input: OffboardEmployeeInput!) {
-    requestOffboarding(id: $id, input: $input) {
-      id
-      status
-    }
-  }
-`;
-
-const UPDATE_EMPLOYEE = gql`
-  mutation UpdateEmployee($id: ID!, $input: UpdateEmployeeInput!, $auditAction: String, $auditContext: String) {
-    updateEmployee(id: $id, input: $input, auditAction: $auditAction, auditContext: $auditContext) {
-      id
-      employmentStatus
-    }
-  }
-`;
-
-const APPROVE_DOCUMENT = gql`
-  mutation ApproveDocument($id: ID!) {
-    approveDocument(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_DOCUMENT = gql`
-  mutation RejectDocument($id: ID!, $reason: String, $attachmentUrl: String) {
-    rejectDocument(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
-      id
-      status
-    }
-  }
-`;
-
-const APPROVE_LEAVE = gql`
-  mutation ApproveLeave($id: ID!) {
-    approveLeaveRequest(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_LEAVE = gql`
-  mutation RejectLeave($id: ID!, $reason: String, $attachmentUrl: String) {
-    rejectLeaveRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
-      id
-      status
-    }
-  }
-`;
-
-const APPROVE_PROFILE = gql`
-  mutation ApproveProfile($id: ID!) {
-    approveProfileUpdateRequest(id: $id) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_PROFILE = gql`
-  mutation RejectProfile($id: ID!, $reason: String, $attachmentUrl: String!) {
-    rejectProfileUpdateRequest(id: $id, reason: $reason, attachmentUrl: $attachmentUrl) {
-      id
-      status
-    }
-  }
-`;
-
-
-const APPROVE_OFFBOARDING = gql`
-  mutation ApproveOffboarding($id: ID!, $comments: String) {
-    approveOffboarding(id: $id, comments: $comments) {
-      id
-      status
-    }
-  }
-`;
-
-const REJECT_OFFBOARDING = gql`
-  mutation RejectOffboarding($id: ID!, $comments: String) {
-    rejectOffboarding(id: $id, comments: $comments) {
-      id
-      status
-    }
-  }
-`;
-
-const APPROVE_PROBATION = gql`
-  mutation ApproveProbation($id: ID!, $status: String!, $comments: String) {
-    approveProbation(id: $id, status: $status, comments: $comments) {
-      id
-      status
-    }
-  }
-`;
 
 const RejectDialog = ({ onReject, title = "Reject Request" }) => {
   const [reason, setReason] = React.useState("");
@@ -350,20 +110,15 @@ export default function PendingApprovals() {
 
   const { data, isLoading: loading, error } = useQuery({
     queryKey: ['pendingApprovals'],
-    queryFn: async () => await gqlClient.request(GET_PENDING_APPROVALS),
+    queryFn: async () => await approvalsApi.getPendingApprovals(),
     enabled: !!user
-  });
-
-  const { data: deptData, isLoading: deptLoading } = useQuery({
-    queryKey: ['pendingDepartments'],
-    queryFn: async () => await gqlClient.request(GET_PENDING_DEPARTMENTS),
-    enabled: !!user && (user.role === 'SUPER_ADMIN' || user.is_organization_owner)
   });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
     queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['departments'] });
   };
 
   const handleError = (err) => {
@@ -371,7 +126,7 @@ export default function PendingApprovals() {
   };
 
   const { mutate: approveEmployee, isPending: isApprovingEmployee, variables: empAppVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_EMPLOYEE, variables),
+    mutationFn: (variables) => approvalsApi.approveEmployee(variables.employeeId || variables.id),
     onSuccess: () => {
       toast.success("Employee approved successfully!");
       invalidate();
@@ -380,7 +135,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: approveCompletedTasks, isPending: isApprovingTasks } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_COMPLETED_TASKS, variables),
+    mutationFn: (variables) => approvalsApi.approveCompletedTasks(variables.employeeId, variables.taskIds),
     onSuccess: () => {
       toast.success("Tasks approved successfully!");
       invalidate();
@@ -389,7 +144,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: approveProbationSetup, isPending: isApprovingProbationSetup } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_PROBATION_SETUP, variables),
+    mutationFn: (variables) => approvalsApi.approveProbationSetup(variables.employeeId, variables.startDate, variables.endDate),
     onSuccess: () => {
       toast.success("Probation period set successfully!");
       invalidate();
@@ -398,7 +153,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: approveProbationEnd, isPending: isApprovingProbationEnd } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_PROBATION_END, variables),
+    mutationFn: (variables) => approvalsApi.approveProbationEnd(variables.employeeId),
     onSuccess: () => {
       toast.success("Employee successfully moved to active status!");
       invalidate();
@@ -407,7 +162,7 @@ export default function PendingApprovals() {
   });
 
   const { mutate: offboardEmployee, isPending: isOffboarding } = useMutation({
-    mutationFn: (id) => gqlClient.request(UPDATE_EMPLOYEE, { id, input: { employmentStatus: 'OFFBOARDED' } }),
+    mutationFn: (id) => approvalsApi.requestOffboarding(id, { exitType: 'termination', exitDate: new Date().toISOString() }),
     onSuccess: () => {
       toast.success("Employee offboarding initiated!");
       invalidate();
@@ -417,7 +172,7 @@ export default function PendingApprovals() {
 
   
   const { mutate: approveDocument, isPending: isApprovingDoc, variables: docAppVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_DOCUMENT, variables),
+    mutationFn: (variables) => approvalsApi.approveDocument(variables.id, variables.notes),
     onSuccess: () => {
       toast.success("Document approved!");
       invalidate();
@@ -426,7 +181,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: rejectDocument, isPending: isRejectingDoc, variables: docRejVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_DOCUMENT, variables),
+    mutationFn: (variables) => approvalsApi.rejectDocument(variables.id, variables.reason),
     onSuccess: () => {
       toast.success("Document rejected!");
       invalidate();
@@ -435,7 +190,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: approveLeave, isPending: isApprovingLeave, variables: leaveAppVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_LEAVE, variables),
+    mutationFn: (variables) => approvalsApi.approveLeave(variables.id),
     onSuccess: () => {
       toast.success("Leave approved!");
       invalidate();
@@ -444,7 +199,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: rejectLeave, isPending: isRejectingLeave, variables: leaveRejVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_LEAVE, variables),
+    mutationFn: (variables) => approvalsApi.rejectLeave(variables.id, variables.reason),
     onSuccess: () => {
       toast.success("Leave rejected!");
       invalidate();
@@ -453,7 +208,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: approveProfile, isPending: isApprovingProfile, variables: profAppVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_PROFILE, variables),
+    mutationFn: (variables) => approvalsApi.approveProfileUpdate(variables.id),
     onSuccess: () => {
       toast.success("Profile update approved!");
       invalidate();
@@ -462,7 +217,7 @@ export default function PendingApprovals() {
   });
   
   const { mutate: rejectProfile, isPending: isRejectingProfile, variables: profRejVars } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_PROFILE, variables),
+    mutationFn: (variables) => approvalsApi.rejectProfileUpdate(variables.id, variables.reason),
     onSuccess: () => {
       toast.success("Profile update rejected!");
       invalidate();
@@ -471,25 +226,25 @@ export default function PendingApprovals() {
   });
 
   const { mutate: approveOffboarding } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_OFFBOARDING, variables),
+    mutationFn: (variables) => approvalsApi.approveOffboarding(variables.id, variables.comments),
     onSuccess: () => { toast.success("Offboarding approved!"); invalidate(); },
     onError: handleError
   });
 
   const { mutate: rejectOffboarding } = useMutation({
-    mutationFn: (variables) => gqlClient.request(REJECT_OFFBOARDING, variables),
+    mutationFn: (variables) => approvalsApi.rejectOffboarding(variables.id, variables.comments),
     onSuccess: () => { toast.success("Offboarding rejected!"); invalidate(); },
     onError: handleError
   });
 
   const { mutate: approveProbation } = useMutation({
-    mutationFn: (variables) => gqlClient.request(APPROVE_PROBATION, variables),
+    mutationFn: (variables) => approvalsApi.approveProbationSetup(variables.id, variables.startDate, variables.endDate),
     onSuccess: () => { toast.success("Probation request updated!"); invalidate(); },
     onError: handleError
   });
 
   const { mutate: requestOffboarding, isPending: isRequestingOffboarding } = useMutation({
-    mutationFn: ({ id, data }) => gqlClient.request(REQUEST_OFFBOARDING, { id, input: data }),
+    mutationFn: ({ id, data }) => approvalsApi.requestOffboarding(id, data),
     onSuccess: () => {
       toast.success("Offboarding request submitted for approval.");
       setShowOffboardDialog(false);
@@ -501,14 +256,11 @@ export default function PendingApprovals() {
     }
   });
 
-
-
   const approveDepartmentMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(APPROVE_DEPARTMENT, { id }),
+    mutationFn: async (id) => await approvalsApi.approveDepartment(id),
     onSuccess: () => {
       toast.success("Department approved successfully.");
-      queryClient.invalidateQueries({ queryKey: ['pendingDepartments'] });
-      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      invalidate();
     },
     onError: (err) => {
       toast.error(extractErrorMessage(err, "Failed to approve department."));
@@ -543,20 +295,27 @@ export default function PendingApprovals() {
   );
 
   // Filter out the logged in user so they don't approve their own profile/tasks
-  const allEmployees = (data?.employees || []).filter(e => e.id !== user?.employeeId);
+  const currentUserId = user?.employeeId?._id || user?.employeeId?.id || user?.employeeId;
+  const allEmployees = (data?.employees || []).filter(e => {
+    const empId = e.id || e._id;
+    return empId !== currentUserId;
+  });
 
   const pendingProfileReviews = allEmployees.filter(e => 
-    e.employmentStatus === 'PENDING_APPROVAL' && (['NOT_STARTED', 'not_started'].includes(e.onboardingStatus) || !e.onboardingStatus)
+    ['PENDING_APPROVAL', 'DRAFT', 'PENDING_ONBOARDING', 'ONGOING_ONBOARDING'].includes(e.employmentStatus) && 
+    (['NOT_STARTED', 'not_started'].includes(e.onboardingStatus) || !e.onboardingStatus)
   );
 
   const pendingTasksReviews = allEmployees.filter(e => {
-    // If they are in ONGOING_ONBOARDING or PENDING_ONBOARDING
-    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
-      // Show them if they have any completed tasks that aren't approved yet
-      return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
-    }
-    // Fallback for older states
-    return e.employmentStatus === 'PENDING_APPROVAL' && (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
+    // Show any employee who has completed onboarding tasks awaiting HR review/approval
+    const hasUnapprovedCompletedTasks = e.onboardingTasks?.some(t => 
+      (t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status)) && t.status !== 'approved'
+    );
+    if (hasUnapprovedCompletedTasks) return true;
+
+    // Fallback for older onboardingStatus flags
+    return ['PENDING_APPROVAL', 'ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus) && 
+      (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
   });
 
   const pendingProbationSetups = allEmployees.filter(e => {
@@ -574,60 +333,58 @@ export default function PendingApprovals() {
     e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
   );
 
-  
   const pendingDocuments = data?.documents?.filter(d => {
-    // Exclude own documents
-    if (d.employeeId === user?.employeeId) return false;
-    if (d.status !== 'PENDING') return false;
-    const emp = data?.employees?.find(e => e.id === d.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
+    const docEmpId = d.employeeId?._id || d.employeeId?.id || d.employeeId;
+    if (docEmpId && docEmpId === currentUserId) return false;
+    return d.status?.toUpperCase() === 'PENDING';
   }) || [];
 
-  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.is_organization_owner;
+  const isAdmin = checkIsAdmin(user);
   const pendingLeaves = data?.leaveRequests?.filter(l => {
-    // Exclude own requests
-    if (l.employee?.email === user?.email || l.employeeId === user?.employeeId) return false;
+    const leaveEmpId = l.employeeId?._id || l.employeeId?.id || l.employeeId;
+    if (l.employee?.email === user?.email || leaveEmpId === currentUserId) return false;
     
+    const statusUpper = l.status?.toUpperCase();
     if (isAdmin) {
-      return l.status === 'PENDING_HR' || l.status === 'PENDING_SUPER_ADMIN';
+      return statusUpper === 'PENDING_HR' || statusUpper === 'PENDING_SUPER_ADMIN' || statusUpper === 'PENDING';
     }
-    return l.status === 'PENDING';
+    return statusUpper === 'PENDING';
   }) || [];
   
   const pendingProfiles = data?.profileUpdateRequests?.filter(p => {
-    if (p.status !== 'PENDING') return false;
-    const emp = data?.employees?.find(e => e.id === p.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
+    return p.status?.toUpperCase() === 'PENDING';
   }) || [];
 
-  const pendingOffboardings = data?.allOffboardings?.filter(o => o.status === 'PENDING') || [];
-  const pendingProbations = data?.allProbationRequests?.filter(p => p.status === 'PENDING') || [];
+  const pendingOffboardings = data?.allOffboardings?.filter(o => o.status?.toUpperCase() === 'PENDING') || [];
+  const pendingProbations = data?.allProbationRequests?.filter(p => p.status?.toUpperCase() === 'PENDING') || [];
   
-  const pendingDepartments = deptData?.departments?.filter(d => d.status === 'PENDING') || [];
+  const pendingDepartments = data?.departments?.filter(d => d.status?.toUpperCase() === 'PENDING') || [];
 
-  const standalonePendingDocuments = pendingDocuments.filter(d => !pendingProfileReviews.some(e => e.id === d.employeeId));
+  const standalonePendingDocuments = pendingDocuments.filter(d => {
+    const docEmpId = d.employeeId?._id || d.employeeId?.id || d.employeeId;
+    return !pendingProfileReviews.some(e => (e.id || e._id) === docEmpId);
+  });
 
   // Group by Employee for Unified View
-  console.log('PendingApprovals DEBUG:', { unifiedEmployeeIdsLength: Array.from(new Set([...pendingProfileReviews.map(e => e.id), ...pendingDocuments.map(d => d.employeeId), ...pendingProfiles.map(p => p.employeeId)])).length, pendingTasksReviews: pendingTasksReviews.length, pendingProbationSetups: pendingProbationSetups.length, pendingProbationEnds: pendingProbationEnds.length, pendingProfiles: pendingProfiles.length, pendingProbations: pendingProbations.length, pendingOffboardings: pendingOffboardings.length, pendingLeaves: pendingLeaves.length });
   const unifiedEmployeeIds = Array.from(new Set([
-    ...pendingProfileReviews.map(e => e.id),
-    ...pendingDocuments.map(d => d.employeeId),
-    ...pendingProfiles.map(p => p.employeeId)
-  ]));
+    ...pendingProfileReviews.map(e => e.id || e._id),
+    ...pendingDocuments.map(d => d.employeeId?._id || d.employeeId?.id || d.employeeId),
+    ...pendingProfiles.map(p => p.employeeId?._id || p.employeeId?.id || p.employeeId)
+  ].filter(Boolean)));
 
   const getEmployeeName = (empId) => {
-    const emp = data?.employees?.find(e => e.id === empId);
-    return emp ? emp.fullName : 'Unknown Employee';
+    const emp = data?.employees?.find(e => (e.id || e._id) === empId);
+    return emp?.fullName || emp?.full_name || 'Unknown Employee';
   };
 
   const getEmployeeDept = (empId) => {
-    const emp = data?.employees?.find(e => e.id === empId);
-    return emp?.department?.name || 'No Dept';
+    const emp = data?.employees?.find(e => (e.id || e._id) === empId);
+    return emp?.department?.name || emp?.departmentId?.name || (typeof emp?.departmentId === 'string' ? emp.departmentId : 'No Dept');
   };
 
   const getEmployeeJobTitle = (empId) => {
-    const emp = data?.employees?.find(e => e.id === empId);
-    return emp?.jobTitle || 'No Title';
+    const emp = data?.employees?.find(e => (e.id || e._id) === empId);
+    return emp?.jobTitle || emp?.job_title || 'No Title';
   };
 
   return (
@@ -653,9 +410,9 @@ export default function PendingApprovals() {
         onOpenChange={(open) => !open && setSelectedUnifiedEmployeeId(null)}
         employeeId={selectedUnifiedEmployeeId}
         employeeName={getEmployeeName(selectedUnifiedEmployeeId)}
-        isPendingActivation={pendingProfileReviews.some(e => e.id === selectedUnifiedEmployeeId)}
-        pendingDocs={pendingDocuments.filter(d => d.employeeId === selectedUnifiedEmployeeId)}
-        pendingProfiles={pendingProfiles.filter(p => p.employeeId === selectedUnifiedEmployeeId)}
+        isPendingActivation={pendingProfileReviews.some(e => (e.id || e._id) === selectedUnifiedEmployeeId)}
+        pendingDocs={pendingDocuments.filter(d => (d.employeeId?._id || d.employeeId?.id || d.employeeId) === selectedUnifiedEmployeeId)}
+        pendingProfiles={pendingProfiles.filter(p => (p.employeeId?._id || p.employeeId?.id || p.employeeId) === selectedUnifiedEmployeeId)}
       />
       <motion.div variants={itemVariants}>
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
@@ -679,7 +436,7 @@ export default function PendingApprovals() {
               Leave Requests
               {pendingLeaves.length > 0 && <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">{pendingLeaves.length}</Badge>}
             </TabsTrigger>
-            {(user?.role === 'SUPER_ADMIN' || user?.is_organization_owner) && (
+            {checkIsSuperAdmin(user) && (
               <TabsTrigger value="departments" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
                 <Building2 className="w-4 h-4" />
                 Departments
@@ -701,9 +458,9 @@ export default function PendingApprovals() {
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Employee Reviews</h3>
                       {unifiedEmployeeIds.map(empId => {
-                        const eDocs = pendingDocuments.filter(d => d.employeeId === empId).length;
-                        const eProfs = pendingProfiles.filter(p => p.employeeId === empId).length;
-                        const ePendingOnboarding = pendingProfileReviews.some(e => e.id === empId);
+                        const eDocs = pendingDocuments.filter(d => (d.employeeId?._id || d.employeeId?.id || d.employeeId) === empId).length;
+                        const eProfs = pendingProfiles.filter(p => (p.employeeId?._id || p.employeeId?.id || p.employeeId) === empId).length;
+                        const ePendingOnboarding = pendingProfileReviews.some(e => (e.id || e._id) === empId);
 
                         return (
                           <motion.div 
@@ -739,7 +496,8 @@ export default function PendingApprovals() {
                     <div className="space-y-3 mt-8">
                       <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Completed Tasks</h3>
                       {pendingTasksReviews.map(emp => {
-                        const completedTasks = emp.onboardingTasks?.filter(t => t.status === 'done') || [];
+                        const isCompletedTask = (t) => Boolean(t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status));
+                        const completedTasks = emp.onboardingTasks?.filter(t => isCompletedTask(t) && t.status !== 'approved') || [];
                         if (completedTasks.length === 0) return null;
                         
                         return (
@@ -1062,7 +820,7 @@ export default function PendingApprovals() {
             </TabsContent>
 
             <TabsContent value="departments" className="m-0 focus-visible:outline-none">
-              {deptLoading ? (
+              {loading ? (
                 <ApprovalsSkeleton />
               ) : pendingDepartments.length === 0 ? (
                 <EmptyState message="No pending departments across the organization." icon={Building2} />

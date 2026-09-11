@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { employeesApi } from "@/api";
+import { employeesApi, onboardingApi } from "@/api";
+import { isEmployee, isAdmin } from "@/lib/roleUtils";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
@@ -105,10 +106,10 @@ export default function Dashboard() {
 
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['onboarding-tasks-dashboard'],
     queryFn: async () => {
-      // Mocked until Tasks module is migrated to GraphQL
-      return [];
+      const res = await onboardingApi.getAllTasks();
+      return Array.isArray(res) ? res : (res?.data || []);
     },
     initialData: [],
   });
@@ -116,8 +117,8 @@ export default function Dashboard() {
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
     queryFn: async () => {
-      // Mocked until Templates module is migrated
-      return [];
+      const res = await onboardingApi.getTemplates();
+      return Array.isArray(res) ? res : (res?.data || []);
     },
     initialData: [],
   });
@@ -130,7 +131,10 @@ export default function Dashboard() {
     ? Math.round(employees.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / employees.length)
     : 0;
 
-  const pendingTasks = tasks.filter(t => t.status === 'pending').length;
+  const pendingTasks = tasks.filter(t => !t.isCompleted && t.status !== 'completed' && t.status !== 'done' && t.status !== 'approved').length;
+  const pendingProfilesCount = employees.filter(e =>
+    e.employment_status === 'PENDING_APPROVAL' || e.employmentStatus === 'PENDING_APPROVAL'
+  ).length;
 
   const currentEmployees = paginatedData?.employees || [];
 
@@ -147,7 +151,7 @@ export default function Dashboard() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
-  if (user?.role === 'EMPLOYEE') {
+  if (isEmployee(user) && !isAdmin(user)) {
     return <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
   }
 
@@ -192,6 +196,30 @@ export default function Dashboard() {
           </Button>
         </Link>
       </motion.div>
+
+      {/* Pending Approvals CEO/Admin Banner */}
+      {pendingProfilesCount > 0 && (
+        <motion.div variants={itemVariants} className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+              <CheckCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base">
+                {pendingProfilesCount} Employee {pendingProfilesCount === 1 ? 'Profile' : 'Profiles'} Awaiting Approval
+              </h3>
+              <p className="text-sm text-blue-100 mt-0.5">
+                New employee profile data has been submitted and is waiting for your review and approval to activate.
+              </p>
+            </div>
+          </div>
+          <Link to={PAGE_ROUTES.PENDING_APPROVALS}>
+            <Button className="bg-white text-blue-900 hover:bg-blue-50 font-medium shadow-sm shrink-0">
+              Review Approvals ({pendingProfilesCount})
+            </Button>
+          </Link>
+        </motion.div>
+      )}
 
       {/* Stats Grid */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

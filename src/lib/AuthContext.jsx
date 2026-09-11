@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authApi } from '@/api/auth.api';
+import { usersApi } from '@/api/users.api';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { appParams } from '@/lib/app-params';
+import { isSuperAdmin } from '@/lib/roleUtils';
 
 const AuthContext = createContext();
 
@@ -60,6 +62,10 @@ export const AuthProvider = ({ children }) => {
         };
         setUser(normalizedUser);
         setIsAuthenticated(true);
+        if (isSuperAdmin(normalizedUser)) {
+          localStorage.setItem('tradevu_view_mode', 'ADMIN');
+          setViewMode('ADMIN');
+        }
       } else {
         setIsAuthenticated(false);
       }
@@ -94,8 +100,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const changeViewMode = (mode) => {
+    if (isSuperAdmin(user)) {
+      localStorage.setItem('tradevu_view_mode', 'ADMIN');
+      setViewMode('ADMIN');
+      return;
+    }
     localStorage.setItem('tradevu_view_mode', mode);
     setViewMode(mode);
+    usersApi.updateViewMode(mode).catch(() => {});
   };
 
   // Mocking the checkAppState function since we don't use base44 app state anymore

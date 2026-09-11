@@ -15,6 +15,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,19 +24,56 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { 
   User, Calendar, DollarSign, FileText, Laptop, 
   TrendingUp, Download, Edit, Save, Clock, CheckCircle,
-  Plane, Receipt, Shield, Upload, Eye
+  Plane, Receipt, Shield, Upload, Eye, Send
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { motion } from "framer-motion";
+import { isSuperAdmin } from "@/lib/roleUtils";
+const formatStatusDate = (d) => {
+  if (!d) return 'N/A';
+  const num = Number(d);
+  const parsed = !isNaN(num) && num > 0 ? new Date(num) : new Date(d);
+  return isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const renderStatusHistoryBadge = (status, isNew = false) => {
+  if (!status || status === 'N/A' || status === 'INITIAL') {
+    return <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200">{status === 'INITIAL' ? 'Initial' : 'N/A'}</Badge>;
+  }
+  const label = String(status).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const s = String(status).toUpperCase();
+  if (s === 'ACTIVE') {
+    return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">{label}</Badge>;
+  }
+  if (s === 'PROBATION') {
+    return <Badge className="bg-amber-50 text-amber-700 border-amber-200">{label}</Badge>;
+  }
+  if (s === 'PENDING_APPROVAL' || s === 'PENDING_ONBOARDING' || s === 'ONGOING_ONBOARDING') {
+    return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{label}</Badge>;
+  }
+  if (s === 'DRAFT') {
+    return <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{label}</Badge>;
+  }
+  if (s === 'TERMINATED' || s === 'SUSPENDED' || s === 'OFFBOARDED' || s === 'RESIGNED') {
+    return <Badge className="bg-rose-50 text-rose-700 border-rose-200">{label}</Badge>;
+  }
+  return <Badge className={isNew ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-slate-50 text-slate-600 border-slate-200"}>{label}</Badge>;
+};
 
 export default function EmployeeSelfService() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, isLoadingAuth } = useAuth();
+
+  // SUPER_ADMIN should only have an adminView and cannot access employee view
+  if (user && isSuperAdmin(user)) {
+    return <Navigate to={PAGE_ROUTES.DASHBOARD} replace />;
+  }
+
   const employeeId =
     user?.employeeId?._id ||
     user?.employeeId?.id ||
@@ -46,6 +85,7 @@ export default function EmployeeSelfService() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadData, setUploadData] = useState({ name: '', category: 'General', file: null });
   const [isUploadingToCloudinary, setIsUploadingToCloudinary] = useState(false);
+  const [uploadingDocId, setUploadingDocId] = useState(null);
 
   const { data: employee, isLoading: isLoadingEmployee } = useQuery({
     queryKey: ['employee', employeeId],
@@ -62,7 +102,8 @@ export default function EmployeeSelfService() {
         start_date: emp.hireDate,
         employment_status: emp.employmentStatus,
         promotion_history: emp.promotionHistory || [],
-        status_history: emp.statusHistory || [],
+        status_history: emp.statusHistory || emp.status_history || [],
+        statusHistory: emp.statusHistory || emp.status_history || [],
       };
     },
     enabled: !!employeeId,
@@ -150,6 +191,8 @@ export default function EmployeeSelfService() {
     initialData: [],
   });
 
+  const [activeTab, setActiveTab] = useState('profile');
+
   const { data: myTasks = [] } = useQuery({
     queryKey: ['my-onboarding-tasks', employee?.id],
     queryFn: async () => {
@@ -158,16 +201,31 @@ export default function EmployeeSelfService() {
       return list.map(t => ({
         ...t,
         id: t._id || t.id,
-        isCompleted: t.status === 'completed' || t.status === 'DONE' || !!t.isCompleted,
+        isCompleted: t.status === 'completed' || t.status === 'DONE' || t.status === 'approved' || !!t.isCompleted,
       }));
     },
-    enabled: !!employee?.id,
+    enabled: true,
   });
 
   const pendingTasksCount = myTasks.filter(t => !t.isCompleted).length;
 
   const [hideBanner, setHideBanner] = useState(() => {
     return sessionStorage.getItem('hideOnboardingBanner') === 'true';
+  });
+
+  const toggleTaskMutation = useMutation({
+    mutationFn: async ({ taskId, isCompleted }) => {
+      const nextStatus = isCompleted ? 'not_started' : 'completed';
+      return await onboardingApi.updateTask(taskId, { status: nextStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-onboarding-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      toast.success("Task updated!");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update task");
+    }
   });
 
   const completeAllMutation = useMutation({
@@ -178,6 +236,7 @@ export default function EmployeeSelfService() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-onboarding-tasks', employee?.id] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
       setHideBanner(true);
       toast.success("All tasks marked as completed!");
     },
@@ -244,7 +303,8 @@ export default function EmployeeSelfService() {
     queryFn: async () => {
       if (!employeeId) return [];
       const res = await documentsApi.getMyDocuments();
-      const list = Array.isArray(res) ? res : res?.data || [];
+      const raw = res?.data?.data || res?.data || res || [];
+      const list = Array.isArray(raw) ? raw : [];
       return list.map(d => ({
         ...d,
         id: d._id || d.id,
@@ -254,7 +314,10 @@ export default function EmployeeSelfService() {
         file_url: d.fileUrl,
         fileUrl: d.fileUrl,
         fileType: d.fileType,
+        currentVersion: d.currentVersion || 1,
         status: d.status,
+        rejectionReason: d.rejectionReason,
+        notes: d.notes,
       }));
     },
     enabled: !!employeeId,
@@ -292,13 +355,62 @@ export default function EmployeeSelfService() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
-      toast.success("Profile submitted for review successfully");
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
+      toast.success("Profile submitted for review successfully! Awaiting CEO / HR approval.");
     },
     onError: (error) => {
-      toast.error("Failed to submit profile: " + error.message);
+      toast.error(extractErrorMessage(error, "Failed to submit profile: " + error.message));
       console.error(error);
     },
   });
+
+  console.log({ employee })
+
+  const isDraft = employee?.employment_status === 'DRAFT' || employee?.employmentStatus === 'DRAFT';
+  const isPendingApproval = employee?.employment_status === 'PENDING_APPROVAL' || employee?.employmentStatus === 'PENDING_APPROVAL';
+
+  const handleSubmitForReview = async () => {
+    const dataToCheck = isEditing ? editData : (employee || {});
+    const missing = [];
+    if (!dataToCheck.phone?.trim()) missing.push("Phone");
+    if (!dataToCheck.privateEmail?.trim()) missing.push("Private Email");
+    if (!dataToCheck.dateOfBirth) missing.push("Date of Birth");
+    if (!dataToCheck.gender) missing.push("Gender");
+    if (!dataToCheck.maritalStatus) missing.push("Marital Status");
+    if (!dataToCheck.nationality) missing.push("Nationality");
+    if (!dataToCheck.nationalId?.trim() && !dataToCheck.passportNumber?.trim()) {
+      missing.push("National ID or Passport Number");
+    }
+
+    if (missing.length > 0) {
+      toast.error(`Please complete the following required fields before submitting: ${missing.join(', ')}`);
+      if (!isEditing) setIsEditing(true);
+      return;
+    }
+
+    try {
+      if (isEditing) {
+        const payload = {
+          phone: editData.phone,
+          privateEmail: editData.privateEmail,
+          dateOfBirth: editData.dateOfBirth,
+          gender: editData.gender,
+          maritalStatus: editData.maritalStatus,
+          nationality: editData.nationality,
+          nationalId: editData.nationalId,
+          passportNumber: editData.passportNumber,
+        };
+        await employeesApi.updateEmployee(employee.id, payload);
+      }
+      await submitProfileMutation.mutateAsync();
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Submit for review error:", err);
+    }
+  };
 
   const uploadDocumentMutation = useMutation({
     mutationFn: async (input) => {
@@ -322,6 +434,42 @@ export default function EmployeeSelfService() {
       console.error(error);
     },
   });
+
+  const fulfillDocMutation = useMutation({
+    mutationFn: async ({ docId, fileUrl, fileType, fileSize }) => {
+      return documentsApi.replaceDocumentVersion(docId, {
+        fileUrl,
+        fileType,
+        fileSize,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-documents', employeeId] });
+      setUploadingDocId(null);
+      toast.success("Document submitted successfully and sent for HR review!");
+    },
+    onError: (err) => {
+      setUploadingDocId(null);
+      toast.error(err.message || "Failed to submit document");
+    },
+  });
+
+  const handleFulfillDocument = async (doc, file) => {
+    const docId = doc._id || doc.id;
+    setUploadingDocId(docId);
+    try {
+      const result = await uploadToCloudinary(file);
+      await fulfillDocMutation.mutateAsync({
+        docId,
+        fileUrl: result.secure_url,
+        fileType: result.format || file.name.split('.').pop() || 'PDF',
+        fileSize: result.bytes || file.size || 0,
+      });
+    } catch (err) {
+      setUploadingDocId(null);
+      toast.error("Upload failed: " + (err.message || "Unknown error"));
+    }
+  };
 
   const handleSave = () => {
     updateEmployeeMutation.mutate({ id: employee.id, data: editData });
@@ -406,8 +554,18 @@ export default function EmployeeSelfService() {
     }
   };
 
-  const sortedStatusHistory = employee.statusHistory ? [...employee.statusHistory].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
-  const rejectionRecord = sortedStatusHistory.find(h => h.previousStatus === 'PENDING_APPROVAL' && h.newStatus === 'DRAFT');
+  const rawStatusHistory = employee?.status_history || employee?.statusHistory || [];
+  const sortedStatusHistory = Array.isArray(rawStatusHistory)
+    ? [...rawStatusHistory].sort((a, b) => {
+        const dateB = new Date(Number(b.createdAt || b.date) || b.createdAt || b.date || 0);
+        const dateA = new Date(Number(a.createdAt || a.date) || a.createdAt || a.date || 0);
+        return dateB - dateA;
+      })
+    : [];
+  const rejectionRecord = sortedStatusHistory.find(h =>
+    (h.previousStatus === 'PENDING_APPROVAL' || h.from === 'PENDING_APPROVAL') &&
+    (h.newStatus === 'DRAFT' || h.to === 'DRAFT')
+  );
   const hasBeenRejected = !!rejectionRecord;
 
   return (
@@ -457,60 +615,74 @@ export default function EmployeeSelfService() {
           </p>
         </motion.div>
 
-        {employee.employment_status === 'DRAFT' && (
+          {isDraft && (
           <motion.div 
             variants={itemVariants} 
-            className="bg-yellow-50/80 backdrop-blur-md border border-yellow-200/60 text-yellow-800 rounded-2xl p-4 mb-6 shadow-sm cursor-pointer hover:bg-yellow-100/80 transition-colors"
-            onClick={() => navigate(PAGE_ROUTES.EMPLOYEE_PORTAL)}
+              className="bg-yellow-50/90 backdrop-blur-md border border-yellow-200/80 text-yellow-900 rounded-2xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
           >
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
-              {hasBeenRejected ? "Action Required: Profile Rejected" : "Proceed to complete onboarding"}
-            </h3>
-            {hasBeenRejected && (
-              <div className="mt-3 p-3 bg-white/60 rounded-xl border border-yellow-100">
-                <p className="text-sm font-medium text-yellow-900 mb-1">Reason for Rejection:</p>
-                <p className="text-sm text-yellow-800">{rejectionRecord.reason || "No reason provided."}</p>
+              <div>
+                <h3 className="font-semibold text-lg flex items-center gap-2 text-yellow-900">
+                  <span className="w-2.5 h-2.5 bg-yellow-500 rounded-full inline-block animate-pulse"></span>
+                  {hasBeenRejected ? "Action Required: Profile Revisions Requested" : "Action Required: Complete & Submit Profile"}
+                </h3>
+                {hasBeenRejected && (
+                  <div className="mt-2.5 p-3 bg-white/80 rounded-xl border border-yellow-200">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-yellow-900 mb-0.5">Feedback / Rejection Reason:</p>
+                    <p className="text-sm text-yellow-800">{rejectionRecord.reason || "Please review and update your information."}</p>
+                  </div>
+                )}
+                <p className="mt-2 text-sm text-yellow-700">
+                  Please complete your personal details below and submit your profile for review so the CEO / HR Admin can approve and activate your account.
+                </p>
               </div>
-            )}
-            <p className="mt-2 text-sm text-yellow-700">
-              Click here to view your Tasks and projects.
-            </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium shadow-sm"
+                  onClick={handleSubmitForReview}
+                  disabled={submitProfileMutation.isPending}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {submitProfileMutation.isPending ? "Submitting..." : "Submit for Review"}
+                </Button>
+              </div>
           </motion.div>
         )}
 
-        {employee.employment_status === 'PENDING_APPROVAL' && (
-          <motion.div variants={itemVariants} className="bg-blue-50/80 backdrop-blur-md border border-blue-200/60 text-blue-800 rounded-2xl p-4 mb-6 shadow-sm">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
-              Onboarding tasks in review
+          {isPendingApproval && (
+            <motion.div variants={itemVariants} className="bg-blue-50/90 backdrop-blur-md border border-blue-200/80 text-blue-900 rounded-2xl p-5 mb-6 shadow-sm">
+              <h3 className="font-semibold text-lg flex items-center gap-2 text-blue-950">
+                <span className="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block animate-pulse"></span>
+                Profile Submitted & In Review
             </h3>
-            <p className="mt-1 text-sm">
-              Your profile is complete and your onboarding tasks are currently in review.
+              <p className="mt-1 text-sm text-blue-800">
+                Your profile details have been submitted and are currently awaiting CEO / HR Admin approval. Once approved, your account will be fully activated.
             </p>
           </motion.div>
         )}
 
-        {employee.employment_status === 'ONBOARDING' && (
+        {(pendingTasksCount > 0 || ['PENDING_ONBOARDING', 'ONGOING_ONBOARDING', 'DRAFT'].includes(employee?.employment_status)) && myTasks.length > 0 && (
           <motion.div 
             variants={itemVariants} 
-            className="bg-indigo-50/80 backdrop-blur-md border border-indigo-200/60 text-indigo-800 rounded-2xl p-4 mb-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+            className="bg-indigo-50/80 backdrop-blur-md border border-indigo-200/60 text-indigo-800 rounded-2xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
           >
             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span className="w-2 h-2 bg-indigo-500 rounded-full inline-block animate-pulse"></span>
-                Action Required: Onboarding Tasks
+              <h3 className="font-semibold text-lg flex items-center gap-2 text-indigo-950">
+                <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full inline-block animate-pulse"></span>
+                Action Required: Onboarding Tasks ({pendingTasksCount} pending)
               </h3>
-              <p className="mt-1 text-sm">
-                You have onboarding tasks to complete. Please review and complete them to finalize your onboarding process.
+              <p className="mt-1 text-sm text-indigo-700">
+                You have {pendingTasksCount} onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} assigned to you. Review and complete them to finalize your account setup.
               </p>
             </div>
-            <Button 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
-              onClick={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
-            >
-              View My Tasks
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
+                onClick={() => setActiveTab('onboarding')}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                View Tasks Checklist
+              </Button>
+            </div>
           </motion.div>
         )}
 
@@ -584,11 +756,15 @@ export default function EmployeeSelfService() {
 
         {/* Main Content Tabs */}
         <motion.div variants={itemVariants}>
-          <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="bg-white/70 backdrop-blur-md border border-slate-200/60 p-1 rounded-2xl">
             <TabsTrigger value="profile">
               <User className="w-4 h-4 mr-2" />
               My Profile
+            </TabsTrigger>
+            <TabsTrigger value="onboarding">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Onboarding & Tasks {pendingTasksCount > 0 ? `(${pendingTasksCount})` : ''}
             </TabsTrigger>
             <TabsTrigger value="payslips">
               <DollarSign className="w-4 h-4 mr-2" />
@@ -614,35 +790,196 @@ export default function EmployeeSelfService() {
             <TabsTrigger value="job-history" className="rounded-full data-[state=active]:bg-indigo-600 data-[state=active]:text-white">Job History</TabsTrigger>
           </TabsList>
 
+          {/* Onboarding & Tasks Tab */}
+          <TabsContent value="onboarding">
+            <Card className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-slate-200/60 pb-5">
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                  <div>
+                    <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-indigo-600" />
+                      My Onboarding Checklist & Tasks
+                    </CardTitle>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {myTasks.length - pendingTasksCount} of {myTasks.length} onboarding tasks completed
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pendingTasksCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCompleteAll}
+                        disabled={completeAllMutation.isPending}
+                        className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium"
+                      >
+                        {completeAllMutation.isPending ? "Completing..." : "Complete all tasks"}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                    >
+                      Open Task Manager
+                    </Button>
+                  </div>
+                </div>
+                {myTasks.length > 0 && (
+                  <div className="mt-5 space-y-1.5">
+                    <div className="flex justify-between items-center text-xs font-semibold text-slate-600">
+                      <span>Overall Onboarding Completion</span>
+                      <span className="text-indigo-600 font-bold">{Math.round(((myTasks.length - pendingTasksCount) / myTasks.length) * 100)}%</span>
+                    </div>
+                    <Progress 
+                      value={Math.round(((myTasks.length - pendingTasksCount) / myTasks.length) * 100)} 
+                      className="h-2.5 bg-slate-100" 
+                    />
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-6">
+                {myTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <h4 className="text-lg font-medium text-slate-700">No onboarding tasks assigned</h4>
+                    <p className="text-sm text-slate-500 mt-1">All onboarding checklist items have been cleared or verified.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myTasks.map((t) => {
+                      const isCompleted = Boolean(t.isCompleted || t.status === 'completed' || t.status === 'DONE' || t.status === 'approved');
+                      return (
+                        <div
+                          key={t.id}
+                          className={`p-4 rounded-xl border transition-all ${
+                            isCompleted 
+                              ? 'bg-slate-50/70 border-slate-200/80 opacity-80' 
+                              : 'bg-white border-slate-200 shadow-sm hover:border-indigo-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3.5">
+                            <Checkbox
+                              checked={isCompleted}
+                              onCheckedChange={() => toggleTaskMutation.mutate({ taskId: t.id, isCompleted })}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <h4 className={`font-semibold text-base ${isCompleted ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                                  {t.title}
+                                </h4>
+                                {t.category && (
+                                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-xs">
+                                    {t.category}
+                                  </Badge>
+                                )}
+                                {isCompleted ? (
+                                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-semibold">
+                                    {t.status === 'approved' ? 'Verified & Approved' : 'Completed'}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs font-semibold">
+                                    Pending
+                                  </Badge>
+                                )}
+                              </div>
+                              {t.description && (
+                                <p className="text-sm text-slate-600 mb-2 leading-relaxed">{t.description}</p>
+                              )}
+                              {t.dueDate && (
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Due by: {format(new Date(t.dueDate), 'MMM d, yyyy')}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Profile Tab */}
           <TabsContent value="profile">
             <Card className="border-slate-200/60 bg-white/70 backdrop-blur-md shadow-sm rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-slate-200">
-                <div className="flex justify-between items-center">
-                  <CardTitle>Personal Information</CardTitle>
-                  <Button
-                    variant="outline"
-                    isLoading={updateEmployeeMutation.isPending}
-                    onClick={() => {
-                      if (isEditing) {
-                        handleSave();
-                      } else {
-                        setIsEditing(true);
-                      }
-                    }}
-                  >
-                    {isEditing ? (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        {updateEmployeeMutation.isPending ? "Saving..." : "Save Changes"}
+                    <div className="flex flex-wrap justify-between items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <CardTitle>Personal Information</CardTitle>
+                        {isDraft && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                            Draft Profile
+                          </Badge>
+                        )}
+                        {isPendingApproval && (
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                            Pending Approval
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditData(employee);
+                                setIsEditing(false);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              isLoading={updateEmployeeMutation.isPending}
+                              onClick={handleSave}
+                            >
+                              <Save className="w-4 h-4 mr-1.5" />
+                              Save Draft
+                            </Button>
+                            {isDraft && (
+                              <Button
+                                size="sm"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                isLoading={submitProfileMutation.isPending}
+                                onClick={handleSubmitForReview}
+                              >
+                                <Send className="w-4 h-4 mr-1.5" />
+                                Submit for Review
+                              </Button>
+                            )}
                       </>
                     ) : (
                       <>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditing(true)}
+                              >
+                                <Edit className="w-4 h-4 mr-1.5" />
+                                Edit Profile
+                              </Button>
+                              {isDraft && (
+                                <Button
+                                  size="sm"
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                  isLoading={submitProfileMutation.isPending}
+                                  onClick={handleSubmitForReview}
+                                >
+                                  <Send className="w-4 h-4 mr-1.5" />
+                                  Submit for Review
+                                </Button>
+                              )}
                       </>
                     )}
-                  </Button>
+                      </div>
                 </div>
               </CardHeader>
               <CardContent className="p-6">
@@ -1044,16 +1381,30 @@ export default function EmployeeSelfService() {
                       </div>
                       <div className="space-y-2">
                         <Label>Category</Label>
-                        <Input 
-                          placeholder="e.g. Identity, Educational, Financial"
+                        <select
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
                           value={uploadData.category}
                           onChange={(e) => setUploadData(prev => ({ ...prev, category: e.target.value }))}
-                        />
+                        >
+                          <option value="Employment Contract">Employment Contract</option>
+                          <option value="Offer Letter">Offer Letter</option>
+                          <option value="Government ID">Government ID</option>
+                          <option value="Passport Photograph">Passport Photograph</option>
+                          <option value="Tax Forms">Tax Forms</option>
+                          <option value="Bank Details">Bank Details</option>
+                          <option value="Educational Certificates">Educational Certificates</option>
+                          <option value="Certificates & Qualifications">Certificates & Qualifications</option>
+                          <option value="Compliance Forms">Compliance Forms</option>
+                          <option value="Guarantor Documents">Guarantor Documents</option>
+                          <option value="Payroll Support Documents">Payroll Support Documents</option>
+                          <option value="Other">Other</option>
+                        </select>
                       </div>
                       <div className="space-y-2">
                         <Label>File</Label>
                         <Input 
                           type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                           onChange={(e) => {
                             if (e.target.files?.[0]) {
                               setUploadData(prev => ({ ...prev, file: e.target.files[0] }));
@@ -1065,7 +1416,7 @@ export default function EmployeeSelfService() {
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setIsUploadOpen(false)}>Cancel</Button>
                       <Button 
-                        isLoading={!uploadData.name || !uploadData.category || !uploadData.file || isUploadingToCloudinary || uploadDocumentMutation.isPending}
+                        disabled={!uploadData.name || !uploadData.file || isUploadingToCloudinary || uploadDocumentMutation.isPending}
                         onClick={async () => {
                           try {
                             setIsUploadingToCloudinary(true);
@@ -1074,64 +1425,263 @@ export default function EmployeeSelfService() {
                             uploadDocumentMutation.mutate({
                               employeeId,
                               name: uploadData.name,
-                              category: uploadData.category,
+                              category: uploadData.category || 'Other',
                               fileUrl: result.secure_url,
-                              fileType: result.format || uploadData.file.name.split('.').pop(),
+                              fileType: result.format || uploadData.file.name.split('.').pop() || 'pdf',
                               visibilityLevel: 'EMPLOYEE'
                             });
                           } catch (error) {
-                            toast.error("Cloudinary upload failed: " + error.message);
+                            toast.error("Cloudinary upload failed: " + (error.message || "Upload error"));
                           } finally {
                             setIsUploadingToCloudinary(false);
                           }
                         }}
                       >
-                        {(isUploadingToCloudinary || uploadDocumentMutation.isPending) ? "Uploading..." : "Upload"}
+                        {(isUploadingToCloudinary || uploadDocumentMutation.isPending) ? "Uploading..." : "Upload Document"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardHeader>
-              <CardContent className="p-6">
-                {documents.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                    <p className="text-slate-500">No documents uploaded yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {documents.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-900">{doc.document_name}</p>
-                            <p className="text-sm text-slate-500">{doc.category} • {doc.file_name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge>{doc.status}</Badge>
-                          {doc.file_url && (
-                            <>
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" title="Preview">
-                                  <Eye className="w-4 h-4" />
-                                </a>
-                              </Button>
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={doc.file_url} download title="Download">
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </Button>
-                            </>
-                          )}
-                        </div>
+              <CardContent className="p-6 space-y-6">
+                {(() => {
+                  const isPendingUpload = (d) => String(d.status).toLowerCase() === 'pending_upload' || (!d.fileUrl && !d.file_url);
+                  const isRejected = (d) => String(d.status).toLowerCase() === 'rejected';
+
+                  const requestedDocs = documents.filter(d => isPendingUpload(d));
+                  const rejectedDocs = documents.filter(d => isRejected(d));
+                  const uploadedDocs = documents.filter(d => !isPendingUpload(d) && !isRejected(d));
+
+                  if (documents.length === 0) {
+                    return (
+                      <div className="text-center py-12">
+                        <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                        <p className="text-slate-500 font-medium">No documents required or uploaded yet</p>
+                        <p className="text-xs text-slate-400 mt-1">When HR requests documents from you, they will appear here.</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Section 1: Requested by HR (Awaiting Upload) */}
+                      {requestedDocs.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-amber-500" />
+                            <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">
+                              Requested by HR — Action Required ({requestedDocs.length})
+                            </h3>
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {requestedDocs.map(doc => {
+                              const docId = doc.id;
+                              const isUploadingThis = uploadingDocId === docId;
+
+                              return (
+                                <div key={docId} className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl shadow-sm flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                          <FileText className="w-5 h-5 text-amber-600" />
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-slate-900">{doc.document_name}</h4>
+                                          <p className="text-xs text-slate-500">{doc.category || 'General'}</p>
+                                        </div>
+                                      </div>
+                                      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                                        Upload Needed
+                                      </Badge>
+                                    </div>
+                                    {doc.notes && (
+                                      <p className="text-xs text-slate-600 mt-2 p-2 bg-white/70 rounded border border-amber-100">
+                                        <strong>HR Note:</strong> {doc.notes}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="mt-4 pt-3 border-t border-amber-200/60">
+                                    <input
+                                      type="file"
+                                      id={`file-req-${docId}`}
+                                      className="hidden"
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                      onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                          handleFulfillDocument(doc, e.target.files[0]);
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                                      onClick={() => document.getElementById(`file-req-${docId}`).click()}
+                                      disabled={isUploadingThis}
+                                    >
+                                      {isUploadingThis ? (
+                                        <>Uploading & Submitting...</>
+                                      ) : (
+                                        <>
+                                          <Upload className="w-4 h-4 mr-2" />
+                                          Submit Requested Document
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section 2: Revisions Needed */}
+                      {rejectedDocs.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-rose-500" />
+                            <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">
+                              Revisions Needed ({rejectedDocs.length})
+                            </h3>
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {rejectedDocs.map(doc => {
+                              const docId = doc.id;
+                              const isUploadingThis = uploadingDocId === docId;
+
+                              return (
+                                <div key={docId} className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl shadow-sm flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                                          <FileText className="w-5 h-5 text-rose-600" />
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-slate-900">{doc.document_name}</h4>
+                                          <p className="text-xs text-slate-500">{doc.category || 'General'}</p>
+                                        </div>
+                                      </div>
+                                      <Badge variant="outline" className="bg-rose-100 text-rose-800 border-rose-300">
+                                        Rejected
+                                      </Badge>
+                                    </div>
+                                    {doc.rejectionReason && (
+                                      <p className="text-xs text-rose-700 mt-2 p-2 bg-white/70 rounded border border-rose-200">
+                                        <strong>Reason for Rejection:</strong> {doc.rejectionReason}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="mt-4 pt-3 border-t border-rose-200/60">
+                                    <input
+                                      type="file"
+                                      id={`file-rej-${docId}`}
+                                      className="hidden"
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                      onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                          handleFulfillDocument(doc, e.target.files[0]);
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full border-rose-300 text-rose-700 hover:bg-rose-100"
+                                      onClick={() => document.getElementById(`file-rej-${docId}`).click()}
+                                      disabled={isUploadingThis}
+                                    >
+                                      {isUploadingThis ? "Uploading Revision..." : "Re-upload Corrected Document"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section 3: Uploaded Documents */}
+                      {uploadedDocs.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                            <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">
+                              My Uploaded Documents ({uploadedDocs.length})
+                            </h3>
+                          </div>
+                          <div className="space-y-3">
+                            {uploadedDocs.map(doc => {
+                              const docId = doc.id;
+                              const isApproved = String(doc.status).toLowerCase() === 'approved';
+                              const fileUrl = doc.file_url || doc.fileUrl;
+                              const isUploadingThis = uploadingDocId === docId;
+
+                              return (
+                                <div key={docId} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200/70 rounded-xl hover:bg-slate-100/60 transition-colors">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isApproved ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                                      <FileText className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-slate-900">{doc.document_name}</p>
+                                        <Badge variant="secondary" className="text-xs">v{doc.currentVersion || 1}</Badge>
+                                      </div>
+                                      <p className="text-xs text-slate-500">{doc.category || 'General'} • {doc.file_name || 'Document'}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
+                                      {isApproved ? 'Approved' : 'Under Review'}
+                                    </Badge>
+                                    {fileUrl && (
+                                      <>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <a href={fileUrl} target="_blank" rel="noopener noreferrer" title="Preview">
+                                            <Eye className="w-4 h-4" />
+                                          </a>
+                                        </Button>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <a href={fileUrl} download title="Download">
+                                            <Download className="w-4 h-4" />
+                                          </a>
+                                        </Button>
+                                      </>
+                                    )}
+                                    <input
+                                      type="file"
+                                      id={`replace-ver-${docId}`}
+                                      className="hidden"
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                      onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                          handleFulfillDocument(doc, e.target.files[0]);
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-xs text-slate-600 hover:text-slate-900"
+                                      onClick={() => document.getElementById(`replace-ver-${docId}`).click()}
+                                      disabled={isUploadingThis}
+                                      title="Upload a new version of this document"
+                                    >
+                                      <Upload className="w-3.5 h-3.5 mr-1" />
+                                      {isUploadingThis ? "Uploading..." : "New Version"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1182,7 +1732,7 @@ export default function EmployeeSelfService() {
 
                 <div className="space-y-4">
                   <h4 className="font-medium text-slate-800 text-lg">Status History</h4>
-                  {employee?.status_history && employee.status_history.length > 0 ? (
+                  {sortedStatusHistory && sortedStatusHistory.length > 0 ? (
                     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 border-b border-slate-200">
@@ -1194,18 +1744,23 @@ export default function EmployeeSelfService() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {employee.status_history.map(sh => (
-                            <tr key={sh.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-slate-600">{new Date(Number(sh.createdAt) || sh.createdAt).toLocaleDateString()}</td>
-                              <td className="px-6 py-4 text-slate-600">
-                                <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{sh.previousStatus}</Badge>
-                              </td>
-                              <td className="px-6 py-4">
-                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100">{sh.newStatus}</Badge>
-                              </td>
-                              <td className="px-6 py-4 text-slate-600">{sh.reason || 'N/A'}</td>
-                            </tr>
-                          ))}
+                          {sortedStatusHistory.map((sh, idx) => {
+                            const rawDate = sh.createdAt || sh.date || sh.timestamp || sh.updatedAt;
+                            const prevStatus = sh.previousStatus || sh.from || 'N/A';
+                            const newStatus = sh.newStatus || sh.to || 'N/A';
+                            return (
+                              <tr key={sh.id || sh._id || `sh-${idx}`} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 text-slate-600 font-mono text-xs">{formatStatusDate(rawDate)}</td>
+                                <td className="px-6 py-4 text-slate-600">
+                                  {renderStatusHistoryBadge(prevStatus, false)}
+                                </td>
+                                <td className="px-6 py-4">
+                                  {renderStatusHistoryBadge(newStatus, true)}
+                                </td>
+                                <td className="px-6 py-4 text-slate-600 text-xs">{sh.reason || 'N/A'}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

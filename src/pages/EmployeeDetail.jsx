@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import countryList from 'country-list';
-import { employeesApi, organizationsApi, departmentsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
+import { employeesApi, approvalsApi, organizationsApi, departmentsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -47,11 +47,13 @@ const parseSafeDate = (d) => {
 
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import OnboardingProgressWidget from "@/components/employee-detail/OnboardingProgressWidget";
+import TaskManager from "@/components/employee-detail/TaskManager";
 import { motion } from "framer-motion";
 
 const menuItems = [
   { id: 'personal', label: 'Personal', icon: User },
   { id: 'job', label: 'Job Data & History', icon: Briefcase },
+  { id: 'onboarding', label: 'Onboarding & Tasks', icon: CheckCircle },
   { id: 'contracts', label: 'Contracts', icon: FileText },
   { id: 'financial', label: 'Financial', icon: DollarSign },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
@@ -101,6 +103,37 @@ const mapEmployeeData = (e) => {
     promotion_history: e.promotionHistory || e.promotion_history || [],
     status_history: e.statusHistory || e.status_history || []
   };
+};
+
+const formatStatusDate = (d) => {
+  if (!d) return 'N/A';
+  const num = Number(d);
+  const parsed = !isNaN(num) && num > 0 ? new Date(num) : new Date(d);
+  return isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const renderStatusHistoryBadge = (status, isNew = false) => {
+  if (!status || status === 'N/A' || status === 'INITIAL') {
+    return <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200">{status === 'INITIAL' ? 'Initial' : 'N/A'}</Badge>;
+  }
+  const label = String(status).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const s = String(status).toUpperCase();
+  if (s === 'ACTIVE') {
+    return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">{label}</Badge>;
+  }
+  if (s === 'PROBATION') {
+    return <Badge className="bg-amber-50 text-amber-700 border-amber-200">{label}</Badge>;
+  }
+  if (s === 'PENDING_APPROVAL' || s === 'PENDING_ONBOARDING' || s === 'ONGOING_ONBOARDING') {
+    return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{label}</Badge>;
+  }
+  if (s === 'DRAFT') {
+    return <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{label}</Badge>;
+  }
+  if (s === 'TERMINATED' || s === 'SUSPENDED' || s === 'OFFBOARDED' || s === 'RESIGNED') {
+    return <Badge className="bg-rose-50 text-rose-700 border-rose-200">{label}</Badge>;
+  }
+  return <Badge className={isNew ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-slate-50 text-slate-600 border-slate-200"}>{label}</Badge>;
 };
 
 export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose }) {
@@ -164,6 +197,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const [showProbationDialog, setShowProbationDialog] = useState(false);
   const [probationForm, setProbationForm] = useState({ startDate: '', endDate: '' });
 
+  const [showRejectProfileDialog, setShowRejectProfileDialog] = useState(false);
+  const [rejectProfileReason, setRejectProfileReason] = useState('');
+  const [isApprovingProfile, setIsApprovingProfile] = useState(false);
+  const [isRejectingProfile, setIsRejectingProfile] = useState(false);
+
   const { data: employee, isLoading, isError, error } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: async () => {
@@ -176,6 +214,19 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     initialData: employeeDetail ? mapEmployeeData(employeeDetail) : undefined,
     enabled: !!employeeId
   });
+
+  const canApprove = ['SUPER_ADMIN', 'HR_ADMIN', 'admin', 'CEO'].includes(user?.role) || user?.isOrgOwner || user?.is_organization_owner;
+  const isDraft = Boolean(employee && (
+    employee.employment_status === 'DRAFT' ||
+    employee.employmentStatus === 'DRAFT' ||
+    employee.employment_status === 'draft'
+  ));
+  const isPendingApproval = Boolean(employee && (
+    employee.employment_status === 'PENDING_APPROVAL' ||
+    employee.employmentStatus === 'PENDING_APPROVAL' ||
+    employee.employment_status === 'pending_approval'
+  ));
+  const isPendingApprovalOrDraft = isDraft || isPendingApproval;
 
   const { data: employees = [] } = useQuery({
     queryKey: ['all-employees'],
@@ -221,8 +272,13 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const { data: documentHistory = [] } = useQuery({
     queryKey: ['document-history', selectedDocHistory?.id],
-    queryFn: async () => [],
-    enabled: !!selectedDocHistory,
+    queryFn: async () => {
+      if (!selectedDocHistory?.id) return [];
+      const res = await documentsApi.getDocumentHistory(selectedDocHistory.id);
+      const data = res.data?.data || res.data;
+      return data?.history || [];
+    },
+    enabled: !!selectedDocHistory?.id,
     initialData: [],
   });
 
@@ -415,6 +471,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         managerId: data.manager_id || data.managerId || undefined,
         employmentType: data.employment_type || undefined,
         employmentStatus: data.employment_status || undefined,
+        reason: data.status_change_reason || undefined,
         hireDate: data.start_date || undefined,
         probationStartDate: data.probation_start_date || undefined,
         probationEndDate: data.probation_end_date || undefined,
@@ -464,10 +521,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const replaceDocumentVersionMutation = useMutation({
     mutationFn: async ({ id, fileUrl, fileType, fileSize }) => {
-      return await documentsApi.uploadDocument({
-        employeeId,
-        name: docToReplace?.document_name || docToReplace?.name || 'Updated Document',
-        category: docToReplace?.category || 'General',
+      return await documentsApi.replaceDocumentVersion(id, {
         fileUrl,
         fileType: fileType || 'PDF',
         fileSize: fileSize || 0,
@@ -483,6 +537,34 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     onError: (err) => {
       console.error(err);
       toast.error(extractErrorMessage(err, "Failed to replace document."));
+    }
+  });
+
+  const approveDocumentMutation = useMutation({
+    mutationFn: async ({ id, notes }) => {
+      return await documentsApi.approveDocument(id, notes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      toast.success("Document approved successfully.");
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(extractErrorMessage(err, "Failed to approve document."));
+    }
+  });
+
+  const rejectDocumentMutation = useMutation({
+    mutationFn: async ({ id, notes }) => {
+      return await documentsApi.rejectDocument(id, notes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+      toast.success("Document marked as rejected.");
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(extractErrorMessage(err, "Failed to reject document."));
     }
   });
 
@@ -886,7 +968,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DRAFT">Draft</SelectItem>
+                      <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
                       <SelectItem value="PENDING_ONBOARDING">Pending Onboarding</SelectItem>
+                      <SelectItem value="ONGOING_ONBOARDING">Ongoing Onboarding</SelectItem>
                       <SelectItem value="PROBATION">Probation</SelectItem>
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="SUSPENDED">Suspended</SelectItem>
@@ -924,6 +1008,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                       />
                     </div>
                   </>
+                )}
+                {editData.employment_status !== employee.employment_status && (
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Reason for Status Change</Label>
+                    <Input
+                      placeholder="e.g. Performance review, promotion, probation completion..."
+                      value={editData.status_change_reason || ''}
+                      onChange={(e) => setEditData(prev => ({ ...prev, status_change_reason: e.target.value }))}
+                    />
+                  </div>
                 )}
                 <div className="space-y-2">
                   <Label>Reports To (Manager)</Label>
@@ -998,7 +1092,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 <div className="space-y-4">
                   <h4 className="font-medium text-slate-800">Status History</h4>
                   {employee.status_history && employee.status_history.length > 0 ? (
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
@@ -1009,18 +1103,29 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                          {employee.status_history.map(sh => (
-                            <tr key={sh.id} className="bg-white hover:bg-slate-50">
-                              <td className="px-4 py-3">{new Date(Number(sh.createdAt) || sh.createdAt).toLocaleDateString()}</td>
-                              <td className="px-4 py-3 text-slate-600">
-                                <Badge variant="outline">{sh.previousStatus}</Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">{sh.newStatus}</Badge>
-                              </td>
-                              <td className="px-4 py-3 text-slate-600">{sh.reason || 'N/A'}</td>
-                            </tr>
-                          ))}
+                          {[...employee.status_history]
+                            .sort((a, b) => {
+                              const dateB = new Date(Number(b.createdAt || b.date) || b.createdAt || b.date || 0);
+                              const dateA = new Date(Number(a.createdAt || a.date) || a.createdAt || a.date || 0);
+                              return dateB - dateA;
+                            })
+                            .map((sh, idx) => {
+                              const rawDate = sh.createdAt || sh.date || sh.timestamp || sh.updatedAt;
+                              const prevStatus = sh.previousStatus || sh.from || 'N/A';
+                              const newStatus = sh.newStatus || sh.to || 'N/A';
+                              return (
+                                <tr key={sh.id || sh._id || `sh-${idx}`} className="bg-white hover:bg-slate-50 transition-colors">
+                                  <td className="px-4 py-3 text-slate-600 font-mono text-xs">{formatStatusDate(rawDate)}</td>
+                                  <td className="px-4 py-3 text-slate-600">
+                                    {renderStatusHistoryBadge(prevStatus, false)}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {renderStatusHistoryBadge(newStatus, true)}
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-600 text-xs">{sh.reason || 'N/A'}</td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
@@ -1627,17 +1732,38 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           <Badge variant="secondary" className="bg-blue-100 text-blue-700">v{doc.currentVersion || 1}</Badge>
                           {doc.status && (
                             <Badge variant="secondary" className={
+                              doc.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                              doc.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                              doc.status === 'pending_upload' ? 'bg-amber-100 text-amber-800' :
                               doc.status === 'EXPIRING_SOON' ? 'bg-amber-100 text-amber-700' :
-                                doc.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
-                                  'bg-green-100 text-green-700'
+                              doc.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
+                              'bg-blue-100 text-blue-700'
                             }>
-                              {doc.status}
+                              {doc.status === 'pending_upload' ? 'Awaiting Upload' : doc.status}
                             </Badge>
                           )}
                         </div>
+                        {doc.rejectionReason && (
+                          <p className="text-xs text-rose-600 mt-1">Rejection reason: {doc.rejectionReason}</p>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {canApprove && doc.status !== 'approved' && doc.status !== 'pending_upload' && doc.file_url && (
+                        <Button size="sm" variant="ghost" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 text-xs h-8 px-2" onClick={() => approveDocumentMutation.mutate({ id: doc.id })} disabled={approveDocumentMutation.isPending}>
+                          Approve
+                        </Button>
+                      )}
+                      {canApprove && doc.status !== 'rejected' && doc.status !== 'pending_upload' && doc.file_url && (
+                        <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs h-8 px-2" onClick={() => {
+                          const reason = window.prompt("Enter rejection reason (optional):");
+                          if (reason !== null) {
+                            rejectDocumentMutation.mutate({ id: doc.id, notes: reason });
+                          }
+                        }} disabled={rejectDocumentMutation.isPending}>
+                          Reject
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => { setSelectedDocHistory(doc); setShowHistoryDialog(true); }}>
                         History
                       </Button>
@@ -1991,7 +2117,31 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           </div>
         );
 
-
+      case 'onboarding':
+        return (
+          <div className="space-y-6">
+            <OnboardingProgressWidget
+              employeeId={employeeId}
+              employee={employee}
+              onCompleteAction={() => {
+                setActiveSection('job');
+                setIsEditing(true);
+                setEditData(prev => ({ ...prev, employment_status: 'PROBATION' }));
+              }}
+              onSetToActive={() => {
+                setActiveSection('job');
+                setIsEditing(true);
+                setEditData(prev => ({ ...prev, employment_status: 'ACTIVE' }));
+              }}
+              onBeginOffboarding={() => {
+                setActiveSection('job');
+                setIsEditing(true);
+                setEditData(prev => ({ ...prev, employment_status: 'OFFBOARDED' }));
+              }}
+            />
+            <TaskManager employeeId={employeeId} tasks={employee.onboardingTasks || []} />
+          </div>
+        );
 
       default:
         return (
@@ -2174,29 +2324,53 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               </Button>
             </div>
 
-            {['SUPER_ADMIN', 'HR_ADMIN'].includes(user?.role) && employee.employment_status === 'PENDING_APPROVAL' && (
+            {canApprove && isPendingApprovalOrDraft && (
               <div className="mb-6">
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4 flex items-center justify-between">
+                <Card className="border-blue-200 bg-blue-50/90 shadow-sm rounded-xl overflow-hidden">
+                  <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-blue-900">Employee Actions</h3>
-                      <p className="text-sm text-blue-700">This employee has completed their Draft profile and is awaiting HR approval.</p>
+                      <h3 className="font-semibold text-blue-950 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+                        {isDraft ? "Draft Employee Profile" : "Pending Profile Approval"}
+                      </h3>
+                      <p className="text-sm text-blue-800 mt-1">
+                        {isDraft
+                          ? "This employee profile is currently in Draft status. You can review their details and approve/activate their profile to change their status to Active."
+                          : "This employee has completed their profile data and submitted it for review. Approve to activate their profile, or request revisions."}
+                      </p>
                     </div>
-                    <Button
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={async () => {
-                        try {
-                          await employeesApi.updateEmployee(employeeId, { employmentStatus: 'ACTIVE' });
-                          toast.success("Employee data approved!");
-                          queryClient.invalidateQueries(['employee', employeeId]);
-                        } catch (err) {
-                          toast.error(extractErrorMessage(err, "Failed to approve employee data."));
-                          console.error(err);
-                        }
-                      }}
-                    >
-                      Approve Profile Data
-                    </Button>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <Button
+                        variant="outline"
+                        className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        onClick={() => setShowRejectProfileDialog(true)}
+                      >
+                        Request Revision
+                      </Button>
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                        disabled={isApprovingProfile}
+                        onClick={async () => {
+                          try {
+                            setIsApprovingProfile(true);
+                            await approvalsApi.approveEmployee(employeeId);
+                            toast.success("Employee profile approved and activated!");
+                            queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+                            queryClient.invalidateQueries({ queryKey: ['employees'] });
+                            queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+                            queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
+                            queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
+                          } catch (err) {
+                            toast.error(extractErrorMessage(err, "Failed to approve employee data."));
+                            console.error(err);
+                          } finally {
+                            setIsApprovingProfile(false);
+                          }
+                        }}
+                      >
+                        {isApprovingProfile ? "Approving..." : "Approve & Activate Profile"}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -2437,6 +2611,55 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showRejectProfileDialog} onOpenChange={setShowRejectProfileDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Profile Revision</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-slate-600">
+              Provide feedback for the employee on what details need to be corrected or updated. Their profile status will return to Draft.
+            </p>
+            <div className="space-y-2">
+              <Label>Reason for Revision</Label>
+              <Textarea
+                placeholder="e.g. Please provide a clear national ID number and valid private email..."
+                value={rejectProfileReason}
+                onChange={(e) => setRejectProfileReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectProfileDialog(false)}>Cancel</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={isRejectingProfile}
+              onClick={async () => {
+                try {
+                  setIsRejectingProfile(true);
+                  await approvalsApi.rejectEmployee(employeeId, rejectProfileReason);
+                  toast.success("Revision requested and profile returned to draft.");
+                  setShowRejectProfileDialog(false);
+                  setRejectProfileReason('');
+                  queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+                  queryClient.invalidateQueries({ queryKey: ['employees'] });
+                  queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+                  queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
+                  queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
+                } catch (err) {
+                  toast.error(extractErrorMessage(err, "Failed to request profile revision."));
+                  console.error(err);
+                } finally {
+                  setIsRejectingProfile(false);
+                }
+              }}
+            >
+              {isRejectingProfile ? "Submitting..." : "Send Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 

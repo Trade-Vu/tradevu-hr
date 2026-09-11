@@ -1,39 +1,47 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { onboardingApi } from "@/api/onboarding.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, CheckCircle2, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const GET_TASKS = gql`
-  query GetTasks($employeeId: ID) {
-    onboardingTasks(employeeId: $employeeId) {
-      id
-      isCompleted
-    }
-  }
-`;
-
-export default function OnboardingProgressWidget({ employeeId, employee, onCompleteAction, onSetToActive, onBeginOffboarding }) {
-  const { data: tasks = [], isLoading } = useQuery({
+export default function OnboardingProgressWidget({
+  employeeId,
+  employee,
+  onCompleteAction,
+  onSetToActive,
+  onBeginOffboarding,
+}) {
+  const { data: rawTasks = [], isLoading } = useQuery({
     queryKey: ['onboarding-tasks', employeeId],
     queryFn: async () => {
-      const data = await gqlClient.request(GET_TASKS, { employeeId });
-      return data.onboardingTasks || [];
+      const res = await onboardingApi.getEmployeeTasks(employeeId);
+      return Array.isArray(res) ? res : (res?.data || []);
     },
-    enabled: !!employeeId
+    enabled: !!employeeId,
   });
 
+  const tasks = rawTasks.map((t) => ({
+    ...t,
+    id: t._id || t.id,
+    isCompleted: Boolean(
+      t.isCompleted ||
+      t.status === 'completed' ||
+      t.status === 'DONE' ||
+      t.status === 'done' ||
+      t.status === 'approved'
+    ),
+  }));
+
   const isProbation = employee?.employmentStatus === 'PROBATION';
-  const hiddenStatuses = ['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'OFFBOARDED', 'RESIGNED', 'TERMINATED', 'SUSPENDED'];
-  const shouldHide = hiddenStatuses.includes(employee?.employmentStatus);
+  const terminalStatuses = ['OFFBOARDED', 'RESIGNED', 'TERMINATED', 'SUSPENDED'];
+  const shouldHide = terminalStatuses.includes(employee?.employmentStatus);
 
   if (isLoading || (!isProbation && tasks.length === 0) || shouldHide) return null;
 
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.isCompleted).length;
+  const completedTasks = tasks.filter((t) => t.isCompleted).length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const parseSafeDateObj = (d) => {
@@ -57,8 +65,8 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
     if (end) {
       endDateDisplay = end.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
       const today = new Date();
-      end.setHours(0,0,0,0);
-      today.setHours(0,0,0,0);
+      end.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
       const diff = end.getTime() - today.getTime();
       probationDaysLeft = Math.ceil(diff / (1000 * 3600 * 24));
       isProbationEnd = probationDaysLeft <= 0;
@@ -75,7 +83,7 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
           <div className="flex-1 w-full">
             {isProbation ? (
               <div>
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
                   <div>
                     <h4 className="font-semibold text-slate-900">Probation Status</h4>
                     <p className="text-sm text-slate-500">
@@ -83,7 +91,7 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
                     </p>
                   </div>
                   {probationDaysLeft !== null && (
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <span className="text-xs font-medium uppercase tracking-wider text-slate-500 block mb-1">Time Remaining</span>
                       <span className={`text-sm font-bold px-3 py-1 rounded-full ${isProbationEnd ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
                         {isProbationEnd ? 'Probation Ended' : `${probationDaysLeft} days left`}
@@ -91,6 +99,31 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
                     </div>
                   )}
                 </div>
+                {(onSetToActive || onBeginOffboarding) && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-blue-100/70">
+                    {onSetToActive && (
+                      <Button
+                        type="button"
+                        onClick={onSetToActive}
+                        className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 h-8 rounded-md font-medium transition-colors inline-flex items-center gap-1.5"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Set Employee to Active
+                      </Button>
+                    )}
+                    {onBeginOffboarding && (
+                      <Button
+                        type="button"
+                        onClick={onBeginOffboarding}
+                        variant="outline"
+                        className="text-xs border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 px-3 py-1.5 h-8 rounded-md font-medium transition-colors inline-flex items-center gap-1.5"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        Begin Offboarding
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -102,11 +135,13 @@ export default function OnboardingProgressWidget({ employeeId, employee, onCompl
                   <span className="text-lg font-bold text-blue-700">{progress}%</span>
                 </div>
                 <Progress value={progress} className="h-2 bg-blue-100 mb-3" />
-                {progress === 100 && onCompleteAction && !hiddenStatuses.includes(employee?.employmentStatus) && (
+                {progress === 100 && onCompleteAction && !terminalStatuses.includes(employee?.employmentStatus) && employee?.employmentStatus !== 'ACTIVE' && (
                   <Button 
+                    type="button"
                     onClick={onCompleteAction}
-                    className="mt-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors"
+                    className="mt-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors inline-flex items-center gap-1.5"
                   >
+                    <CheckCircle2 className="w-4 h-4" />
                     Set Employee to Probation
                   </Button>
                 )}

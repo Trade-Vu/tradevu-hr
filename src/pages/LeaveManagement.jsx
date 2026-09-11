@@ -2,13 +2,14 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/AuthContext";
+import { isAdmin as checkIsAdmin } from "@/lib/roleUtils";
 import LeaveOverview from "./LeaveOverview";
 import AllLeaveRequests from "./AllLeaveRequests";
 import LeavePlanner from "./LeavePlanner";
 
 export default function LeaveManagement() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.is_organization_owner;
+  const isAdmin = checkIsAdmin(user);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">

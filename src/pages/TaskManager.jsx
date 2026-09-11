@@ -107,7 +107,7 @@ export default function TaskManager() {
     queryKey: ['task-manager-employees'],
     queryFn: async () => {
       const res = await employeesApi.getEmployees({ limit: 100 });
-      return res?.data?.data || res?.data || [];
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
     },
   });
   const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);
@@ -117,7 +117,7 @@ export default function TaskManager() {
     queryKey: ['projects'],
     queryFn: async () => {
       const res = await projectsApi.getProjects({ limit: 100 });
-      return res?.data?.data || res?.data || [];
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
     },
   });
   const rawProjects = Array.isArray(projectsData) ? projectsData : (projectsData?.data || []);
@@ -127,7 +127,7 @@ export default function TaskManager() {
     queryKey: ['project-tasks'],
     queryFn: async () => {
       const res = await projectsApi.getAllTasks();
-      return res?.data?.data || res?.data || [];
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
     },
   });
   const rawProjectTasks = Array.isArray(projectTasksData) ? projectTasksData : (projectTasksData?.data || []);
@@ -137,7 +137,7 @@ export default function TaskManager() {
     queryKey: ['onboarding-tasks'],
     queryFn: async () => {
       const res = await onboardingApi.getAllTasks();
-      return res?.data?.data || res?.data || [];
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
     },
   });
   const rawOnboardingTasks = Array.isArray(onboardingTasksData) ? onboardingTasksData : (onboardingTasksData?.data || []);

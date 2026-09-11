@@ -4,27 +4,32 @@ import { useNavigate } from 'react-router-dom';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { Users, Briefcase, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isSuperAdmin, isHrAdmin } from '@/lib/roleUtils';
 
 export default function RoleSelection() {
   const { user, changeViewMode } = useAuth();
   const navigate = useNavigate();
 
-  // If they somehow reached here without being an active admin, auto-redirect
-  // useEffect(() => {
-  //   if (user) {
-  //     const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.is_organization_owner;
-  //     const isAdmin = user.role?.includes('ADMIN') || user.role === 'admin' || isSuperAdmin;
-  //     const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
-  //     const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-
-  //     if (!hasDualRoles) {
-  //       changeViewMode('EMPLOYEE');
-  //       navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, { replace: true });
-  //     }
-  //   }
-  // }, [user, navigate, changeViewMode]);
+  // SUPER_ADMIN only has adminView and cannot pick employee view.
+  // Only HR_ADMIN has the choice to switch between views.
+  useEffect(() => {
+    if (user) {
+      if (isSuperAdmin(user)) {
+        changeViewMode('ADMIN');
+        navigate(PAGE_ROUTES.HOME, { replace: true });
+      } else if (!isHrAdmin(user)) {
+        changeViewMode('EMPLOYEE');
+        navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, { replace: true });
+      }
+    }
+  }, [user, navigate, changeViewMode]);
 
   const handleSelect = (mode) => {
+    if (isSuperAdmin(user)) {
+      changeViewMode('ADMIN');
+      navigate(PAGE_ROUTES.HOME, { replace: true });
+      return;
+    }
     changeViewMode(mode);
     if (mode === 'ADMIN') {
       navigate(PAGE_ROUTES.HOME, { replace: true });

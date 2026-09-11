@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { employeesApi, departmentsApi } from "@/api";
+import { employeesApi, departmentsApi, onboardingApi } from "@/api";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
@@ -115,11 +115,14 @@ export default function Employees() {
 
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
-    queryFn: async () => [
-      { id: 'standard', name: 'Standard Onboarding (IT, Laptop, Access)' },
-      { id: 'developer', name: 'Developer Onboarding (IT, Codebase, Access)' },
-      { id: 'sales', name: 'Sales Onboarding (IT, CRM, Access)' }
-    ],
+    queryFn: async () => {
+      const res = await onboardingApi.getTemplates();
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      return list.map(t => ({
+        id: t._id || t.id,
+        name: t.name,
+      }));
+    },
     initialData: [],
   });
 
