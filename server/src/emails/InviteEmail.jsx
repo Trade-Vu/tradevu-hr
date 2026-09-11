@@ -6,7 +6,7 @@ export const InviteEmail = ({ inviteeName, orgName, role, inviteLink }) => {
   const roleLabel = role === 'HR_ADMIN' ? 'HR Manager' : 'Employee';
 
   return (
-    <BaseTemplate previewText={`You've been invited to join ${orgName} on TradeVu HR`}>
+    <BaseTemplate previewText={`You've been invited to join ${orgName} on Tradevu HR`}>
       <Text className="text-2xl font-bold text-slate-900 mb-4 mt-0">
         You've been invited! 🎉
       </Text>
@@ -16,7 +16,7 @@ export const InviteEmail = ({ inviteeName, orgName, role, inviteLink }) => {
       </Text>
 
       <Text className="text-base text-slate-700 leading-relaxed mb-6">
-        You've been invited to join <strong>{orgName}</strong> on TradeVu HR as a{' '}
+        You've been invited to join <strong>{orgName}</strong> on Tradevu HR as a{' '}
         <strong>{roleLabel}</strong>. Click the button below to set up your account
         and get started.
       </Text>
@@ -49,7 +49,7 @@ export const InviteEmail = ({ inviteeName, orgName, role, inviteLink }) => {
 
 InviteEmail.PreviewProps = {
   inviteeName: 'Amara Okafor',
-  orgName: 'TradeVu Ltd',
+  orgName: 'Tradevu Ltd',
   role: 'HR_ADMIN',
   inviteLink: 'https://staging.hr.tradevu.co/accept-invite?token=preview-token-123',
 };

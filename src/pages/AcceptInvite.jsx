@@ -1,36 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
 import { Lock, Loader2, ArrowRight, UserCircle, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { useAuth } from '@/lib/AuthContext';
-
-const VALIDATE_INVITE_MUTATION = gql`
-  mutation ValidateInviteToken($token: String!) {
-    validateInviteToken(token: $token) {
-      valid
-      email
-      role
-      organizationName
-    }
-  }
-`;
-
-const ACCEPT_INVITE_MUTATION = gql`
-  mutation AcceptInvite($token: String!, $password: String!, $firstName: String!, $lastName: String!) {
-    acceptInvite(token: $token, password: $password, firstName: $firstName, lastName: $lastName) {
-      token
-      user {
-        id
-        email
-        role
-        organizationId
-      }
-    }
-  }
-`;
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
@@ -45,7 +20,7 @@ export default function AcceptInvite() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -54,27 +29,7 @@ export default function AcceptInvite() {
   useEffect(() => {
     if (!token) {
       setError('Invalid or missing invite token. Please request a new invite link.');
-      setIsLoading(false);
-      return;
     }
-
-    const validateToken = async () => {
-      try {
-        const data = await gqlClient.request(VALIDATE_INVITE_MUTATION, { token });
-        if (data.validateInviteToken && data.validateInviteToken.valid) {
-          setInviteDetails(data.validateInviteToken);
-        } else {
-          setError('This invite link is invalid or has expired.');
-        }
-      } catch (err) {
-        console.error('Validation error:', err);
-        setError('Failed to validate invite link. It may have expired.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    validateToken();
   }, [token]);
 
   const handleSubmit = async (e) => {
@@ -104,34 +59,34 @@ export default function AcceptInvite() {
       setIsSubmitting(true);
       setError('');
       
-      const data = await gqlClient.request(ACCEPT_INVITE_MUTATION, { 
+      const fullName = `${firstName} ${lastName}`.trim();
+      const data = await authApi.acceptInvite({
         token,
-        firstName,
-        lastName,
-        password
+        fullName,
+        password,
       });
 
-      if (data.acceptInvite && data.acceptInvite.token) {
-        localStorage.setItem('token', data.acceptInvite.token);
+      if (data && data.token) {
+        localStorage.setItem('token', data.token);
         await checkAppState();
         setIsSuccess(true);
         setTimeout(() => {
-          if (data.acceptInvite.user.role === 'EMPLOYEE') {
-            window.location.href = '/employeeselfservice';
+          if (data.user?.role === 'EMPLOYEE') {
+            window.location.href = PAGE_ROUTES.EMPLOYEE_SELF_SERVICE;
           } else {
-            // HR_ADMIN and other admin roles go to the dashboard, not the public home page
-            window.location.href = '/dashboard';
+            window.location.href = PAGE_ROUTES.DASHBOARD;
           }
         }, 1500);
       }
     } catch (err) {
       console.error('Accept invite error:', err);
-      const errorMessage = err.response?.errors?.[0]?.message || 'Failed to accept invite. The link may have expired.';
-      setError(errorMessage);
+      setError(err.message || 'Failed to complete account setup. The link may be invalid or expired.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  console.log({ inviteDetails })
 
   if (isLoading) {
     return (
@@ -153,7 +108,7 @@ export default function AcceptInvite() {
               </div>
               <h3 className="text-xl font-medium text-slate-900">Invite Invalid</h3>
               <p className="text-slate-600">{error}</p>
-              <Button onClick={() => navigate('/login')} className="w-full mt-4">
+              <Button onClick={() => navigate(PAGE_ROUTES.LOGIN)} className="w-full mt-4">
                 Return to Login
               </Button>
             </div>
@@ -162,7 +117,7 @@ export default function AcceptInvite() {
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Welcome to TradeVu HR</h3>
+              <h3 className="text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
               <p className="text-slate-600">
                 Your account has been created successfully. Redirecting you to your dashboard...
               </p>
@@ -170,7 +125,7 @@ export default function AcceptInvite() {
           ) : (
             <>
               <div className="text-center">
-                <img src="/logo-icon.png" alt="TradeVu Logo" className="w-12 h-auto mx-auto mb-6" />
+                <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
                 <p className="text-slate-500 mt-2 text-base">
                   You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>

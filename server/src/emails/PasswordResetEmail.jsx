@@ -4,7 +4,7 @@ import { Text, Button, Section, Hr } from '@react-email/components';
 
 export const PasswordResetEmail = ({ userName, resetLink }) => {
   return (
-    <BaseTemplate previewText="Reset your TradeVu HR password">
+    <BaseTemplate previewText="Reset your Tradevu HR password">
       <Text className="text-2xl font-bold text-slate-900 mb-4 mt-0">
         Reset your password
       </Text>
@@ -14,7 +14,7 @@ export const PasswordResetEmail = ({ userName, resetLink }) => {
       </Text>
 
       <Text className="text-base text-slate-700 leading-relaxed mb-6">
-        We received a request to reset the password for your TradeVu HR account.
+        We received a request to reset the password for your Tradevu HR account.
         Click the button below to choose a new password.
       </Text>
 

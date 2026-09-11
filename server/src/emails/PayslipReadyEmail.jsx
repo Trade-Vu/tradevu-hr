@@ -15,7 +15,7 @@ export const PayslipReadyEmail = ({ fullName, month, payslipLink }) => {
 
       <Text className="text-base text-slate-700 leading-relaxed mb-6">
         Your payslip for <strong>{month}</strong> has been published and is now
-        available to view and download on TradeVu HR.
+        available to view and download on Tradevu HR.
       </Text>
 
       <Section className="text-center mb-6">

@@ -546,7 +546,7 @@ export default function PendingApprovals() {
   const allEmployees = (data?.employees || []).filter(e => e.id !== user?.employeeId);
 
   const pendingProfileReviews = allEmployees.filter(e => 
-    e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
+    e.employmentStatus === 'PENDING_APPROVAL' && (['NOT_STARTED', 'not_started'].includes(e.onboardingStatus) || !e.onboardingStatus)
   );
 
   const pendingTasksReviews = allEmployees.filter(e => {
@@ -556,11 +556,11 @@ export default function PendingApprovals() {
       return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
     }
     // Fallback for older states
-    return e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'in_progress' || e.onboardingStatus === 'tasks_completed');
+    return e.employmentStatus === 'PENDING_APPROVAL' && (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
   });
 
   const pendingProbationSetups = allEmployees.filter(e => {
-    if (e.employmentStatus === 'PENDING_APPROVAL' && e.onboardingStatus === 'probation_pending') return true;
+    if (e.employmentStatus === 'PENDING_APPROVAL' && ['PROBATION_PENDING', 'probation_pending'].includes(e.onboardingStatus)) return true;
     
     if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
       if (e.onboardingTasks && e.onboardingTasks.length > 0) {

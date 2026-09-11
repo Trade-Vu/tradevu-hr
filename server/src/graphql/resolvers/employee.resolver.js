@@ -289,7 +289,7 @@ createEmployee: async (_, {
       await NotificationService.notify({
         targetEmail: employeeData.email,
         category: 'employee_created',
-        title: 'Welcome to TradeVu HR!',
+        title: 'Welcome to Tradevu HR!',
         message: 'Your employee profile has been drafted. Please set your password to complete your setup.',
         sendEmail: true,
         emailProps: {
@@ -449,7 +449,7 @@ bulkImportEmployees: async (_, { employees }, { prisma, user, requireRole, ipAdd
         NotificationService.notify({
           targetEmail: empData.email,
           category: 'employee_created',
-          title: `Welcome to TradeVu HR, ${empData.fullName}!`,
+          title: `Welcome to Tradevu HR, ${empData.fullName}!`,
           message: `Your account has been created. Please set your password to complete your setup.`,
           sendEmail: true,
           emailProps: {

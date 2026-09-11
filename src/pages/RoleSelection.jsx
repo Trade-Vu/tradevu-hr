@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { Users, Briefcase, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -9,26 +10,26 @@ export default function RoleSelection() {
   const navigate = useNavigate();
 
   // If they somehow reached here without being an active admin, auto-redirect
-  useEffect(() => {
-    if (user) {
-      const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.is_organization_owner;
-      const isAdmin = user.role?.includes('ADMIN') || user.role === 'admin' || isSuperAdmin;
-      const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
-      const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-      
-      if (!hasDualRoles) {
-        changeViewMode('EMPLOYEE');
-        navigate('/employeeselfservice', { replace: true });
-      }
-    }
-  }, [user, navigate, changeViewMode]);
+  // useEffect(() => {
+  //   if (user) {
+  //     const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.is_organization_owner;
+  //     const isAdmin = user.role?.includes('ADMIN') || user.role === 'admin' || isSuperAdmin;
+  //     const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
+  //     const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
+
+  //     if (!hasDualRoles) {
+  //       changeViewMode('EMPLOYEE');
+  //       navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, { replace: true });
+  //     }
+  //   }
+  // }, [user, navigate, changeViewMode]);
 
   const handleSelect = (mode) => {
     changeViewMode(mode);
     if (mode === 'ADMIN') {
-      navigate('/', { replace: true });
+      navigate(PAGE_ROUTES.HOME, { replace: true });
     } else {
-      navigate('/employeeselfservice', { replace: true });
+      navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, { replace: true });
     }
   };
 
@@ -36,9 +37,9 @@ export default function RoleSelection() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
       <div className="max-w-4xl w-full">
         <div className="text-center mb-12">
-          <img src="/logo-icon.png" alt="TradeVu Logo" className="w-16 h-auto mx-auto mb-6" />
+          <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mx-auto mb-6" />
           <h1 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">Select your view</h1>
-          <p className="text-lg text-slate-500">Choose how you want to use TradeVu today.</p>
+          <p className="text-lg text-slate-500">Choose how you want to use Tradevu today.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

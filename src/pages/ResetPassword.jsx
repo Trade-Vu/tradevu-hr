@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
 import { Lock, Loader2, ArrowRight, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-
-const RESET_PASSWORD_MUTATION = gql`
-  mutation ResetPassword($token: String!, $newPassword: String!) {
-    resetPassword(token: $token, newPassword: $newPassword)
-  }
-`;
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -33,7 +27,7 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!token) {
       setError('Invalid or missing reset token.');
       return;
@@ -52,15 +46,15 @@ export default function ResetPassword() {
     try {
       setIsLoading(true);
       setError('');
-      
-      await gqlClient.request(RESET_PASSWORD_MUTATION, { 
+
+      await authApi.resetPassword({
         token,
-        newPassword: password
+        password,
       });
 
       setIsSuccess(true);
       setTimeout(() => {
-        navigate('/login');
+        navigate(PAGE_ROUTES.LOGIN);
       }, 3000);
     } catch (err) {
       console.error('Password reset error:', err);
@@ -77,7 +71,7 @@ export default function ResetPassword() {
       <div className="w-full flex flex-col items-center justify-center p-8 sm:p-12 relative z-10">
         <div className="w-full max-w-md space-y-10 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
           <div className="text-center">
-            <img src="/logo-icon.png" alt="TradeVu Logo" className="w-12 h-auto mx-auto mb-6" />
+            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Create New Password</h1>
             <p className="text-slate-500 mt-2 text-base">
               Please enter your new password below.
@@ -94,7 +88,7 @@ export default function ResetPassword() {
                 Your password has been successfully updated. You will be redirected to the login page shortly.
               </p>
               <div className="pt-4">
-                <Link to="/login" className="text-slate-900 font-medium hover:underline">
+                <Link to={PAGE_ROUTES.LOGIN} className="text-slate-900 font-medium hover:underline">
                   Click here if not redirected
                 </Link>
               </div>

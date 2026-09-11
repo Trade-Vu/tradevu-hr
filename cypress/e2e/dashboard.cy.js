@@ -69,8 +69,8 @@ describe('Dashboard', () => {
     })
 
     it('shows Tradevu branding or logo', () => {
-      // The desktop sidebar has an img with alt="TradeVu"
-      cy.get('img[alt="TradeVu"]').should('be.visible')
+      // The desktop sidebar has an img with alt="Tradevu"
+      cy.get('img[alt="Tradevu"]').should('be.visible')
     })
 
     it('renders primary navigation icons', () => {

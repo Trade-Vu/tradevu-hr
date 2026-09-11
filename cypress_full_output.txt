@@ -291,7 +291,7 @@ https://on.cypress.io/wait
   2) Dashboard
        Layout & Navigation Sidebar
          shows Tradevu branding or logo:
-     AssertionError: Timed out retrying after 10000ms: Expected to find element: `img[alt="TradeVu"]`, but never found it.
+     AssertionError: Timed out retrying after 10000ms: Expected to find element: `img[alt="Tradevu"]`, but never found it.
       at Context.eval (webpack://base44-app/./cypress/e2e/dashboard.cy.js:73:35)
 
   3) Dashboard

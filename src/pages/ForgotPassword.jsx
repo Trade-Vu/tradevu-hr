@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
 import { Mail, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
-
-const REQUEST_RESET_MUTATION = gql`
-  mutation RequestPasswordReset($email: String!) {
-    requestPasswordReset(email: $email)
-  }
-`;
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -28,14 +22,14 @@ export default function ForgotPassword() {
     try {
       setIsLoading(true);
       setError('');
-      
-      await gqlClient.request(REQUEST_RESET_MUTATION, { email });
+
+      await authApi.forgotPassword(email);
 
       // We always show success to prevent email enumeration attacks
       setIsSuccess(true);
     } catch (err) {
       console.error('Password reset error:', err);
-      setError('An error occurred. Please try again later.');
+      setError(err.message || 'An error occurred. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +40,7 @@ export default function ForgotPassword() {
       <div className="w-full flex flex-col items-center justify-center p-8 sm:p-12 relative z-10">
         <div className="w-full max-w-md space-y-10 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
           <div className="text-center">
-            <img src="/logo-icon.png" alt="TradeVu Logo" className="w-12 h-auto mx-auto mb-6" />
+            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reset Password</h1>
             <p className="text-slate-500 mt-2 text-base">
               Enter your email address and we'll send you a link to reset your password.
@@ -63,7 +57,7 @@ export default function ForgotPassword() {
                 If an account exists for <span className="font-medium text-slate-900">{email}</span>, you will receive password reset instructions shortly.
               </p>
               <div className="pt-4">
-                <Link to="/login" className="text-slate-900 font-medium hover:underline flex items-center justify-center gap-2">
+                <Link to={PAGE_ROUTES.LOGIN} className="text-slate-900 font-medium hover:underline flex items-center justify-center gap-2">
                   <ArrowLeft className="w-4 h-4" />
                   Return to login
                 </Link>
@@ -107,7 +101,7 @@ export default function ForgotPassword() {
               </Button>
 
               <div className="text-center pt-2">
-                <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline flex items-center justify-center gap-1.5">
+                <Link to={PAGE_ROUTES.LOGIN} className="text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline flex items-center justify-center gap-1.5">
                   <ArrowLeft className="w-4 h-4" />
                   Back to login
                 </Link>

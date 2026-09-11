@@ -22,7 +22,7 @@ function getTransporter() {
   return transporter;
 }
 
-const getFromAddress = () => process.env.EMAIL_FROM || 'TradeVu HR <onboarding@resend.dev>';
+const getFromAddress = () => process.env.EMAIL_FROM || 'Tradevu HR <onboarding@resend.dev>';
 
 /**
  * Send a transactional email using Resend SMTP.

@@ -10,7 +10,7 @@ async function test() {
   try {
     await sendEmail({
       to: 'ichizanum@gmail.com',
-      subject: 'Test Email from TradeVu HR',
+      subject: 'Test Email from Tradevu HR',
       template: React.createElement(WelcomeEmail, { 
         fullName: 'Chiza', 
         onboardingLink: 'https://staging.hr.tradevu.co' 

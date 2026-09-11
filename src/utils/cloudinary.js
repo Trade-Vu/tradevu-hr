@@ -1,21 +1,11 @@
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { apiClient } from "@/api/client";
 
 export const uploadToCloudinary = async (file) => {
   try {
-    // 1. Fetch the secure signature from our backend
-    const SIGNATURE_QUERY = gql`
-      query GetCloudinarySignature {
-        getCloudinarySignature {
-          signature
-          timestamp
-          cloudName
-          apiKey
-        }
-      }
-    `;
-    const { getCloudinarySignature } = await gqlClient.request(SIGNATURE_QUERY);
-    const { signature, timestamp, cloudName, apiKey } = getCloudinarySignature;
+    // 1. Fetch the secure signature from our REST backend
+    const res = await apiClient.get('/documents/cloudinary-signature');
+    const signatureData = res?.data || res;
+    const { signature, timestamp, cloudName, apiKey } = signatureData;
 
     // 2. Upload to Cloudinary using the signature
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;

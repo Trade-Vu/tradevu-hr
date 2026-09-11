@@ -14,7 +14,7 @@ export const inviteResolvers = {
         if (existingUser.organizationId === user.organizationId) {
           throw new Error('This user is already a member of your organization.');
         } else {
-          throw new Error('This email is already registered to an organization in TradeVu HR.');
+          throw new Error('This email is already registered to an organization in Tradevu HR.');
         }
       }
 
@@ -60,14 +60,15 @@ export const inviteResolvers = {
         }
       }
 
-      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
-      const inviteLink = `${process.env.FRONTEND_URL || fallbackUrl}/accept-invite?token=${token}`;
+      const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'http://localhost:5173';
+      const baseFrontendUrl = (process.env.FRONTEND_URL || fallbackUrl).replace(/\/+$/, '');
+      const inviteLink = `${baseFrontendUrl}/accept-invite?token=${token}`;
 
       await NotificationService.notify({
         targetEmail: email,
         category: 'invite',
-        title: `You've been invited to join TradeVu HR`,
-        message: `You've been invited to join your organization on TradeVu HR.`,
+        title: `You've been invited to join Tradevu HR`,
+        message: `You've been invited to join your organization on Tradevu HR.`,
         sendEmail: true,
         emailProps: {
           inviterName: user.email,

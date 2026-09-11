@@ -5,17 +5,9 @@ import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/
 import OrganizationSetup from "@/pages/OrganizationSetup";
 import InviteHRModal from "./InviteHRModal";
 import { Link } from "react-router-dom";
-import { useMutation } from '@tanstack/react-query';
-import { gqlClient } from '../../api/graphqlClient';
-
-const UPDATE_PREFERENCES_MUTATION = `
-  mutation UpdateUserPreferences($preferences: JSON!) {
-    updateUserPreferences(preferences: $preferences) {
-      id
-      preferences
-    }
-  }
-`;
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { usersApi, employeesApi, organizationsApi } from "@/api";
 import { 
   Building2, 
   Users, 
@@ -49,20 +41,62 @@ export default function DashboardEmptyState({ user }) {
   const [isOrgSetupOpen, setIsOrgSetupOpen] = useState(false);
   const [isInviteHROpen, setIsInviteHROpen] = useState(false);
 
+  // Dynamically check employees in this organization to see if HR has already onboarded
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', 'empty-state-check'],
+    queryFn: async () => {
+      try {
+        const res = await employeesApi.getEmployees({ limit: 50 });
+        return Array.isArray(res) ? res : res?.data || [];
+      } catch (err) {
+        return [];
+      }
+    },
+  });
+
+  // Dynamically check organization details
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: async () => {
+      try {
+        return await organizationsApi.getMyOrganization();
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const hasHREmployee = employees.some(
+    e => e.role === 'HR_ADMIN' ||
+         e.jobTitle?.toLowerCase().includes('hr') ||
+         e.jobTitle?.toLowerCase().includes('human resource') ||
+         e.departmentId?.name?.toLowerCase().includes('resource') ||
+         e.department?.toLowerCase().includes('resource')
+  );
+
+  const hasCompletedOrg = Boolean(
+    orgData?.setupCompleted ||
+    (orgData?.industry && orgData?.companySize && orgData?.country)
+  );
+
   const { mutate: updatePreferences } = useMutation({
     mutationFn: async (preferences) => {
-      const newPreferences = {
-        ...user?.preferences,
-        ...preferences
-      };
-      return await gqlClient.request(UPDATE_PREFERENCES_MUTATION, { preferences: newPreferences });
+      return usersApi.updateMe({ preferences });
     },
     onError: (err) => console.error("Failed to sync preferences", err)
   });
 
+  const isStepCompleted = (stepId) => {
+    if (completedSteps.includes(stepId)) return true;
+    if (stepId === 'hr' && hasHREmployee) return true;
+    if (stepId === 'org' && hasCompletedOrg) return true;
+    return false;
+  };
+
   const toggleStep = (stepId) => {
     setCompletedSteps(prev => {
-      const newSteps = prev.includes(stepId) 
+      const isAlreadyDone = isStepCompleted(stepId);
+      const newSteps = isAlreadyDone 
         ? prev.filter(id => id !== stepId)
         : [...prev, stepId];
       try {
@@ -83,15 +117,16 @@ export default function DashboardEmptyState({ user }) {
   ];
 
   const hrSteps = [
-    { id: 'prof', title: 'Complete your Profile', description: 'Add your photo and personal details.', icon: Users, link: '/employeeselfservice' },
-    { id: 'invite', title: 'Invite your team members', description: 'Send out invites to the rest of the company.', icon: UserPlus, link: '/employees' },
-    { id: 'dept', title: 'Define Departments & Roles', description: 'Structure your organization for better reporting.', icon: Settings, link: '/settingsdepartments' },
-    { id: 'policy', title: 'Review Company Policies', description: 'Familiarize yourself with the existing setup.', icon: FileText, link: '/settingsstatutory' },
-    { id: 'leave', title: 'Configure Leave Policies', description: 'Set up PTO, sick leave, and holidays.', icon: CalendarDays, link: '/settingsleavetypes' },
+    { id: 'prof', title: 'Complete your Profile', description: 'Add your photo and personal details.', icon: Users, link: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE },
+    { id: 'invite', title: 'Invite your team members', description: 'Send out invites to the rest of the company.', icon: UserPlus, link: PAGE_ROUTES.EMPLOYEES },
+    { id: 'dept', title: 'Define Departments & Roles', description: 'Structure your organization for better reporting.', icon: Settings, link: PAGE_ROUTES.SETTINGS_DEPARTMENTS },
+    { id: 'policy', title: 'Review Company Policies', description: 'Familiarize yourself with the existing setup.', icon: FileText, link: PAGE_ROUTES.SETTINGS_STATUTORY },
+    { id: 'leave', title: 'Configure Leave Policies', description: 'Set up PTO, sick leave, and holidays.', icon: CalendarDays, link: PAGE_ROUTES.SETTINGS_LEAVE_TYPES },
   ];
 
   const steps = isCEO ? ceoSteps : hrSteps;
-  const progress = Math.round((completedSteps.length / steps.length) * 100);
+  const completedCount = steps.filter(s => isStepCompleted(s.id)).length;
+  const progress = Math.round((completedCount / steps.length) * 100);
 
   return (
     <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700 max-w-5xl mx-auto">
@@ -106,7 +141,7 @@ export default function DashboardEmptyState({ user }) {
             <span className="text-xs font-medium text-slate-200">Workspace Ready</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300">
-            Welcome to TradeVu HR, {firstName}!
+            Welcome to Tradevu HR, {firstName}!
           </h1>
           <p className="text-base sm:text-lg text-slate-400 font-normal leading-relaxed max-w-xl">
             {isCEO 
@@ -150,7 +185,7 @@ export default function DashboardEmptyState({ user }) {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-slate-900">Completion</p>
-                  <p className="text-xs text-slate-500 font-medium">{completedSteps.length} of {steps.length} steps</p>
+                  <p className="text-xs text-slate-500 font-medium">{completedCount} of {steps.length} steps</p>
                 </div>
               </div>
             </div>
@@ -159,7 +194,7 @@ export default function DashboardEmptyState({ user }) {
             <div className="divide-y divide-slate-100">
               {steps.map((step) => {
                 const Icon = step.icon;
-                const isCompleted = completedSteps.includes(step.id);
+                const isCompleted = isStepCompleted(step.id);
                 return (
                   <div 
                     key={step.id} 
@@ -230,7 +265,7 @@ export default function DashboardEmptyState({ user }) {
         <div className="space-y-6">
           <h3 className="font-bold text-xl text-slate-900 px-1 mb-6">Fast Actions</h3>
           
-          <Link to="/employees" className="block">
+          <Link to={PAGE_ROUTES.EMPLOYEES} className="block">
             <Card className="border-0 shadow-lg shadow-indigo-100/50 hover:shadow-xl hover:shadow-indigo-200/60 transition-all duration-300 group overflow-hidden relative rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:-translate-y-1">
               <div className="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
               <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
@@ -248,7 +283,7 @@ export default function DashboardEmptyState({ user }) {
             </Card>
           </Link>
 
-          <Link to="/settings" className="block">
+          <Link to={PAGE_ROUTES.SETTINGS} className="block">
             <Card className="border border-slate-200/60 shadow-md hover:shadow-lg transition-all duration-300 group overflow-hidden relative rounded-3xl bg-white hover:-translate-y-1">
               <CardContent className="p-8 relative z-10 flex flex-col gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 border border-slate-100 group-hover:scale-110 group-hover:bg-slate-100 group-hover:text-slate-900 transition-all duration-300">

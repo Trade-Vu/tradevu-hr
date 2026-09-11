@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { departmentsApi, employeesApi } from "@/api";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,119 +9,125 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Trash2, ExternalLink, Building, Briefcase } from "lucide-react";
+import { Users, Plus, Trash2, ExternalLink, Building, Briefcase, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { toast } from "sonner";
-
-const GET_DEPARTMENTS_AND_EMPLOYEES = gql`
-  query GetDepartmentsAndEmployees {
-    departments {
-      id
-      name
-      code
-      status
-      headEmployeeId
-      employees {
-        id
-        fullName
-        email
-        jobTitle
-      }
-    }
-    employees {
-      id
-      fullName
-      email
-    }
-    me {
-      id
-      role
-    }
-  }
-`;
-
-const CREATE_DEPARTMENT = gql`
-  mutation CreateDepartment($name: String!, $code: String, $headEmployeeId: String) {
-    createDepartment(name: $name, code: $code, headEmployeeId: $headEmployeeId) {
-      id
-    }
-  }
-`;
-
-const APPROVE_DEPARTMENT = gql`
-  mutation ApproveDepartment($id: ID!) {
-    approveDepartment(id: $id) {
-      id
-    }
-  }
-`;
-
-const DELETE_DEPARTMENT = gql`
-  mutation DeleteDepartment($id: ID!) {
-    deleteDepartment(id: $id)
-  }
-`;
-
-const UPDATE_DEPARTMENT = gql`
-  mutation UpdateDepartment($id: ID!, $headEmployeeId: String) {
-    updateDepartment(id: $id, headEmployeeId: $headEmployeeId) {
-      id
-    }
-  }
-`;
 
 export default function SettingsDepartments() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const currentUserRole = user?.role || 'HR_ADMIN';
+
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [deptForm, setDeptForm] = useState({ name: '', code: '', headEmployeeId: 'none' });
+  const [selectedDeptId, setSelectedDeptId] = useState(null);
 
-  const [selectedDept, setSelectedDept] = useState(null);
-
-  const { data: deptData = {}, isLoading: deptLoading } = useQuery({
-    queryKey: ['departmentsAndEmployees'],
-    queryFn: async () => await gqlClient.request(GET_DEPARTMENTS_AND_EMPLOYEES),
-    staleTime: 5 * 60 * 1000,
+  const { data: rawDepartments = [], isLoading: deptLoading } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const res = await departmentsApi.getDepartments();
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  const departments = deptData.departments || [];
-  const employees = deptData.employees || [];
-  const currentUserRole = deptData.me?.role || 'HR_ADMIN';
+  const { data: rawEmployees = [], isLoading: empLoading } = useQuery({
+    queryKey: ['employees', 'all'],
+    queryFn: async () => {
+      const res = await employeesApi.getEmployees({ limit: 200 });
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const employees = (Array.isArray(rawEmployees) ? rawEmployees : rawEmployees?.data || []).map(emp => ({
+    ...emp,
+    id: emp._id || emp.id,
+    fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
+  }));
+
+  const departments = (Array.isArray(rawDepartments) ? rawDepartments : rawDepartments?.data || []).map(dept => {
+    const deptId = dept._id || dept.id;
+    const deptEmployees = employees.filter(emp => {
+      const empDeptId = emp.departmentId?._id || emp.departmentId?.id || emp.departmentId;
+      return empDeptId && String(empDeptId) === String(deptId);
+    });
+    const headEmpId = dept.managerId?._id || dept.managerId?.id || (typeof dept.managerId === 'string' ? dept.managerId : null);
+
+    return {
+      ...dept,
+      id: deptId,
+      code: dept.code || '',
+      status: dept.status || (dept.isActive ? 'APPROVED' : 'INACTIVE'),
+      headEmployeeId: headEmpId,
+      employees: deptEmployees,
+    };
+  });
+
+  const selectedDept = departments.find(d => d.id === selectedDeptId) || null;
 
   const createDeptMutation = useMutation({
     mutationFn: async (data) => {
-      const payload = { ...data };
-      if (payload.headEmployeeId === 'none') payload.headEmployeeId = null;
-      return await gqlClient.request(CREATE_DEPARTMENT, payload);
+      return await departmentsApi.createDepartment({
+        name: data.name,
+        code: data.code || undefined,
+        managerId: data.headEmployeeId && data.headEmployeeId !== 'none' ? data.headEmployeeId : undefined,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       setShowDeptDialog(false);
       setDeptForm({ name: '', code: '', headEmployeeId: 'none' });
+      toast.success("Department created successfully");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create department");
     }
   });
 
   const approveDeptMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(APPROVE_DEPARTMENT, { id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] })
+    mutationFn: async (id) => {
+      return await departmentsApi.updateDepartment(id, { status: 'APPROVED' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast.success("Department approved");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to approve department");
+    }
   });
 
   const deleteDeptMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(DELETE_DEPARTMENT, { id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] })
+    mutationFn: async (id) => {
+      return await departmentsApi.deleteDepartment(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      if (selectedDeptId) setSelectedDeptId(null);
+      toast.success("Department deleted");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to delete department");
+    }
   });
 
   const updateDeptMutation = useMutation({
     mutationFn: async ({ id, headEmployeeId }) => {
-      return await gqlClient.request(UPDATE_DEPARTMENT, { 
-        id, 
-        headEmployeeId: headEmployeeId === 'none' ? null : headEmployeeId 
+      return await departmentsApi.updateDepartment(id, { 
+        managerId: headEmployeeId && headEmployeeId !== 'none' ? headEmployeeId : null 
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       toast.success("Department head updated");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update department head");
     }
   });
 
@@ -232,7 +238,7 @@ export default function SettingsDepartments() {
                   <Button 
                     variant="outline" 
                     className="w-full mt-4 bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700"
-                    onClick={() => setSelectedDept(dept)}
+                    onClick={() => setSelectedDeptId(dept.id)}
                   >
                     View Details <ExternalLink className="w-3.5 h-3.5 ml-2" />
                   </Button>
@@ -243,7 +249,7 @@ export default function SettingsDepartments() {
         )}
       </CardContent>
 
-      <Dialog open={!!selectedDept} onOpenChange={(open) => !open && setSelectedDept(null)}>
+      <Dialog open={!!selectedDept} onOpenChange={(open) => !open && setSelectedDeptId(null)}>
         <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-0 rounded-xl overflow-hidden gap-0 bg-white">
           {selectedDept && (
             <>
@@ -299,7 +305,6 @@ export default function SettingsDepartments() {
                           value={selectedDept.headEmployeeId || 'none'} 
                           onValueChange={(val) => {
                             updateDeptMutation.mutate({ id: selectedDept.id, headEmployeeId: val });
-                            setSelectedDept({ ...selectedDept, headEmployeeId: val === 'none' ? null : val });
                           }}
                         >
                           <SelectTrigger className="w-full bg-white border-slate-200">
@@ -351,7 +356,7 @@ export default function SettingsDepartments() {
                         return (
                           <div 
                             key={emp.id} 
-                            onClick={() => navigate(`/employeedetail?id=${emp.id}`)}
+                            onClick={() => navigate(`${PAGE_ROUTES.EMPLOYEE_DETAIL}?id=${emp.id}`)}
                             className={`group flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm ${isHead ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50'}`}
                           >
                             <div className="flex items-center gap-4">

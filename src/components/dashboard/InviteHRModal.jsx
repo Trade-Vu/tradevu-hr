@@ -3,25 +3,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation } from '@tanstack/react-query';
-import { gqlClient } from '@/api/graphqlClient';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { employeesApi } from '@/api';
 import { toast } from '@/components/ui/use-toast';
 import { Mail, Loader2 } from 'lucide-react';
 
-const INVITE_USER_MUTATION = `
-  mutation InviteUser($input: InviteUserInput!) {
-    inviteUser(input: $input)
-  }
-`;
-
 export default function InviteHRModal({ open, onOpenChange, onSuccess }) {
   const [email, setEmail] = useState('');
+  const queryClient = useQueryClient();
 
   const inviteMutation = useMutation({
     mutationFn: async (inputData) => {
-      return gqlClient.request(INVITE_USER_MUTATION, { input: inputData });
+      return employeesApi.inviteEmployee(inputData);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: "Invite Sent!",
         description: "Your HR Manager has been invited successfully. The Human Resources department has also been created.",
@@ -35,7 +31,7 @@ export default function InviteHRModal({ open, onOpenChange, onSuccess }) {
       toast({
         variant: "destructive",
         title: "Failed to send invite",
-        description: error.response?.errors?.[0]?.message || error.message || "Something went wrong",
+        description: error.message || "Something went wrong",
       });
     }
   });
@@ -43,7 +39,7 @@ export default function InviteHRModal({ open, onOpenChange, onSuccess }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!email) return;
-    inviteMutation.mutate({ email, role: 'HR_ADMIN' });
+    inviteMutation.mutate({ email, role: 'HR_ADMIN', frontendUrl: window.location.origin });
   };
 
   return (

@@ -18,6 +18,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AcceptInvite from './pages/AcceptInvite';
 
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
+
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -32,8 +34,12 @@ const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin, viewMode } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
-  const isLoginPage = currentPath.includes('/login');
-  const isPublicPage = (!isAuthenticated && currentPath === '/') || currentPath.includes('/forgot-password') || currentPath.includes('/resetpassword') || currentPath.includes('/accept-invite') || currentPath.includes('/register');
+  const isLoginPage = currentPath.includes(PAGE_ROUTES.LOGIN);
+  const isPublicPage = (!isAuthenticated && currentPath === PAGE_ROUTES.HOME) || 
+    currentPath.includes(PAGE_ROUTES.FORGOT_PASSWORD) || 
+    currentPath.includes(PAGE_ROUTES.RESET_PASSWORD) || 
+    currentPath.includes(PAGE_ROUTES.ACCEPT_INVITE) || 
+    currentPath.includes(PAGE_ROUTES.REGISTER);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -48,12 +54,12 @@ const AuthenticatedApp = () => {
   if (isLoginPage || isPublicPage) {
     return (
       <Routes>
-        <Route path="/login" element={Pages.Login ? <Pages.Login /> : <div>Login component missing</div>} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/resetpassword" element={<ResetPassword />} />
-        <Route path="/accept-invite" element={<AcceptInvite />} />
-        <Route path="/register" element={Pages.Register ? <Pages.Register /> : <div>Register missing</div>} />
-        <Route path="/" element={Pages.Home ? <Pages.Home /> : <MainPage />} />
+        <Route path={PAGE_ROUTES.LOGIN} element={Pages.Login ? <Pages.Login /> : <div>Login component missing</div>} />
+        <Route path={PAGE_ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+        <Route path={PAGE_ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+        <Route path={PAGE_ROUTES.ACCEPT_INVITE} element={<AcceptInvite />} />
+        <Route path={PAGE_ROUTES.REGISTER} element={Pages.Register ? <Pages.Register /> : <div>Register missing</div>} />
+        <Route path={PAGE_ROUTES.HOME} element={Pages.Home ? <Pages.Home /> : <MainPage />} />
       </Routes>
     );
   }
@@ -69,40 +75,41 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Force profile completion for new employees
-  if (user?.mustCompleteProfile) {
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner || user?.is_organization_owner;
+  const isAdmin = user?.role?.includes('ADMIN') || user?.role === 'admin' || isSuperAdmin;
+
+  // Force profile completion for new employees (skip for SUPER_ADMIN)
+  if (user?.mustCompleteProfile && !isSuperAdmin) {
     return <ProfileCompletionWizard />;
   }
 
   // Intercept for Role Selection if user has admin privileges but hasn't picked a view
   if (user && !viewMode) {
-    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.is_organization_owner;
-    const isAdmin = user.role?.includes('ADMIN') || user.role === 'admin' || isSuperAdmin;
     const isEmployeeActive = user.employee?.employmentStatus === 'ACTIVE';
     const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-    
+
+    console.log({ user, viewMode, isTrue: user && !viewMode, hasDualRoles, isAdmin });
+
     if (hasDualRoles && Pages.RoleSelection) {
       return <Pages.RoleSelection />;
     }
   }
 
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner;
-  const isAdmin = user?.role?.includes('ADMIN') || user?.role === 'admin' || isSuperAdmin;
   const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
   const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-  
+
   const effectiveViewMode = viewMode || (hasDualRoles ? 'ADMIN' : 'EMPLOYEE');
 
   // Render the main app
   return (
     <LayoutWrapper currentPageName={mainPageKey}>
       <Routes>
-        <Route path="/" element={effectiveViewMode === 'EMPLOYEE' ? <Navigate to="/employeeselfservice" replace /> : <MainPage />} />
+        <Route path={PAGE_ROUTES.HOME} element={effectiveViewMode === 'EMPLOYEE' ? <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} replace /> : <MainPage />} />
         {Object.entries(Pages).map(([path, Page]) => (
           <Route key={path} path={`/${path.toLowerCase()}`} element={<Page />} />
         ))}
-        {Object.entries(Pages).map(([path, Page]) => (
-          <Route key={`orig-${path}`} path={`/${path}`} element={<Page />} />
+        {Object.entries(Pages).map(([path]) => (
+          <Route key={`orig-${path}`} path={`/${path}`} element={<Navigate to={`/${path.toLowerCase()}`} replace />} />
         ))}
         <Route path="*" element={<PageNotFound />} />
       </Routes>

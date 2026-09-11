@@ -66,7 +66,7 @@ describe('AcceptInvite — Token Validation', () => {
         valid: true,
         email: 'hr@tradevu.com',
         role: 'HR_ADMIN',
-        organizationName: 'TradeVu',
+        organizationName: 'Tradevu',
       }
     });
     renderWithToken('valid-token-xyz');
@@ -83,7 +83,7 @@ describe('AcceptInvite — Form Submission', () => {
       valid: true,
       email: 'hr@tradevu.com',
       role: 'HR_ADMIN',
-      organizationName: 'TradeVu',
+      organizationName: 'Tradevu',
     }
   };
 

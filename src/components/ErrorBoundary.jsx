@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -41,7 +42,7 @@ export class ErrorBoundary extends React.Component {
                 <Button 
                   className="flex-1" 
                   variant="outline"
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => window.location.href = PAGE_ROUTES.HOME}
                 >
                   <Home className="w-4 h-4 mr-2" />
                   Go Home

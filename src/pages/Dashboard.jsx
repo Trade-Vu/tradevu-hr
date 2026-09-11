@@ -1,10 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { employeesApi } from "@/api";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { Link, Navigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { 
   Users, 
   CheckCircle, 
@@ -29,42 +28,44 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import EmployeeDetail from "./EmployeeDetail";
 
 import { useAuth } from "@/lib/AuthContext";
-import { Navigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [page, setPage] = useState(1);
   const limit = 5;
 
+  const handleOpenDetail = (empOrId) => {
+    if (typeof empOrId === 'object' && empOrId !== null) {
+      setSelectedEmployee(empOrId);
+      setSelectedEmployeeId(empOrId.id || empOrId._id);
+    } else {
+      setSelectedEmployeeId(empOrId);
+      setSelectedEmployee(null);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedEmployeeId(null);
+    setSelectedEmployee(null);
+  };
 
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
-    queryKey: ['employees'],
+    queryKey: ['employees', 'dashboard-all'],
     queryFn: async () => {
-      const EMPLOYEES_QUERY = gql`
-        query GetDashboardEmployees {
-          employees {
-            id
-            fullName
-            email
-            jobTitle
-            employmentStatus
-            onboardingStatus
-            onboardingProgress
-          }
-        }
-      `;
-      const data = await gqlClient.request(EMPLOYEES_QUERY);
-      // Map to expected structure until backend fully supports these fields
-      return (data.employees || []).map(emp => ({
+      const res = await employeesApi.getEmployees({ limit: 100 });
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(emp => ({
         ...emp,
+        id: emp._id || emp.id,
         full_name: emp.fullName,
         job_title: emp.jobTitle,
         employment_status: emp.employmentStatus,
-        onboarding_status: emp.onboardingStatus || 'not_started',
-        progress_percentage: emp.onboardingProgress || 0
+        onboarding_status: emp.onboardingStatus || (emp.employmentStatus === 'ACTIVE' ? 'completed' : 'in_progress'),
+        progress_percentage: emp.onboardingProgress ?? (emp.employmentStatus === 'ACTIVE' ? 100 : 50),
       }));
     },
     initialData: [],
@@ -73,38 +74,28 @@ export default function Dashboard() {
   const { data: paginatedData, isLoading: loadingPaginated, isFetching } = useQuery({
     queryKey: ['paginatedEmployees', page, limit, searchTerm, statusFilter],
     queryFn: async () => {
-      const PAGINATED_QUERY = gql`
-        query GetPaginatedDashboardEmployees($page: Int, $limit: Int, $search: String, $status: String) {
-          paginatedEmployees(page: $page, limit: $limit, search: $search, status: $status) {
-            employees {
-              id
-              fullName
-              email
-              jobTitle
-              employmentStatus
-              onboardingStatus
-              onboardingProgress
-            }
-            totalCount
-            totalPages
-            currentPage
-          }
-        }
-      `;
-      const data = await gqlClient.request(PAGINATED_QUERY, { page, limit, search: searchTerm, status: statusFilter });
+      const params = { page, limit };
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+      const res = await employeesApi.getEmployees(params);
+      const list = Array.isArray(res) ? res : res?.data || [];
+      const meta = res?.meta || {};
       return {
-        ...data.paginatedEmployees,
-        employees: data.paginatedEmployees.employees.map(emp => ({
+        employees: list.map(emp => ({
           ...emp,
+          id: emp._id || emp.id,
           full_name: emp.fullName,
           job_title: emp.jobTitle,
           employment_status: emp.employmentStatus,
-          onboarding_status: emp.onboardingStatus || 'not_started',
-          progress_percentage: emp.onboardingProgress || 0
-        }))
+          onboarding_status: emp.onboardingStatus || (emp.employmentStatus === 'ACTIVE' ? 'completed' : 'in_progress'),
+          progress_percentage: emp.onboardingProgress ?? (emp.employmentStatus === 'ACTIVE' ? 100 : 50),
+        })),
+        totalCount: meta.total ?? list.length,
+        totalPages: meta.totalPages ?? 1,
+        currentPage: meta.page ?? page,
       };
     },
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   // Reset page to 1 when search or status filter changes
@@ -157,7 +148,7 @@ export default function Dashboard() {
   };
 
   if (user?.role === 'EMPLOYEE') {
-    return <Navigate to="/employeeselfservice" />;
+    return <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
   }
 
   if (loadingEmployees) {
@@ -194,7 +185,7 @@ export default function Dashboard() {
         <div>
           <p className="text-lg font-semibold text-slate-700 tracking-tight">Welcome back! Here's what's happening with onboarding.</p>
         </div>
-        <Link to={createPageUrl("Employees?action=add")}>
+        <Link to={`${PAGE_ROUTES.EMPLOYEES}?action=add`}>
           <Button className="bg-slate-900 text-white hover:bg-slate-800 shadow-sm rounded-lg px-5 transition-all">
             <Plus className="w-4 h-4 mr-2" />
             Add New Hire
@@ -283,7 +274,7 @@ export default function Dashboard() {
               <EmployeeList 
                 employees={currentEmployees} 
                 isLoading={loadingPaginated && !paginatedData}
-                onOpenDetail={setSelectedEmployeeId}
+                onOpenDetail={handleOpenDetail}
               />
             </div>
             {paginatedData?.totalPages > 1 && (
@@ -323,14 +314,15 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && setSelectedEmployeeId(null)}>
+      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && handleCloseDetail()}>
         <DialogContent className="max-w-6xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-transparent" hideCloseButton>
           <DialogTitle className="sr-only">Employee Detail</DialogTitle>
           <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
           {selectedEmployeeId && (
             <EmployeeDetail 
               employeeIdProp={selectedEmployeeId} 
-              onClose={() => setSelectedEmployeeId(null)} 
+              employeeDetail={selectedEmployee}
+              onClose={handleCloseDetail} 
             />
           )}
         </DialogContent>

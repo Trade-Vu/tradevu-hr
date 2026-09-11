@@ -55,7 +55,7 @@ describe('Register — Step Navigation', () => {
   it('advances to Step 2 after filling org name', async () => {
     const user = userEvent.setup();
     renderRegister();
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByText('Admin email')).toBeInTheDocument();
   });
@@ -63,7 +63,7 @@ describe('Register — Step Navigation', () => {
   it('shows Back button from Step 2 onwards', async () => {
     const user = userEvent.setup();
     renderRegister();
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe('Register — Step Navigation', () => {
   it('Back button returns to the previous step', async () => {
     const user = userEvent.setup();
     renderRegister();
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.click(screen.getByRole('button', { name: /back/i }));
     expect(screen.getByText('Create workspace')).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('Register — Step Navigation', () => {
     renderRegister();
 
     // Step 1
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     expect(screen.getByText('Admin email')).toBeInTheDocument();
 
@@ -114,7 +114,7 @@ describe('Register — Step Navigation', () => {
     renderRegister();
 
     // Navigate to final step
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.type(screen.getByPlaceholderText('name@company.com'), 'ceo@tradevu.com');
     await user.click(screen.getByRole('button', { name: /continue/i }));
@@ -132,7 +132,7 @@ describe('Register — Step Navigation', () => {
         expect.objectContaining({
           input: expect.objectContaining({
             email: 'ceo@tradevu.com',
-            orgName: 'TradeVu',
+            orgName: 'Tradevu',
           })
         })
       );
@@ -148,7 +148,7 @@ describe('Register — Step Navigation', () => {
     renderRegister();
 
     // Navigate to final step
-    await user.type(screen.getByPlaceholderText('Acme Corp'), 'TradeVu');
+    await user.type(screen.getByPlaceholderText('Acme Corp'), 'Tradevu');
     await user.click(screen.getByRole('button', { name: /continue/i }));
     await user.type(screen.getByPlaceholderText('name@company.com'), 'existing@tradevu.com');
     await user.click(screen.getByRole('button', { name: /continue/i }));
