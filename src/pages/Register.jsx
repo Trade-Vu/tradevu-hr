@@ -68,7 +68,7 @@ export default function Register() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-24 relative z-10">
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
-            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
+            <img src="/Tradevu Logo.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
             
             {/* Step Indicators */}
             {!isComplete && (

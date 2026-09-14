@@ -135,15 +135,15 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
             <>
               {/* Progress Steps */}
               <div className="flex items-center justify-center mb-6">
-                <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
+                <div className={`flex items-center ${step >= 1 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>
                     1
                   </div>
                   <span className="ml-2 text-sm font-semibold">Company Info</span>
                 </div>
-                <div className={`w-12 h-0.5 mx-3 ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-                <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
+                <div className={`w-12 h-0.5 mx-3 ${step >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                <div className={`flex items-center ${step >= 2 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>
                     2
                   </div>
                   <span className="ml-2 text-sm font-semibold">Details</span>
@@ -248,18 +248,6 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
                           placeholder="contact@company.com"
                           className="bg-white border-slate-200 h-12 rounded-xl text-slate-900 font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0 focus-visible:border-indigo-500 placeholder:text-slate-400"
                         />
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-4 shadow-sm flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm shrink-0">
-                        <Rocket className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-indigo-900 text-sm">14-Day Free Trial</h4>
-                        <p className="text-xs text-indigo-700 font-medium mt-0.5">
-                          Start with a free trial. No credit card required.
-                        </p>
                       </div>
                     </div>
                   </div>

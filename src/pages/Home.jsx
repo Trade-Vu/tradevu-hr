@@ -23,8 +23,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center gap-3">
-              <img src="/logo-icon.png" alt="Tradevu HR" className="h-10 w-auto" />
-              <span className="text-xl font-bold tracking-tight text-slate-900">Tradevu HR</span>
+              <img src="/Logo-2.png" alt="Tradevu HR" className="h-10 w-auto" />
             </div>
             <div className="flex items-center gap-4">
               <Link to={PAGE_ROUTES.LOGIN} className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
@@ -65,10 +64,6 @@ export default function Home() {
                 Sign in to workspace
               </Button>
             </Link>
-          </div>
-          <div className="mt-10 text-sm text-slate-500 flex items-center justify-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-green-600" />
-            No credit card required • Free 14-day trial
           </div>
         </div>
       </div>
@@ -113,8 +108,7 @@ export default function Home() {
       <footer className="bg-slate-900 text-slate-400 py-12 relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
-            <img src="/logo-icon.png" alt="Tradevu" className="h-8 w-auto brightness-0 invert opacity-80" />
-            <span className="text-lg font-bold text-white tracking-tight">Tradevu HR</span>
+            <img src="/Logo-1.png" alt="Tradevu" className="h-8 w-auto brightness-0 invert opacity-80" />
           </div>
           <p className="text-sm">© {new Date().getFullYear()} Tradevu. All rights reserved.</p>
         </div>

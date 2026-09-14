@@ -156,7 +156,19 @@ export default function EmployeeSelfService() {
     queryFn: async () => {
       if (!employee?.id) return [];
       const res = await leaveApi.getBalances(employee.id);
-      return Array.isArray(res) ? res : res?.data || [];
+      const normalized = Array.isArray(res) ? res : res?.data || res;
+      if (normalized && Array.isArray(normalized.balances)) {
+        return normalized.balances.map((balance) => ({
+          ...balance,
+          id: balance._id || balance.id,
+          leaveTypeId: balance.leaveTypeId?._id || balance.leaveTypeId || balance.leaveType || '',
+          leaveType: balance.leaveTypeId?.name || balance.leaveType?.name || 'Leave',
+          allocatedDays: balance.allocated ?? balance.totalEntitled ?? 0,
+          usedDays: balance.used ?? 0,
+          remainingDays: balance.remaining ?? balance.available ?? 0,
+        }));
+      }
+      return Array.isArray(normalized) ? normalized : [];
     },
     enabled: !!employee?.id,
     initialData: [],
