@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { gql } from 'graphql-request';
-import { gqlClient } from '@/api/graphqlClient';
+import { leaveApi, organizationsApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -11,49 +10,9 @@ import { Switch } from '../components/ui/switch';
 import { Plus, Trash2, Edit, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const GET_LEAVE_TYPES = gql`
-  query GetLeaveTypes {
-    leaveTypes {
-      id
-      name
-      daysPerYear
-      isPaid
-      requiresApproval
-      eligibleAfterDays
-      applicableTo
-    }
-  }
-`;
-
-const GET_ORGANIZATION = gql`
-  query GetOrganization($id: ID!) {
-    organization(id: $id) {
-      id
-      employeeClasses
-    }
-  }
-`;
-
-const CREATE_LEAVE_TYPE = gql`
-  mutation CreateLeaveType($name: String!, $daysPerYear: Float!, $isPaid: Boolean!, $requiresApproval: Boolean!, $eligibleAfterDays: Int, $applicableTo: JSON) {
-    createLeaveType(name: $name, daysPerYear: $daysPerYear, isPaid: $isPaid, requiresApproval: $requiresApproval, eligibleAfterDays: $eligibleAfterDays, applicableTo: $applicableTo) {
-      id
-      name
-    }
-  }
-`;
-
-const UPDATE_LEAVE_TYPE = gql`
-  mutation UpdateLeaveType($id: ID!, $name: String, $daysPerYear: Float, $isPaid: Boolean, $requiresApproval: Boolean, $eligibleAfterDays: Int, $applicableTo: JSON) {
-    updateLeaveType(id: $id, name: $name, daysPerYear: $daysPerYear, isPaid: $isPaid, requiresApproval: $requiresApproval, eligibleAfterDays: $eligibleAfterDays, applicableTo: $applicableTo) {
-      id
-      name
-    }
-  }
-`;
-
 const DEFAULT_FORM_DATA = {
   name: '',
+  code: '',
   daysPerYear: 10,
   isPaid: true,
   requiresApproval: true,
@@ -71,9 +30,8 @@ export default function SettingsLeaveTypes() {
   const { data: orgData } = useQuery({
     queryKey: ['organization', user?.organizationId],
     queryFn: async () => {
-      if (!user?.organizationId) return null;
-      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
-      return res.organization;
+      const res = await organizationsApi.getMyOrganization();
+      return res;
     },
     enabled: !!user?.organizationId
   });
@@ -82,11 +40,14 @@ export default function SettingsLeaveTypes() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['leaveTypes'],
-    queryFn: () => gqlClient.request(GET_LEAVE_TYPES)
+    queryFn: async () => {
+      const res = await leaveApi.getLeaveTypes();
+      return { leaveTypes: Array.isArray(res) ? res : res?.data || [] };
+    }
   });
 
   const { mutate: createLeaveType, isPending: isCreating } = useMutation({
-    mutationFn: (variables) => gqlClient.request(CREATE_LEAVE_TYPE, variables),
+    mutationFn: (variables) => leaveApi.createLeaveType(variables),
     onSuccess: () => {
       toast.success("Leave Type created successfully!");
       queryClient.invalidateQueries(['leaveTypes']);
@@ -98,7 +59,7 @@ export default function SettingsLeaveTypes() {
   });
 
   const { mutate: updateLeaveType, isPending: isUpdating } = useMutation({
-    mutationFn: (variables) => gqlClient.request(UPDATE_LEAVE_TYPE, variables),
+    mutationFn: ({ id, ...variables }) => leaveApi.updateLeaveType(id, variables),
     onSuccess: () => {
       toast.success("Leave Type updated successfully!");
       queryClient.invalidateQueries(['leaveTypes']);
@@ -128,7 +89,8 @@ export default function SettingsLeaveTypes() {
 
     setFormData({
       name: lt.name,
-      daysPerYear: lt.daysPerYear,
+      code: lt.code || '',
+      daysPerYear: lt.defaultDays ?? lt.daysPerYear ?? 10,
       isPaid: lt.isPaid,
       requiresApproval: lt.requiresApproval,
       eligibleAfterDays: lt.eligibleAfterDays || 0,
@@ -154,11 +116,13 @@ export default function SettingsLeaveTypes() {
 
     const payload = {
       name: formData.name,
-      daysPerYear: parseFloat(formData.daysPerYear) || 0,
+      code: formData.code || undefined,
+      defaultDays: parseFloat(formData.daysPerYear) || 0,
       isPaid: formData.isPaid,
       requiresApproval: formData.requiresApproval,
-      eligibleAfterDays: parseInt(formData.eligibleAfterDays, 10),
-      applicableTo
+      requiresAttachment: false,
+      allowHalfDay: true,
+      maxCarryOver: 0,
     };
 
     if (editingId) {
@@ -211,8 +175,8 @@ export default function SettingsLeaveTypes() {
                       <div>
                         <h4 className="font-semibold text-slate-900">{lt.name}</h4>
                         <p className="text-sm text-slate-500 mt-1">
-                          Default: {lt.daysPerYear} days/year • {lt.isPaid ? 'Paid' : 'Unpaid'} • {lt.requiresApproval ? 'Requires Approval' : 'Auto-Approve'}
-                          {lt.eligibleAfterDays > 0 && ` • Eligible after ${lt.eligibleAfterDays} days`}
+                          Default: {(lt.defaultDays ?? lt.daysPerYear ?? 0)} days/year • {lt.isPaid ? 'Paid' : 'Unpaid'} • {lt.requiresApproval ? 'Requires Approval' : 'Auto-Approve'}
+                          {(lt.eligibleAfterDays || 0) > 0 && ` • Eligible after ${lt.eligibleAfterDays} days`}
                         </p>
                       </div>
                       
@@ -256,6 +220,15 @@ export default function SettingsLeaveTypes() {
                       placeholder="Annual Leave"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Leave Code</label>
+                    <Input 
+                      value={formData.code}
+                      onChange={e => setFormData({...formData, code: e.target.value})}
+                      placeholder="annual"
+                    />
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Default Days Per Year</label>
                     <Input 

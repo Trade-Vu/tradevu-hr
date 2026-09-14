@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { leaveApi, employeesApi } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,30 +75,25 @@ export default function AllLeaveRequests() {
   const { data: leaveRequestsData, isLoading: loadingRequests } = useQuery({
     queryKey: ['leave-requests', page, limit],
     queryFn: async () => {
-      const LEAVE_QUERY = gql`
-        query GetPaginatedLeaveRequests($page: Int!, $limit: Int!) { 
-          paginatedLeaveRequests(page: $page, limit: $limit) {
-            leaveRequests { id employeeId startDate endDate totalDays status reason createdAt }
-            totalCount
-            totalPages
-            currentPage
-          }
-        }
-      `;
-      const data = await gqlClient.request(LEAVE_QUERY, { page, limit });
+      const payload = await leaveApi.getAllRequests({ page, limit });
+      const list = Array.isArray(payload) ? payload : payload?.data || [];
       return {
-        ...data.paginatedLeaveRequests,
-        leaveRequests: data.paginatedLeaveRequests.leaveRequests.map(l => ({
+        data: list,
+        total: list.length,
+        totalPages: Math.max(1, Math.ceil(list.length / limit)),
+        currentPage: page,
+        leaveRequests: list.map(l => ({
           ...l,
-          employee_name: l.employeeId,
-          employee_email: l.employeeId,
-          leave_type: 'annual',
-          start_date: l.startDate,
-          end_date: l.endDate,
-          total_days: l.totalDays,
-          isHalfDay: l.isHalfDay,
-          selectedDates: l.selectedDates,
-          approvers: []
+          id: l._id || l.id,
+          employee_name: l.employeeId?.fullName || l.employeeId || 'Employee',
+          employee_email: l.employeeId?.email || l.employee_email || '',
+          leave_type: l.leaveTypeId?.name || 'Annual Leave',
+          start_date: l.startDate || l.start_date,
+          end_date: l.endDate || l.end_date,
+          total_days: l.totalDays || l.total_days || 0,
+          isHalfDay: !!l.isHalfDay,
+          selectedDates: l.selectedDates || [],
+          approvers: l.approvers || []
         }))
       };
     },
@@ -108,22 +102,17 @@ export default function AllLeaveRequests() {
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ['leaveTypes'],
     queryFn: async () => {
-      const GET_LEAVE_TYPES = gql`
-        query GetLeaveTypes {
-          leaveTypes { id name daysPerYear isPaid }
-        }
-      `;
-      const data = await gqlClient.request(GET_LEAVE_TYPES);
-      return data.leaveTypes || [];
+      const res = await leaveApi.getLeaveTypes();
+      return Array.isArray(res) ? res : res?.data || [];
     }
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
-      const data = await gqlClient.request(EMP_QUERY);
-      return (data.employees || []).map(e => ({ ...e, full_name: e.fullName }));
+      const data = await employeesApi.getEmployees();
+      const list = Array.isArray(data) ? data : data?.data || [];
+      return list.map(e => ({ ...e, id: e._id || e.id, full_name: e.fullName || e.full_name }));
     },
     initialData: [],
   });
@@ -134,36 +123,20 @@ export default function AllLeaveRequests() {
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      const CREATE_LEAVE = gql`
-        mutation CreateLeave($leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
-          submitLeaveRequest(input: {
-            leaveTypeId: $leaveTypeId,
-            startDate: $startDate,
-            endDate: $endDate,
-            totalDays: $totalDays,
-            reason: $reason,
-            attachmentUrl: $attachmentUrl,
-            isHalfDay: $isHalfDay,
-            selectedDates: $selectedDates
-          }) { id status }
-        }
-      `;
-      
       const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
-      const leave = await gqlClient.request(CREATE_LEAVE, {
-        leaveTypeId: data.leave_type, // Using leaveType ID now
+      const leave = await leaveApi.createRequest({
+        leaveTypeId: data.leave_type,
         startDate: new Date(start || new Date()).toISOString(),
         endDate: new Date(end || new Date()).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days),
+        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days || 0),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
-        isHalfDay: data.isHalfDay,
-        selectedDates: data.useMultipleDates ? data.selectedDates : []
+        isHalfDay: !!data.isHalfDay,
       });
 
-      await createAuditLog('create', leave.submitLeaveRequest.id, data.employee_id, { after: leave.submitLeaveRequest });
+      await createAuditLog('create', leave?._id || leave?.id, data.employee_id, { after: leave });
       return leave;
     },
     onSuccess: () => {
@@ -187,13 +160,10 @@ export default function AllLeaveRequests() {
 
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
-      let mutationStr;
-      if (data.status === 'approved') {
-        mutationStr = gql`mutation ApproveLeave($id: ID!) { approveLeaveRequest(id: $id) { id status } }`;
-      } else {
-        mutationStr = gql`mutation RejectLeave($id: ID!) { rejectLeaveRequest(id: $id, reason: "Rejected by HR", attachmentUrl: "none") { id status } }`;
-      }
-      const updated = await gqlClient.request(mutationStr, { id });
+      const updated = data.status === 'approved'
+        ? await leaveApi.reviewRequest(id, { action: 'approved' })
+        : await leaveApi.reviewRequest(id, { action: 'rejected', rejectionReason: 'Rejected by HR' });
+
       await createAuditLog('update', id, oldData?.employee_name, {
         before: oldData,
         after: updated,

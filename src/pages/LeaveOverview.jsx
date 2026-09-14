@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { leaveApi, employeesApi } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { uploadToCloudinary } from "@/utils/cloudinary";
@@ -59,9 +58,9 @@ export default function LeaveOverview() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
-      const data = await gqlClient.request(EMP_QUERY);
-      return (data.employees || []).map(e => ({ ...e, full_name: e.fullName }));
+      const data = await employeesApi.getEmployees();
+      const list = Array.isArray(data) ? data : data?.data || [];
+      return list.map(e => ({ ...e, id: e._id || e.id, full_name: e.fullName || e.full_name }));
     },
     initialData: [],
     enabled: isAdmin,
@@ -76,9 +75,8 @@ export default function LeaveOverview() {
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ['leave-types'],
     queryFn: async () => {
-      const TYPE_QUERY = gql`query { leaveTypes { id name daysPerYear isPaid } }`;
-      const data = await gqlClient.request(TYPE_QUERY);
-      return data.leaveTypes || [];
+      const res = await leaveApi.getLeaveTypes();
+      return Array.isArray(res) ? res : res?.data || [];
     },
     initialData: [],
   });
@@ -96,82 +94,74 @@ export default function LeaveOverview() {
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests', activeEmployeeId],
     queryFn: async () => {
-      const LEAVE_QUERY = gql`
-        query GetLeaveRequests { 
-          leaveRequests { 
-            id employeeId leaveTypeId startDate endDate totalDays status reason attachmentUrl createdAt 
-            employee { email fullName } leaveType { name } 
-          } 
-        }
-      `;
-      const data = await gqlClient.request(LEAVE_QUERY);
-      return (data.leaveRequests || []).map(l => {
-        const typeName = l.leaveType?.name || 'Annual Leave';
+      const payload = isAdmin || isManager
+        ? await leaveApi.getAllRequests({ page: 1, limit: 200, employeeId: activeEmployeeId })
+        : await leaveApi.getMyRequests({ page: 1, limit: 200 });
+
+      const list = Array.isArray(payload) ? payload : payload?.data || [];
+      return list.map(l => {
+        const employee = l.employeeId || {};
+        const typeName = l.leaveTypeId?.name || l.leaveType?.name || 'Annual Leave';
+
         return {
           ...l,
-          employee_email: l.employee?.email || l.employeeId,
-          employee_name: l.employee?.fullName || l.employeeId,
+          id: l._id || l.id,
+          employee_email: employee.email || l.employee_email || (typeof employee === 'string' ? employee : ''),
+          employee_name: employee.fullName || l.employee_name || (typeof employee === 'string' ? employee : 'Employee'),
           leave_type: typeName,
-          start_date: l.startDate,
-          end_date: l.endDate,
-          total_days: l.totalDays,
-          isHalfDay: l.isHalfDay,
-          selectedDates: l.selectedDates,
-          attachment_url: l.attachmentUrl,
-          approvers: [] // Mocked
+          start_date: l.startDate || l.start_date,
+          end_date: l.endDate || l.end_date,
+          total_days: l.totalDays || l.total_days || 0,
+          isHalfDay: !!l.isHalfDay,
+          selectedDates: l.selectedDates || [],
+          attachment_url: l.attachmentUrl || l.attachment_url || '',
+          approvers: l.approvers || [],
         };
       });
     },
-    enabled: !!activeEmployeeId,
+    enabled: !!activeEmployeeId || !!user,
     initialData: [],
   });
 
   const { data: leaveBalances = [], refetch: refetchBalances } = useQuery({
     queryKey: ['leave-balances', activeEmployeeId],
     queryFn: async () => {
-      if (!activeEmployeeId) return [];
-      const BALANCES_QUERY = gql`
-        query GetBalances($employeeId: ID!) { 
-          leaveBalances(employeeId: $employeeId) { 
-            id leaveTypeId totalEntitled used pending available carriedForward expired 
-          } 
-        }
-      `;
-      const data = await gqlClient.request(BALANCES_QUERY, { employeeId: activeEmployeeId });
-      return data.leaveBalances || [];
+      const res = activeEmployeeId
+        ? await leaveApi.getBalances(activeEmployeeId)
+        : await leaveApi.getMyBalance(new Date().getFullYear());
+
+      const item = Array.isArray(res) ? res : res?.data || res;
+      if (item && Array.isArray(item.balances)) {
+        return item.balances.map((balance) => ({
+          ...balance,
+          id: balance._id || balance.id,
+          leaveTypeId: balance.leaveTypeId?._id || balance.leaveTypeId || balance.leaveType || '',
+          leaveType: balance.leaveTypeId?.name || balance.leaveType?.name || 'Leave',
+          totalEntitled: balance.allocated ?? balance.totalEntitled ?? 0,
+          used: balance.used ?? 0,
+          pending: balance.pending ?? 0,
+          available: balance.remaining ?? balance.available ?? 0,
+          carriedForward: balance.carryOver ?? balance.carriedForward ?? 0,
+        }));
+      }
+      return Array.isArray(item) ? item : [];
     },
-    enabled: !!activeEmployeeId,
+    enabled: !!user,
   });
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      const CREATE_LEAVE = gql`
-        mutation CreateLeave($leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
-          submitLeaveRequest(input: {
-            leaveTypeId: $leaveTypeId,
-            startDate: $startDate,
-            endDate: $endDate,
-            totalDays: $totalDays,
-            reason: $reason,
-            attachmentUrl: $attachmentUrl,
-            isHalfDay: $isHalfDay,
-            selectedDates: $selectedDates
-          }) { id status }
-        }
-      `;
-      
       const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
-      return gqlClient.request(CREATE_LEAVE, {
+      return leaveApi.createRequest({
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days),
+        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days || 0),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
-        isHalfDay: data.isHalfDay,
-        selectedDates: data.useMultipleDates ? data.selectedDates : []
+        isHalfDay: !!data.isHalfDay,
       });
     },
     onSuccess: () => {
@@ -203,37 +193,20 @@ export default function LeaveOverview() {
 
   const logPastLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      const LOG_PAST_LEAVE = gql`
-        mutation LogPastLeave($employeeId: ID, $leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
-          logPastLeave(input: {
-            employeeId: $employeeId,
-            leaveTypeId: $leaveTypeId,
-            startDate: $startDate,
-            endDate: $endDate,
-            totalDays: $totalDays,
-            reason: $reason,
-            attachmentUrl: $attachmentUrl,
-            isHalfDay: $isHalfDay,
-            selectedDates: $selectedDates
-          }) { id status }
-        }
-      `;
-      
       const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
       const selectedEmp = employees.find(e => e.email === data.employee_email);
-      
-      return gqlClient.request(LOG_PAST_LEAVE, {
-        employeeId: selectedEmp ? selectedEmp.id : null,
+
+      return leaveApi.createRequest({
+        employeeId: selectedEmp ? selectedEmp.id : undefined,
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days),
+        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days || 0),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
-        isHalfDay: data.isHalfDay,
-        selectedDates: data.useMultipleDates ? data.selectedDates : []
+        isHalfDay: !!data.isHalfDay,
       });
     },
     onSuccess: () => {
@@ -267,26 +240,11 @@ export default function LeaveOverview() {
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, status }) => {
       if (status === 'APPROVED') {
-        const APPROVE_LEAVE = gql`
-          mutation ApproveLeave($id: ID!) {
-            approveLeaveRequest(id: $id) { id status }
-          }
-        `;
-        return gqlClient.request(APPROVE_LEAVE, { id });
+        return leaveApi.reviewRequest(id, { action: 'approved' });
       } else if (status === 'REJECTED') {
-        const REJECT_LEAVE = gql`
-          mutation RejectLeave($id: ID!) {
-            rejectLeaveRequest(id: $id) { id status }
-          }
-        `;
-        return gqlClient.request(REJECT_LEAVE, { id });
+        return leaveApi.reviewRequest(id, { action: 'rejected', rejectionReason: 'Rejected by reviewer' });
       } else if (status === 'CANCELLED') {
-        const CANCEL_LEAVE = gql`
-          mutation CancelLeave($id: ID!) {
-            cancelLeaveRequest(id: $id) { id status }
-          }
-        `;
-        return gqlClient.request(CANCEL_LEAVE, { id });
+        return leaveApi.cancelRequest(id);
       }
     },
     onSuccess: (_, variables) => {

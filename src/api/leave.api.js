@@ -37,8 +37,15 @@ export const leaveApi = {
     return apiClient.put(`/leave/requests/${id}/cancel`);
   },
 
-  getBalances: async (employeeId) => {
-    return apiClient.get(`/leave/balances/${employeeId}`);
+  getMyBalance: async (year) => {
+    return apiClient.get('/leave/balances/my', { params: year ? { year } : {} });
+  },
+
+  getBalances: async (employeeId, year) => {
+    if (!employeeId) {
+      return leaveApi.getMyBalance(year);
+    }
+    return apiClient.get(`/leave/balances/${employeeId}`, { params: year ? { year } : {} });
   },
 };
 
