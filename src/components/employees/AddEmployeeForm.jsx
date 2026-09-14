@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserPlus, Mail, Briefcase, Calendar, FileText } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { organizationsApi } from '@/api';
+import { normalizeEmployeeClasses } from '@/lib/formOptions';
 import { toast } from 'sonner';
 
 export default function AddEmployeeForm({ templates = [], departments = [], onSubmit, onCancel, isSubmitting }) {
@@ -19,9 +20,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
     staleTime: 5 * 60 * 1000,
   });
 
-  const employeeClasses = orgData?.employeeClasses?.length 
-    ? orgData.employeeClasses.map(c => c.toUpperCase())
-    : ["PERMANENT", "PROBATIONARY", "CONTRACT", "CONSULTANT", "INTERN", "MANAGERIAL"];
+  const employeeClasses = normalizeEmployeeClasses(orgData?.employeeClasses);
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -149,7 +148,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                   </SelectTrigger>
                   <SelectContent>
                     {employeeClasses.map(cls => (
-                      <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                      <SelectItem key={cls.value} value={cls.value}>{cls.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
 
 /**
  * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
@@ -107,15 +108,7 @@ export default function ProfileCompletionWizard() {
     enabled: !!employeeId
   });
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const res = await apiClient.get('/departments');
-      return { departments: Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []) };
-    },
-    enabled: hasCSVStep
-  });
-  const departments = departmentsData?.departments || [];
+  const { data: departments = [] } = useDepartments({ enabled: hasCSVStep });
 
   React.useEffect(() => {
     if (employeeDataObj?.employee) {

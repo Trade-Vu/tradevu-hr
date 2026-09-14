@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import countryList from 'country-list';
-import { employeesApi, approvalsApi, organizationsApi, departmentsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
+import { employeesApi, approvalsApi, organizationsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
+import { normalizeEmployeeClasses } from "@/lib/formOptions";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -21,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { extractErrorMessage } from "@/lib/utils";
+import { extractErrorMessage, toTitleCase } from "@/lib/utils";
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { format as dateFnsFormat } from "date-fns";
@@ -170,19 +172,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     enabled: !!user?.organizationId
   });
 
-  const employeeClasses = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
+  const employeeClasses = normalizeEmployeeClasses(orgData?.employeeClasses);
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const res = await departmentsApi.getDepartments();
-      const list = res.data?.data || res.data || [];
-      return (Array.isArray(list) ? list : []).map(d => ({
-        id: d._id || d.id,
-        name: d.name
-      }));
-    }
-  });
+  const { data: departmentsData } = useDepartments();
   const departments = departmentsData || [];
 
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
@@ -784,7 +776,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <div className="space-y-2">
                       <Label>Gender</Label>
                       <Select
-                        value={editData.personal_info?.gender || ''}
+                        value={(editData.personal_info?.gender || '').toLowerCase()}
                         onValueChange={(value) => setEditData(prev => ({
                           ...prev,
                           personal_info: { ...prev.personal_info, gender: value }
@@ -817,7 +809,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <div className="space-y-2">
                       <Label>Marital Status</Label>
                       <Select
-                        value={editData.personal_info?.marital_status || ''}
+                        value={(editData.personal_info?.marital_status || '').toLowerCase()}
                         onValueChange={(value) => setEditData(prev => ({
                           ...prev,
                           personal_info: { ...prev.personal_info, marital_status: value }
@@ -856,9 +848,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 ) : (
                   <>
                     <PremiumField icon={Calendar} label="Birthday" value={employee.personal_info?.date_of_birth ? format(new Date(employee.personal_info.date_of_birth), 'dd MMM yyyy') : 'Not set'} />
-                    <PremiumField icon={User} label="Gender" value={employee.personal_info?.gender || 'Not set'} />
+                    <PremiumField icon={User} label="Gender" value={toTitleCase(employee.personal_info?.gender) || 'Not set'} />
                     <PremiumField icon={User} label="Nationality" value={employee.personal_info?.nationality || 'Not set'} />
-                    <PremiumField icon={User} label="Marital Status" value={employee.personal_info?.marital_status || 'Not set'} />
+                    <PremiumField icon={User} label="Marital Status" value={toTitleCase(employee.personal_info?.marital_status) || 'Not set'} />
                     <PremiumField icon={Shield} label="National ID Number" value={employee.personal_info?.national_id || 'Not set'} />
                     <PremiumField icon={Shield} label="Iqama Number" value={employee.personal_info?.iqama_number || 'Not set'} />
                   </>
@@ -940,21 +932,28 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </div>
                 <div className="space-y-2">
                   <Label>Department</Label>
-                  <Input
+                  <Select
                     value={editData.department_id || ''}
-                    onChange={(e) => setEditData(prev => ({ ...prev, department_id: e.target.value }))}
-                  />
+                    onValueChange={(value) => setEditData(prev => ({ ...prev, department_id: value }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                    <SelectContent>
+                      {departments.map((department) => (
+                        <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Employment Class</Label>
                   <Select
-                    value={editData.employeeClass || 'Permanent'}
+                    value={editData.employeeClass || 'PERMANENT'}
                     onValueChange={(value) => setEditData(prev => ({ ...prev, employeeClass: value }))}
                   >
                     <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                     <SelectContent>
-                      {employeeClasses.map(cls => (
-                        <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                      {employeeClasses.map((employeeClass) => (
+                        <SelectItem key={employeeClass.value} value={employeeClass.value}>{employeeClass.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -1023,11 +1022,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   <Label>Reports To (Manager)</Label>
                   <Select
                     value={editData.manager_id || ''}
-                    onValueChange={(value) => setEditData(prev => ({ ...prev, manager_id: value }))}
+                    onValueChange={(value) => setEditData(prev => ({ ...prev, manager_id: value === 'NONE' ? '' : value }))}
                   >
                     <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={null}>No Manager</SelectItem>
+                      <SelectItem value="NONE">No Manager</SelectItem>
                       {employees.filter(e => e.id !== employee.id).map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.full_name} - {emp.job_title}
@@ -2422,8 +2421,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               >
                 <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
-                  {employeeClasses.map(cls => (
-                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                  {employeeClasses.map((employeeClass) => (
+                    <SelectItem key={employeeClass.value} value={employeeClass.value}>{employeeClass.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

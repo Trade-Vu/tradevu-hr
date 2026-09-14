@@ -48,6 +48,10 @@ export const approvalsApi = {
     return apiClient.put(`/approvals/leave/${leaveId}/reject`, { reason });
   },
 
+  requestLeaveInformation: async (leaveId, message) => {
+    return apiClient.put(`/approvals/leave/${leaveId}/request-information`, { message });
+  },
+
   // Offboarding Approvals
   approveOffboarding: async (offboardingId, comments) => {
     return apiClient.put(`/approvals/offboarding/${offboardingId}/approve`, { comments });
@@ -77,6 +81,10 @@ export const approvalsApi = {
 
   updateWorkflow: async (id, data) => {
     return apiClient.put(`/approvals/workflows/${id}`, data);
+  },
+
+  deleteWorkflow: async (id) => {
+    return apiClient.delete(`/approvals/workflows/${id}`);
   },
 
   getProfileUpdateRequests: async (params) => {

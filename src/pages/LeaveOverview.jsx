@@ -1,3 +1,7 @@
+import { calculateWorkingDays } from "@/lib/leaveDays";
+import LeaveBalances from "@/components/Leave/LeaveBalances";
+import PendingLeaveApprovals from "@/components/Leave/PendingLeaveApprovals";
+import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
@@ -76,9 +80,18 @@ export default function LeaveOverview() {
     queryKey: ['leave-types'],
     queryFn: async () => {
       const res = await leaveApi.getLeaveTypes();
-      return Array.isArray(res) ? res : res?.data || [];
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(type => ({ ...type, id: type.id || type._id }));
     },
     initialData: [],
+  });
+
+  const { data: publicHolidays = [] } = useQuery({
+    queryKey: ['publicHolidays'],
+    queryFn: async () => {
+      const res = await leaveApi.getPublicHolidays();
+      return Array.isArray(res) ? res : res?.data || [];
+    },
   });
 
   useEffect(() => {
@@ -158,7 +171,6 @@ export default function LeaveOverview() {
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days || 0),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
         isHalfDay: !!data.isHalfDay,
@@ -196,14 +208,10 @@ export default function LeaveOverview() {
       const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
-      const selectedEmp = employees.find(e => e.email === data.employee_email);
-
       return leaveApi.createRequest({
-        employeeId: selectedEmp ? selectedEmp.id : undefined,
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days || 0),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
         isHalfDay: !!data.isHalfDay,
@@ -307,23 +315,7 @@ export default function LeaveOverview() {
     });
   };
 
-  const calculateDays = (start, end) => {
-    if (!start || !end) return 0;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    if (endDate < startDate) return 0;
-
-    let days = 0;
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        days++;
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return days;
-  };
+  const calculateDays = (start, end) => calculateWorkingDays(start, end, publicHolidays);
 
   const safeDate = (val) => {
     if (!val) return new Date();
@@ -335,23 +327,27 @@ export default function LeaveOverview() {
   };
 
   const handleDateChange = (field, value) => {
-    const newData = { ...formData, [field]: value };
-    if (field === 'start_date' || field === 'end_date') {
-      const days = calculateDays(newData.start_date, newData.end_date);
-      newData.total_days = newData.isHalfDay ? days * 0.5 : days;
-    }
-    setFormData(newData);
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      if (field === 'start_date' || field === 'end_date') {
+        const days = calculateDays(newData.start_date, newData.end_date);
+        newData.total_days = newData.isHalfDay ? days * 0.5 : days;
+      }
+      return newData;
+    });
   };
 
   const addSelectedDate = (date) => {
     if (!date) return;
     const newDates = [...formData.selectedDates, date].sort();
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? newDates.length * 0.5 : newDates.length });
+    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
+    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
   };
 
   const removeSelectedDate = (date) => {
     const newDates = formData.selectedDates.filter(d => d !== date);
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? newDates.length * 0.5 : newDates.length });
+    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
+    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
   };
 
   const myRequests = leaveRequests.filter(r => r.employee_email === user?.email);
@@ -369,6 +365,7 @@ export default function LeaveOverview() {
   const statusColors = {
     APPROVED: 'bg-green-100 text-green-800 border-green-200',
     PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    PENDING_APPROVAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     PENDING_HR: 'bg-purple-100 text-purple-800 border-purple-200',
     REJECTED: 'bg-red-100 text-red-800 border-red-200',
     CANCELLED: 'bg-gray-100 text-gray-800 border-gray-200'
@@ -380,13 +377,24 @@ export default function LeaveOverview() {
     (selectedLeaveTypeObj.name === 'Sick Leave' && formData.total_days > 2)
   );
 
+  const hasRequiredRequestData = Boolean(
+    formData.leave_type &&
+    formData.reason.trim() &&
+    formData.total_days > 0 &&
+    (formData.useMultipleDates
+      ? formData.selectedDates.length > 0
+      : formData.start_date && formData.end_date) &&
+    (!isAdmin || formData.employee_email) &&
+    (!requiresAttachment || formData.attachment_url)
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-slate-50 to-blue-50 md:p-8">
+      <div className="mx-auto space-y-8 max-w-7xl">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-white rounded-full shadow-sm">
               <Plane className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-slate-700">Leave Management</span>
             </div>
@@ -414,58 +422,7 @@ export default function LeaveOverview() {
           )}
         </div>
 
-        {/* Leave Balances */}
-        {leaveBalances.length === 0 && leaveTypes.length === 0 ? (
-          <Card className="border-slate-200">
-            <CardContent className="p-8 flex flex-col items-center justify-center text-center">
-              <Calendar className="w-12 h-12 text-slate-300 mb-4" />
-              <p className="text-lg font-medium text-slate-700">No Leave Types Configured</p>
-              <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
-                {isAdmin 
-                  ? "You haven't defined any leave types for your organization yet. Leave balances cannot be initialized until leave types are created." 
-                  : "Your organization hasn't configured leave policies yet."}
-              </p>
-              {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  className="mt-6"
-                  onClick={() => window.location.href = PAGE_ROUTES.SETTINGS}
-                >
-                  Configure Leave Types in Settings
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {leaveBalances.length > 0 ? (
-              leaveBalances.map(balance => {
-                const type = leaveTypes.find(t => t.id === balance.leaveTypeId) || { name: 'Unknown' };
-                return (
-                  <Card key={balance.id} className="border-slate-200">
-                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-                      <p className="text-sm font-medium text-slate-500 uppercase">{type.name}</p>
-                      <p className="text-3xl font-bold text-blue-600 my-2">{balance.available}</p>
-                      <p className="text-xs text-slate-400">
-                        Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending: {balance.pending}
-                      </p>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            ) : (
-              leaveTypes.map(type => (
-                <Card key={type.id} className="border-slate-200 opacity-50">
-                  <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-                    <p className="text-sm font-medium text-slate-500 uppercase">{type.name}</p>
-                    <p className="text-3xl font-bold text-slate-400 my-2">-</p>
-                    <p className="text-xs text-slate-400">Balance not initialized</p>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        )}
+        <LeaveBalances leaveBalances={leaveBalances} leaveTypes={leaveTypes} isAdmin={isAdmin} />
 
         {/* Request Form */}
         {showForm && (
@@ -477,6 +434,10 @@ export default function LeaveOverview() {
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (!hasRequiredRequestData) {
+                    toast.error('Complete all required leave request fields before submitting.');
+                    return;
+                  }
                   if (requiresAttachment && !formData.attachment_url) {
                     toast.error("Please upload a supporting document for your leave request.");
                     return;
@@ -518,7 +479,7 @@ export default function LeaveOverview() {
                   </div>
                 )}
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Leave Type *</Label>
                     <Select 
@@ -535,7 +496,7 @@ export default function LeaveOverview() {
                       </SelectContent>
                     </Select>
                     {!isPastLeave && selectedLeaveTypeObj?.noticeDaysRequired > 0 && (
-                      <p className="text-xs text-amber-600 mt-1">
+                      <p className="mt-1 text-xs text-amber-600">
                         Requires at least {selectedLeaveTypeObj.noticeDaysRequired} days notice.
                       </p>
                     )}
@@ -617,7 +578,7 @@ export default function LeaveOverview() {
                       )}
                     </>
                   ) : (
-                    <div className="space-y-2 col-span-1 md:col-span-2">
+                    <div className="col-span-1 space-y-2 md:col-span-2">
                       <Label>Selected Dates</Label>
                       <div className="flex items-center gap-2 mb-2">
                         <Input 
@@ -631,7 +592,7 @@ export default function LeaveOverview() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {formData.selectedDates.map(date => (
-                          <Badge key={date} variant="secondary" className="px-3 py-1 text-sm flex items-center gap-2">
+                          <Badge key={date} variant="secondary" className="flex items-center gap-2 px-3 py-1 text-sm">
                             {format(new Date(date), 'MMM d, yyyy')}
                             <XCircle className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => removeSelectedDate(date)} />
                           </Badge>
@@ -641,7 +602,7 @@ export default function LeaveOverview() {
                     </div>
                   )}
 
-                  <div className="space-y-2 col-span-1 md:col-span-2">
+                  <div className="col-span-1 space-y-2 md:col-span-2">
                     <Label>Total Days</Label>
                     <Input type="number" value={formData.total_days} disabled className="bg-slate-50" />
                   </div>
@@ -696,7 +657,7 @@ export default function LeaveOverview() {
                   <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" isLoading={createLeaveMutation.isPending} disabled={requiresAttachment && !formData.attachment_url}>
+                  <Button type="submit" isLoading={createLeaveMutation.isPending} disabled={!hasRequiredRequestData || createLeaveMutation.isPending || logPastLeaveMutation.isPending}>
                     {createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
                   </Button>
                 </div>
@@ -705,188 +666,20 @@ export default function LeaveOverview() {
           </Card>
         )}
 
-        {/* Pending Approvals (for managers) */}
-        {pendingApprovals.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader className="border-b border-orange-200">
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-600" />
-                Pending Approvals ({pendingApprovals.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              {pendingApprovals.map(request => (
-                <Card key={request.id} className="border-slate-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-2">{request.employee_name}</h4>
-                        <div className="space-y-1 text-sm text-slate-600">
-                          <p><strong>Type:</strong> {request.leave_type.replace('_', ' ')} {request.isHalfDay && <Badge variant="secondary" className="ml-1 text-[10px]">Half Day</Badge>}</p>
-                          <p><strong>Duration:</strong> {
-                            request.selectedDates && request.selectedDates.length > 0 
-                              ? request.selectedDates.map(d => format(safeDate(d), 'MMM d')).join(', ')
-                              : `${format(safeDate(request.start_date), 'MMM d')} - ${format(safeDate(request.end_date), 'MMM d')}`
-                          } ({request.total_days} days)</p>
-                          <p><strong>Reason:</strong> {request.reason}</p>
-                          {request.attachment_url && (
-                            <p className="flex items-center gap-2">
-                              <Paperclip className="w-4 h-4 text-blue-500" />
-                              <a 
-                                href={request.attachment_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 hover:underline"
-                              >
-                                View Document
-                              </a>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApprove(request)}
-                          disabled={updateLeaveMutation.isPending}
-                        >
-                          {updateLeaveMutation.isPending && updateLeaveMutation.variables?.id === request.id && updateLeaveMutation.variables?.status === 'APPROVED' ? (
-                             <>Approving...</>
-                          ) : (
-                            <><CheckCircle className="w-4 h-4 mr-1" /> Approve</>
-                          )}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => handleReject(request)}
-                          disabled={updateLeaveMutation.isPending}
-                        >
-                          {updateLeaveMutation.isPending && updateLeaveMutation.variables?.id === request.id && updateLeaveMutation.variables?.status === 'REJECTED' ? (
-                             <>Rejecting...</>
-                          ) : (
-                            <><XCircle className="w-4 h-4 mr-1" /> Reject</>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        <PendingLeaveApprovals
+          requests={pendingApprovals}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isPending={updateLeaveMutation.isPending}
+          safeDate={safeDate}
+        />
 
-        {/* My Requests */}
-        <Card className="border-slate-200">
-          <CardHeader className="border-b border-slate-200">
-            <CardTitle>My Leave Requests</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {myRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <Plane className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <p className="text-slate-500">No leave requests yet</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myRequests.map(request => (
-                  <Card key={request.id} className="border-slate-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <h4 className="font-semibold text-slate-900">
-                              {request.leave_type.replace('_', ' ').toUpperCase()}
-                            </h4>
-                            <Badge variant="outline" className={statusColors[request.status]}>
-                              {request.status}
-                            </Badge>
-                          </div>
-                          <div className="space-y-1 text-sm text-slate-600">
-                            <p className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
-                              {request.selectedDates && request.selectedDates.length > 0
-                                ? request.selectedDates.map(d => format(safeDate(d), 'MMM d')).join(', ')
-                                : `${format(safeDate(request.start_date), 'MMM d, yyyy')} - ${format(safeDate(request.end_date), 'MMM d, yyyy')}`
-                              }
-                            </p>
-                            <p><strong>Days:</strong> {request.total_days} {request.isHalfDay && <Badge variant="secondary" className="ml-1 text-[10px]">Half Day</Badge>}</p>
-                            <p><strong>Reason:</strong> {request.reason}</p>
-                            
-                            {request.attachment_url && (
-                               <p className="flex items-center gap-2">
-                                 <Paperclip className="w-4 h-4 text-blue-500" />
-                                 <a 
-                                   href={request.attachment_url} 
-                                   target="_blank" 
-                                   rel="noopener noreferrer" 
-                                   className="text-blue-600 hover:underline"
-                                 >
-                                   View Document
-                                 </a>
-                               </p>
-                             )}
-
-                            {request.approvers && request.approvers.length > 0 && (
-                              <div className="mt-3 pt-3 border-t border-slate-100">
-                                <p className="font-medium text-slate-700 mb-2">Approvals:</p>
-                                {request.approvers.map((approver, idx) => (
-                                  <div key={idx} className="flex items-center gap-2 text-xs">
-                                    <span>{approver.name}</span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`${statusColors[approver.status]} text-xs`}
-                                    >
-                                      {approver.status}
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {['PENDING', 'PENDING_HR', 'APPROVED'].includes(request.status) && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50"
-                              >
-                                Cancel
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Cancel Leave Request</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to cancel this leave request? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>No, keep it</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleCancel(request)} 
-                                  className="bg-red-600 hover:bg-red-700 text-white"
-                                >
-                                  Yes, cancel request
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <MyLeaveRequests
+          requests={myRequests}
+          statusColors={statusColors}
+          onCancel={handleCancel}
+          safeDate={safeDate}
+        />
       </div>
     </div>
   );
