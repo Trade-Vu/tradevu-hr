@@ -23,7 +23,8 @@ import {
 
 export default function DashboardEmptyState({ user }) {
   const isCEO = user?.role === 'SUPER_ADMIN';
-  const firstName = user?.full_name?.split(' ')[0] || 'there';
+  console.log({user})
+  const firstName = user?.fullName?.split(' ')[0] || '';
 
   // Use database preferences first, then fallback to localStorage
   const storageKey = `dashboard_completed_steps_${user?.id || 'default'}`;
@@ -129,21 +130,21 @@ export default function DashboardEmptyState({ user }) {
   const progress = Math.round((completedCount / steps.length) * 100);
 
   return (
-    <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-10 duration-700 animate-in fade-in zoom-in-95">
       {/* Premium Welcome Header */}
       <div className="relative rounded-[2rem] p-8 sm:p-10 text-white shadow-2xl overflow-hidden bg-slate-900 border border-slate-800">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 opacity-50 blur-3xl" />
+        <div className="absolute inset-0 opacity-50 bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 blur-3xl" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-b from-blue-500/30 to-purple-600/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 mix-blend-screen" />
         
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             <span className="text-xs font-medium text-slate-200">Workspace Ready</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300">
+          <h1 className="mb-4 text-3xl font-bold leading-tight tracking-tight text-transparent sm:text-4xl bg-clip-text bg-gradient-to-r from-white to-slate-300">
             Welcome to Tradevu HR, {firstName}!
           </h1>
-          <p className="text-base sm:text-lg text-slate-400 font-normal leading-relaxed max-w-xl">
+          <p className="max-w-xl text-base font-normal leading-relaxed sm:text-lg text-slate-400">
             {isCEO 
               ? "Your unified HR platform is ready. Start by setting up your organization profile and bringing your HR leader aboard."
               : "We're glad you're here. Let's get you familiarized with your new HR workspace and setup the foundation."}
@@ -151,19 +152,19 @@ export default function DashboardEmptyState({ user }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Modern Checklist */}
-        <Card className="lg:col-span-2 border-slate-200/60 shadow-xl shadow-slate-200/40 rounded-3xl overflow-hidden bg-white/80 backdrop-blur-xl">
+        <Card className="overflow-hidden shadow-xl lg:col-span-2 border-slate-200/60 shadow-slate-200/40 rounded-3xl bg-white/80 backdrop-blur-xl">
           <CardHeader className="p-8 border-b border-slate-100/80 bg-white/50">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
               <div>
                 <CardTitle className="text-2xl font-bold text-slate-900">Your Action Items</CardTitle>
-                <CardDescription className="text-base mt-2 text-slate-500">
+                <CardDescription className="mt-2 text-base text-slate-500">
                   Complete these steps to unlock the full potential of your workspace.
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-4 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100">
-                <div className="relative w-14 h-14 flex items-center justify-center">
+              <div className="flex items-center gap-4 px-5 py-3 border bg-slate-50 rounded-2xl border-slate-100">
+                <div className="relative flex items-center justify-center w-14 h-14">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <path
                       className="text-slate-200"
@@ -185,7 +186,7 @@ export default function DashboardEmptyState({ user }) {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-slate-900">Completion</p>
-                  <p className="text-xs text-slate-500 font-medium">{completedCount} of {steps.length} steps</p>
+                  <p className="text-xs font-medium text-slate-500">{completedCount} of {steps.length} steps</p>
                 </div>
               </div>
             </div>
@@ -198,18 +199,18 @@ export default function DashboardEmptyState({ user }) {
                 return (
                   <div 
                     key={step.id} 
-                    className="p-6 flex items-start gap-5 hover:bg-slate-50/80 transition-all duration-300 group relative border-l-4 border-transparent hover:border-indigo-500"
+                    className="relative flex items-start gap-5 p-6 transition-all duration-300 border-l-4 border-transparent hover:bg-slate-50/80 group hover:border-indigo-500"
                   >
                     <button 
                       onClick={() => toggleStep(step.id)}
-                      className="mt-1 flex-shrink-0 focus:outline-none transition-transform active:scale-95"
+                      className="flex-shrink-0 mt-1 transition-transform focus:outline-none active:scale-95"
                     >
                       {isCompleted ? (
-                         <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm">
+                         <div className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-full shadow-sm">
                            <CheckCircle2 className="w-5 h-5" />
                          </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-300 group-hover:border-indigo-200 group-hover:text-indigo-400 transition-colors">
+                        <div className="flex items-center justify-center w-8 h-8 transition-colors border-2 rounded-full border-slate-200 text-slate-300 group-hover:border-indigo-200 group-hover:text-indigo-400">
                           <Circle className="w-4 h-4 opacity-0" />
                         </div>
                       )}
@@ -224,7 +225,7 @@ export default function DashboardEmptyState({ user }) {
                       step.isModal ? (
                         <Dialog open={isOrgSetupOpen} onOpenChange={setIsOrgSetupOpen}>
                           <DialogTrigger asChild>
-                            <Button variant="secondary" className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm rounded-xl px-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                            <Button variant="secondary" className="hidden px-6 transition-all duration-300 translate-x-2 bg-white border shadow-sm opacity-0 sm:flex hover:bg-slate-50 text-slate-700 border-slate-200 rounded-xl group-hover:opacity-100 group-hover:translate-x-0">
                               Take Action <ArrowRight className="w-4 h-4 ml-2 text-indigo-500" />
                             </Button>
                           </DialogTrigger>
@@ -242,12 +243,12 @@ export default function DashboardEmptyState({ user }) {
                         <Button 
                           onClick={() => setIsInviteHROpen(true)}
                           variant="secondary" 
-                          className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm rounded-xl px-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300"
+                          className="hidden px-6 transition-all duration-300 translate-x-2 bg-white border shadow-sm opacity-0 sm:flex hover:bg-slate-50 text-slate-700 border-slate-200 rounded-xl group-hover:opacity-100 group-hover:translate-x-0"
                         >
                           Take Action <ArrowRight className="w-4 h-4 ml-2 text-indigo-500" />
                         </Button>
                       ) : (
-                        <Button asChild variant="secondary" className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm rounded-xl px-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                        <Button asChild variant="secondary" className="hidden px-6 transition-all duration-300 translate-x-2 bg-white border shadow-sm opacity-0 sm:flex hover:bg-slate-50 text-slate-700 border-slate-200 rounded-xl group-hover:opacity-100 group-hover:translate-x-0">
                           <Link to={step.link}>
                             Take Action <ArrowRight className="w-4 h-4 ml-2 text-indigo-500" />
                           </Link>
@@ -263,35 +264,35 @@ export default function DashboardEmptyState({ user }) {
 
         {/* Quick Actions */}
         <div className="space-y-6">
-          <h3 className="font-bold text-xl text-slate-900 px-1 mb-6">Fast Actions</h3>
+          <h3 className="px-1 mb-6 text-xl font-bold text-slate-900">Fast Actions</h3>
           
           <Link to={PAGE_ROUTES.EMPLOYEES} className="block">
-            <Card className="border-0 shadow-lg shadow-indigo-100/50 hover:shadow-xl hover:shadow-indigo-200/60 transition-all duration-300 group overflow-hidden relative rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:-translate-y-1">
+            <Card className="relative overflow-hidden transition-all duration-300 border-0 shadow-lg shadow-indigo-100/50 hover:shadow-xl hover:shadow-indigo-200/60 group rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:-translate-y-1">
               <div className="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
-              <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-              <CardContent className="p-8 relative z-10 flex flex-col gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+              <div className="absolute top-0 right-0 w-32 h-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-2xl" />
+              <CardContent className="relative z-10 flex flex-col gap-4 p-8">
+                <div className="flex items-center justify-center text-white transition-transform duration-300 border shadow-inner w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border-white/20 group-hover:scale-110">
                   <UserPlus className="w-7 h-7" />
                 </div>
                 <div className="mt-2">
-                  <h4 className="font-bold text-xl text-white mb-1">
+                  <h4 className="mb-1 text-xl font-bold text-white">
                     Invite Team Member
                   </h4>
-                  <p className="text-indigo-100 font-medium">Send secure access instantly.</p>
+                  <p className="font-medium text-indigo-100">Send secure access instantly.</p>
                 </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link to={PAGE_ROUTES.SETTINGS} className="block">
-            <Card className="border border-slate-200/60 shadow-md hover:shadow-lg transition-all duration-300 group overflow-hidden relative rounded-3xl bg-white hover:-translate-y-1">
-              <CardContent className="p-8 relative z-10 flex flex-col gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 border border-slate-100 group-hover:scale-110 group-hover:bg-slate-100 group-hover:text-slate-900 transition-all duration-300">
+            <Card className="relative overflow-hidden transition-all duration-300 bg-white border shadow-md border-slate-200/60 hover:shadow-lg group rounded-3xl hover:-translate-y-1">
+              <CardContent className="relative z-10 flex flex-col gap-4 p-8">
+                <div className="flex items-center justify-center transition-all duration-300 border w-14 h-14 rounded-2xl bg-slate-50 text-slate-600 border-slate-100 group-hover:scale-110 group-hover:bg-slate-100 group-hover:text-slate-900">
                   <Settings className="w-7 h-7" />
                 </div>
                 <div className="mt-2">
-                  <h4 className="font-bold text-xl text-slate-900 mb-1">Workspace Settings</h4>
-                  <p className="text-slate-500 font-medium">Configure roles & preferences.</p>
+                  <h4 className="mb-1 text-xl font-bold text-slate-900">Workspace Settings</h4>
+                  <p className="font-medium text-slate-500">Configure roles & preferences.</p>
                 </div>
               </CardContent>
             </Card>

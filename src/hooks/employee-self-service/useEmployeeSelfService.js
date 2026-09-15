@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
-import { extractErrorMessage } from '@/lib/utils';
+import { extractErrorMessage, getRefId } from '@/lib/utils';
 import { uploadToCloudinary } from '@/utils/cloudinary';
 import { employeesApi, payrollApi, leaveApi, attendanceApi, documentsApi, onboardingApi, assetsApi, expensesApi } from '@/api';
 
@@ -11,7 +11,7 @@ const listFrom = (response) => Array.isArray(response) ? response : response?.da
 export default function useEmployeeSelfService() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const employeeId = user?.employeeId?._id || user?.employeeId?.id || user?.employee?._id || user?.employee?.id || (typeof user?.employeeId === 'string' ? user.employeeId : null);
+  const employeeId = getRefId(user?.employeeId) || getRefId(user?.employee) || null;
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -26,7 +26,7 @@ export default function useEmployeeSelfService() {
       if (!employeeId) return null;
       const emp = await employeesApi.getEmployeeById(employeeId);
       if (!emp) return null;
-      return { ...emp, id: emp._id || emp.id, full_name: emp.fullName, job_title: emp.jobTitle, department_id: emp.department?.name || emp.departmentId?.name || emp.departmentId, start_date: emp.hireDate, employment_status: emp.employmentStatus, promotion_history: emp.promotionHistory || [], status_history: emp.statusHistory || emp.status_history || [], statusHistory: emp.statusHistory || emp.status_history || [] };
+      return { ...emp, id: emp._id || emp.id, full_name: emp.fullName, job_title: emp.jobTitle, department_id: emp.department?.name || emp.departmentId?.name || emp.departmentId, manager_name: emp.managerId?.fullName || '', manager_job_title: emp.managerId?.jobTitle || '', start_date: emp.hireDate, employment_status: emp.employmentStatus, promotion_history: emp.promotionHistory || [], status_history: emp.statusHistory || emp.status_history || [], statusHistory: emp.statusHistory || emp.status_history || [] };
     },
     enabled: !!employeeId,
   });

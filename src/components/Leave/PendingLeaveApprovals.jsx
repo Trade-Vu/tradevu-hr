@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, Clock, Paperclip, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import LeaveActionDialog from './LeaveActionDialog';
 
 export default function PendingLeaveApprovals({ requests, onApprove, onReject, isPending, safeDate }) {
+  const [confirmState, setConfirmState] = useState(null); // { request, action }
+
   if (requests.length === 0) return null;
+
+  const handleConfirm = (reason) => {
+    if (!confirmState) return;
+    if (confirmState.action === 'approve') onApprove(confirmState.request);
+    else onReject(confirmState.request, reason);
+  };
 
   return (
     <Card className="border-orange-200 bg-orange-50">
@@ -38,11 +47,11 @@ export default function PendingLeaveApprovals({ requests, onApprove, onReject, i
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => onApprove(request)} disabled={isPending}>
-                    {isPending ? 'Approving...' : <><CheckCircle className="w-4 h-4 mr-1" /> Approve</>}
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => setConfirmState({ request, action: 'approve' })} disabled={isPending}>
+                    <CheckCircle className="w-4 h-4 mr-1" /> Approve
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => onReject(request)} disabled={isPending}>
-                    {isPending ? 'Rejecting...' : <><XCircle className="w-4 h-4 mr-1" /> Reject</>}
+                  <Button size="sm" variant="destructive" onClick={() => setConfirmState({ request, action: 'reject' })} disabled={isPending}>
+                    <XCircle className="w-4 h-4 mr-1" /> Reject
                   </Button>
                 </div>
               </div>
@@ -50,6 +59,14 @@ export default function PendingLeaveApprovals({ requests, onApprove, onReject, i
           </Card>
         ))}
       </CardContent>
+      <LeaveActionDialog
+        open={!!confirmState}
+        onOpenChange={(open) => !open && setConfirmState(null)}
+        action={confirmState?.action}
+        employeeName={confirmState?.request?.employee_name}
+        isPending={isPending}
+        onConfirm={handleConfirm}
+      />
     </Card>
   );
 }

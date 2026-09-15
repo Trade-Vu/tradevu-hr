@@ -222,8 +222,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const { data: employees = [] } = useQuery({
     queryKey: ['all-employees'],
-    queryFn: async () => [],
-    initialData: [],
+    queryFn: async () => {
+      const res = await employeesApi.getEmployees({ limit: 500 });
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return (Array.isArray(list) ? list : []).map(emp => ({
+        ...emp,
+        id: emp._id || emp.id,
+        full_name: emp.fullName || emp.full_name,
+        job_title: emp.jobTitle || emp.job_title,
+      }));
+    },
   });
 
   const { data: shifts = [] } = useQuery({
@@ -1293,11 +1301,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           </p>
                         </div>
                         <Badge className={
-                          leave.status === 'approved' ? 'bg-green-100 text-green-700' :
-                            leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          leave.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                            leave.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
                               'bg-yellow-100 text-yellow-700'
                         }>
-                          {leave.status}
+                          {toTitleCase(leave.status)}
                         </Badge>
                       </div>
                     ))}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leaveApi, employeesApi } from "@/api";
+import { leaveApi, employeesApi, approvalsApi } from "@/api";
+import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,8 @@ import { format } from "date-fns";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { motion } from "framer-motion";
 import { calculateWorkingDays } from "@/lib/leaveDays";
+import { toTitleCase } from "@/lib/utils";
+import LeaveActionDialog from "@/components/Leave/LeaveActionDialog";
 
 const StatsSkeleton = () => (
   <div className="grid gap-6 md:grid-cols-3">
@@ -161,8 +164,8 @@ export default function AllLeaveRequests() {
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
       const updated = data.status === 'approved'
-        ? await leaveApi.reviewRequest(id, { action: 'approved' })
-        : await leaveApi.reviewRequest(id, { action: 'rejected', rejectionReason: 'Rejected by HR' });
+        ? await approvalsApi.approveLeave(id)
+        : await approvalsApi.rejectLeave(id, data.reason || 'Rejected by HR');
 
       await createAuditLog('update', id, oldData?.employee_name, {
         before: oldData,
@@ -253,19 +256,30 @@ export default function AllLeaveRequests() {
     });
   };
 
-  const handleReject = async (leave) => {
+  const handleReject = async (leave, reason) => {
     updateLeaveMutation.mutate({
       id: leave.id,
-      data: { status: 'rejected' },
+      data: { status: 'rejected', reason },
       oldData: leave
     });
   };
 
+  const [confirmState, setConfirmState] = useState(null); // { leave, action }
+  const handleConfirmLeaveAction = (reason) => {
+    if (!confirmState) return;
+    if (confirmState.action === 'approve') handleApprove(confirmState.leave);
+    else handleReject(confirmState.leave, reason);
+  };
+
   const statusStyles = {
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    rejected: 'bg-rose-50 text-rose-700 border-rose-200',
-    cancelled: 'bg-slate-50 text-slate-700 border-slate-200',
+    PENDING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
+    PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+    PENDING_HR: 'bg-amber-50 text-amber-700 border-amber-200',
+    PENDING_SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200',
+    APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
+    CANCELLED: 'bg-slate-50 text-slate-700 border-slate-200',
+    NEEDS_INFORMATION: 'bg-blue-50 text-blue-700 border-blue-200',
   };
 
   const displayRequests = leaveRequestsData?.leaveRequests || [];
@@ -492,7 +506,7 @@ export default function AllLeaveRequests() {
                   <Clock className="w-6 h-6 text-amber-600" />
                 </div>
                 <p className="text-3xl font-bold tracking-tight text-slate-900">
-                  {displayRequests.filter(l => l.status === 'pending').length}
+                  {displayRequests.filter(l => isPendingLeaveStatus(l.status)).length}
                 </p>
                 <p className="mt-1 text-sm font-medium text-slate-500">Pending Approvals</p>
               </CardContent>
@@ -505,7 +519,7 @@ export default function AllLeaveRequests() {
                   <CheckCircle className="w-6 h-6 text-emerald-600" />
                 </div>
                 <p className="text-3xl font-bold tracking-tight text-slate-900">
-                  {displayRequests.filter(l => l.status === 'approved').length}
+                  {displayRequests.filter(l => String(l.status || '').toUpperCase() === 'APPROVED').length}
                 </p>
                 <p className="mt-1 text-sm font-medium text-slate-500">Approved This Month</p>
               </CardContent>
@@ -598,11 +612,11 @@ export default function AllLeaveRequests() {
                         </div>
                         
                         <div className="flex flex-row items-center justify-between gap-3 pl-16 md:flex-col md:items-end md:justify-start md:pl-0">
-                          <Badge className={`${statusStyles[leave.status]} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
-                            {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                          <Badge className={`${statusStyles[String(leave.status || '').toUpperCase()] || statusStyles.PENDING_APPROVAL} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
+                            {toTitleCase(leave.status)}
                           </Badge>
-                          
-                          {leave.status === 'pending' && (
+
+                          {isPendingLeaveStatus(leave.status) && (
                             <div className="flex gap-2">
                               <Button 
                                 size="sm" 
@@ -612,20 +626,20 @@ export default function AllLeaveRequests() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" 
-                                onClick={() => handleApprove(leave)}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                                onClick={() => setConfirmState({ leave, action: 'approve' })}
                               >
                                 <CheckCircle className="w-4 h-4 mr-1.5" />
                                 Approve
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700" 
-                                onClick={() => handleReject(leave)}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                                onClick={() => setConfirmState({ leave, action: 'reject' })}
                               >
                                 <XCircle className="w-4 h-4 mr-1.5" />
                                 Reject
@@ -667,6 +681,14 @@ export default function AllLeaveRequests() {
           </div>
         </motion.div>
       </div>
+      <LeaveActionDialog
+        open={!!confirmState}
+        onOpenChange={(open) => !open && setConfirmState(null)}
+        action={confirmState?.action}
+        employeeName={confirmState?.leave?.employee_name}
+        isPending={updateLeaveMutation.isPending}
+        onConfirm={handleConfirmLeaveAction}
+      />
     </motion.div>
   );
 }

@@ -6,7 +6,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leaveApi, employeesApi } from "@/api";
+import { leaveApi, employeesApi, approvalsApi } from "@/api";
+import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { uploadToCloudinary } from "@/utils/cloudinary";
@@ -18,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock, Upload, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { extractErrorMessage } from "@/lib/utils";
+import { extractErrorMessage, getRefId } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,16 +101,19 @@ export default function LeaveOverview() {
     }
   }, [leaveTypes]);
 
-  const activeEmployeeId = isAdmin && formData.employee_email 
-    ? employees.find(e => e.email === formData.employee_email)?.id 
-    : user?.employeeId;
+  const activeEmployeeId = isAdmin && formData.employee_email
+    ? employees.find(e => e.email === formData.employee_email)?.id
+    : getRefId(user?.employeeId);
 
   const { data: leaveRequests = [] } = useQuery({
-    queryKey: ['leave-requests', activeEmployeeId],
+    queryKey: ['leave-requests', isAdmin, isManager],
     queryFn: async () => {
+      // Deliberately unscoped by employeeId for admin/manager: this list feeds both
+      // "my requests" and "pending approvals" below, and approval authority for a given
+      // request is enforced server-side (assertLeaveApprovalAccess), not by this fetch.
       const payload = isAdmin || isManager
-        ? await leaveApi.getAllRequests({ page: 1, limit: 200, employeeId: activeEmployeeId })
-        : await leaveApi.getMyRequests({ page: 1, limit: 200 });
+        ? await leaveApi.getAllRequests({ page: 1, limit: 100 })
+        : await leaveApi.getMyRequests({ page: 1, limit: 100 });
 
       const list = Array.isArray(payload) ? payload : payload?.data || [];
       return list.map(l => {
@@ -132,7 +136,7 @@ export default function LeaveOverview() {
         };
       });
     },
-    enabled: !!activeEmployeeId || !!user,
+    enabled: !!user,
     initialData: [],
   });
 
@@ -246,11 +250,11 @@ export default function LeaveOverview() {
   });
 
   const updateLeaveMutation = useMutation({
-    mutationFn: async ({ id, status }) => {
+    mutationFn: async ({ id, status, reason }) => {
       if (status === 'APPROVED') {
-        return leaveApi.reviewRequest(id, { action: 'approved' });
+        return approvalsApi.approveLeave(id);
       } else if (status === 'REJECTED') {
-        return leaveApi.reviewRequest(id, { action: 'rejected', rejectionReason: 'Rejected by reviewer' });
+        return approvalsApi.rejectLeave(id, reason || 'Rejected by reviewer');
       } else if (status === 'CANCELLED') {
         return leaveApi.cancelRequest(id);
       }
@@ -301,10 +305,11 @@ export default function LeaveOverview() {
     });
   };
 
-  const handleReject = (request) => {
+  const handleReject = (request, reason) => {
     updateLeaveMutation.mutate({
       id: request.id,
-      status: 'REJECTED'
+      status: 'REJECTED',
+      reason
     });
   };
 
@@ -353,13 +358,7 @@ export default function LeaveOverview() {
   const myRequests = leaveRequests.filter(r => r.employee_email === user?.email);
   const pendingApprovals = leaveRequests.filter(r => {
     if (r.employee_email === user?.email) return false;
-    if (isAdmin) {
-      return r.status === 'PENDING' || r.status === 'PENDING_HR' || r.status === 'PENDING_SUPER_ADMIN';
-    }
-    if (isManager) {
-      return r.status === 'PENDING';
-    }
-    return false;
+    return (isAdmin || isManager) && isPendingLeaveStatus(r.status);
   });
 
   const statusColors = {

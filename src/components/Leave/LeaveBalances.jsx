@@ -30,25 +30,28 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {leaveBalances.length > 0
         ? leaveBalances.map((balance) => {
-            const type = leaveTypes.find((leaveType) => leaveType.id === balance.leaveTypeId) || { name: 'Unknown' };
+            const type = leaveTypes.find((leaveType) => leaveType.id === balance.leaveTypeId) || {
+              name: "Unknown",
+            };
             return (
               <Card key={balance.id} className="border-slate-200">
                 <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                   <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
                   <p className="my-2 text-3xl font-bold text-blue-600">{balance.available}</p>
                   <p className="text-xs text-slate-400">
-                    Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending: {balance.pending}
+                    Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending:{" "}
+                    {balance.pending}
                   </p>
                 </CardContent>
               </Card>
             );
           })
         : leaveTypes.map((type) => (
-            <Card key={type.id} className="opacity-50 border-slate-200">
+            <Card key={type.id} className="border-slate-200">
               <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
-                <p className="my-2 text-3xl font-bold text-slate-400">-</p>
-                <p className="text-xs text-slate-400">Balance not initialized</p>
+                <p className="my-2 text-3xl font-bold text-slate-400">{type?.defaultDays}</p>
+                <p className="text-xs text-slate-400">{type?.code ?? "Balance not initialized"}</p>
               </CardContent>
             </Card>
           ))}

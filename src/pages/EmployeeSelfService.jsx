@@ -162,7 +162,7 @@ export default function EmployeeSelfService() {
           hasBeenRejected={Boolean(rejectionRecord)}
           rejectionReason={rejectionRecord?.reason}
           isPendingApproval={isPendingApproval}
-          hasOnboardingTasks={service.pendingTasksCount > 0 || myTasks.length > 0}
+          hasOnboardingTasks={service.pendingTasksCount > 0}
           isSubmittingProfile={service.submitProfileMutation.isPending}
           isCompletingTasks={service.completeAllMutation.isPending}
           onRemindLater={service.handleRemindLater}

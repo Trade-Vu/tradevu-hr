@@ -8,6 +8,16 @@ export function cn(...inputs) {
 
 export const isIframe = window.self !== window.top;
 
+// Mongoose refs (e.g. user.employeeId) come back as a plain id string from some
+// endpoints and as a populated object ({ _id, fullName, ... }) from others
+// (GET /auth/me populates it). Always unwrap through this before using it as an id,
+// or it stringifies to "[object Object]" in a URL/query param.
+export function getRefId(ref) {
+  if (!ref) return undefined;
+  if (typeof ref === 'string') return ref;
+  return ref._id || ref.id || undefined;
+}
+
 // Backend enums are often stored inconsistently (MALE, Male, male, PENDING_APPROVAL...).
 // Always format through this instead of the CSS `capitalize` class, which only
 // uppercases the first letter and leaves the rest of an already-uppercase string untouched.
