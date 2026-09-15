@@ -14,7 +14,9 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { CheckCircle2, XCircle, FileText, UserCircle, CalendarRange, Eye, Inbox, Loader2, AlertCircle, Building2 } from 'lucide-react';
-import { extractErrorMessage } from '../lib/utils';
+import { extractErrorMessage, getRefId } from '../lib/utils';
+import { isPendingLeaveStatus } from '../lib/leaveStatus';
+import LeaveActionDialog from '../components/Leave/LeaveActionDialog';
 import { motion } from 'framer-motion';
 import EmployeeDetail from './EmployeeDetail';
 import UnifiedProfileReviewDialog from '../components/UnifiedProfileReviewDialog';
@@ -103,6 +105,7 @@ export default function PendingApprovals() {
   const { user } = useAuth();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedUnifiedEmployeeId, setSelectedUnifiedEmployeeId] = useState(null);
+  const [leaveConfirmState, setLeaveConfirmState] = useState(null); // { leave, action }
   
   const [showOffboardDialog, setShowOffboardDialog] = useState(false);
   const [offboardTargetId, setOffboardTargetId] = useState(null);
@@ -280,11 +283,15 @@ export default function PendingApprovals() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  // Returns a ready-to-display locale date string, or 'N/A' if val is missing/unparseable.
+  // Every call site here only ever displays the result directly - don't re-wrap it in
+  // `new Date(...)` (Invalid Date throws RangeError from .toLocaleDateString()) or call
+  // .toLocaleDateString() on it again (it's already a string).
   const safeDate = (val) => {
-    if (!val) return '';
+    if (!val) return 'N/A';
     const asNum = Number(val);
     const parsed = new Date(isNaN(asNum) ? val : asNum);
-    return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
+    return isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString();
   };
 
   if (error) return (
@@ -295,7 +302,7 @@ export default function PendingApprovals() {
   );
 
   // Filter out the logged in user so they don't approve their own profile/tasks
-  const currentUserId = user?.employeeId?._id || user?.employeeId?.id || user?.employeeId;
+  const currentUserId = getRefId(user?.employeeId);
   const allEmployees = (data?.employees || []).filter(e => {
     const empId = e.id || e._id;
     return empId !== currentUserId;
@@ -329,8 +336,8 @@ export default function PendingApprovals() {
     return false;
   });
   
-  const pendingProbationEnds = allEmployees.filter(e => 
-    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
+  const pendingProbationEnds = allEmployees.filter(e =>
+    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(e.probationEndDate) <= new Date()
   );
 
   const pendingDocuments = data?.documents?.filter(d => {
@@ -343,12 +350,7 @@ export default function PendingApprovals() {
   const pendingLeaves = data?.leaveRequests?.filter(l => {
     const leaveEmpId = l.employeeId?._id || l.employeeId?.id || l.employeeId;
     if (l.employee?.email === user?.email || leaveEmpId === currentUserId) return false;
-    
-    const statusUpper = l.status?.toUpperCase();
-    if (isAdmin) {
-      return statusUpper === 'PENDING_HR' || statusUpper === 'PENDING_SUPER_ADMIN' || statusUpper === 'PENDING';
-    }
-    return statusUpper === 'PENDING';
+    return isPendingLeaveStatus(l.status);
   }) || [];
   
   const pendingProfiles = data?.profileUpdateRequests?.filter(p => {
@@ -626,7 +628,7 @@ export default function PendingApprovals() {
                             <div>
                               <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
                               <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
-                              <p className="text-sm text-indigo-600 font-medium mt-2">Probation ended on {new Date(safeDate(emp.probationEndDate)).toLocaleDateString()}.</p>
+                              <p className="text-sm text-indigo-600 font-medium mt-2">Probation ended on {safeDate(emp.probationEndDate)}.</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                                 <Button 
@@ -708,7 +710,7 @@ export default function PendingApprovals() {
                           <div>
                             <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{prob.employee?.fullName || 'Unknown'}</h4>
                             <p className="text-sm text-slate-500 mt-1">
-                              Requested Probation Period: <span className="font-medium text-slate-700">{new Date(safeDate(prob.startDate)).toLocaleDateString()}</span> to <span className="font-medium text-slate-700">{new Date(safeDate(prob.endDate)).toLocaleDateString()}</span>
+                              Requested Probation Period: <span className="font-medium text-slate-700">{safeDate(prob.startDate)}</span> to <span className="font-medium text-slate-700">{safeDate(prob.endDate)}</span>
                             </p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -739,7 +741,7 @@ export default function PendingApprovals() {
                           <div>
                             <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{off.employee?.fullName || 'Unknown'}</h4>
                             <p className="text-sm text-slate-500 mt-1">
-                              Offboarding Type: <span className="font-semibold text-slate-700">{off.exitType}</span> • Exit Date: <span className="font-medium text-slate-700">{new Date(safeDate(off.exitDate)).toLocaleDateString()}</span>
+                              Offboarding Type: <span className="font-semibold text-slate-700">{off.exitType}</span> • Exit Date: <span className="font-medium text-slate-700">{safeDate(off.exitDate)}</span>
                             </p>
                             {off.reason && <p className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">"{off.reason}"</p>}
                           </div>
@@ -781,7 +783,7 @@ export default function PendingApprovals() {
                             {leave.totalDays} Days
                           </Badge>
                           <span className="text-sm text-slate-500">
-                            {safeDate(leave.startDate).toLocaleDateString()} <span className="text-slate-300 mx-1">→</span> {safeDate(leave.endDate).toLocaleDateString()}
+                            {safeDate(leave.startDate)} <span className="text-slate-300 mx-1">→</span> {safeDate(leave.endDate)}
                           </span>
                         </div>
                         {leave.reason && <p className="text-sm text-slate-500 italic mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">"{leave.reason}"</p>}
@@ -799,10 +801,17 @@ export default function PendingApprovals() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <RejectDialog onReject={(reason) => rejectLeave({ id: leave.id, reason, attachmentUrl: "" })} title="Reject Leave Request" />
-                        <Button 
+                        <Button
+                          variant="outline"
+                          className="text-slate-600 border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors"
+                          onClick={() => setLeaveConfirmState({ leave, action: 'reject' })}
+                        >
+                          <XCircle className="w-4 h-4" />
+                          Reject
+                        </Button>
+                        <Button
                           className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
-                          onClick={() => approveLeave({ id: leave.id })}
+                          onClick={() => setLeaveConfirmState({ leave, action: 'approve' })}
                           disabled={isApprovingLeave && leaveAppVars?.id === leave.id}
                         >
                           {isApprovingLeave && leaveAppVars?.id === leave.id ? (
@@ -916,6 +925,20 @@ export default function PendingApprovals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LeaveActionDialog
+        open={!!leaveConfirmState}
+        onOpenChange={(open) => !open && setLeaveConfirmState(null)}
+        action={leaveConfirmState?.action}
+        employeeName={leaveConfirmState ? getEmployeeName(leaveConfirmState.leave.employeeId) : ''}
+        isPending={isApprovingLeave || isRejectingLeave}
+        onConfirm={(reason) => {
+          if (!leaveConfirmState) return;
+          const { leave, action } = leaveConfirmState;
+          if (action === 'approve') approveLeave({ id: leave.id });
+          else rejectLeave({ id: leave.id, reason, attachmentUrl: '' });
+        }}
+      />
     </motion.div>
   );
 }

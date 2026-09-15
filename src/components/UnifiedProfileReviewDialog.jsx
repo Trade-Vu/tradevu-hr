@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { CheckCircle2, XCircle, FileText, UserCircle, Loader2, AlertCircle, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toTitleCase } from '@/lib/utils';
 
 const RejectInline = ({ onReject, className }) => {
   const [reason, setReason] = useState("");
@@ -197,7 +198,7 @@ export default function UnifiedProfileReviewDialog({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Gender</p>
-                  <p className="text-sm text-slate-900 font-medium capitalize">{empInfo.gender || '-'}</p>
+                  <p className="text-sm text-slate-900 font-medium">{toTitleCase(empInfo.gender) || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nationality</p>
@@ -205,7 +206,7 @@ export default function UnifiedProfileReviewDialog({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Marital Status</p>
-                  <p className="text-sm text-slate-900 font-medium capitalize">{empInfo.maritalStatus || '-'}</p>
+                  <p className="text-sm text-slate-900 font-medium">{toTitleCase(empInfo.maritalStatus) || '-'}</p>
                 </div>
               </div>
             </div>

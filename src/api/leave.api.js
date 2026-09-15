@@ -5,6 +5,18 @@ export const leaveApi = {
     return apiClient.get('/leave/types');
   },
 
+  getPublicHolidays: async () => {
+    return apiClient.get('/leave/holidays');
+  },
+
+  createPublicHoliday: async (data) => {
+    return apiClient.post('/leave/holidays', data);
+  },
+
+  deletePublicHoliday: async (id) => {
+    return apiClient.delete(`/leave/holidays/${id}`);
+  },
+
   createLeaveType: async (dto) => {
     return apiClient.post('/leave/types', dto);
   },
@@ -30,7 +42,12 @@ export const leaveApi = {
   },
 
   reviewRequest: async (id, dto) => {
-    return apiClient.put(`/leave/requests/${id}/review`, dto);
+    if (dto.action === 'approved') {
+      return apiClient.put(`/approvals/leave/${id}/approve`);
+    }
+    return apiClient.put(`/approvals/leave/${id}/reject`, {
+      reason: dto.rejectionReason,
+    });
   },
 
   cancelRequest: async (id) => {

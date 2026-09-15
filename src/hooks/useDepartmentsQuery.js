@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { departmentsApi } from '@/api';
+import { normalizeDepartment } from '@/lib/formOptions';
 
 export const DEPARTMENT_KEYS = {
   all: ['departments'],
@@ -7,10 +8,19 @@ export const DEPARTMENT_KEYS = {
   detail: (id) => [...DEPARTMENT_KEYS.all, 'detail', id],
 };
 
-export function useDepartments() {
+// Departments are shared reference data edited from Settings but consumed on
+// almost every form in the app, so every consumer must see a fresh copy the
+// moment it mounts rather than whatever was cached from an earlier visit.
+export function useDepartments(options = {}) {
   return useQuery({
     queryKey: DEPARTMENT_KEYS.lists(),
-    queryFn: () => departmentsApi.getDepartments(),
+    queryFn: async () => {
+      const res = await departmentsApi.getDepartments();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return (Array.isArray(list) ? list : []).map(normalizeDepartment);
+    },
+    refetchOnMount: 'always',
+    ...options,
   });
 }
 
