@@ -19,10 +19,10 @@ export default function EmployeeSelfServiceAlerts({
   onOpenOnboarding,
 }) {
   return (
-    <>
+    <div>
       {!hideBanner && pendingTasksCount > 0 && (
         <>
-          <div className="absolute top-0 left-0 right-0 z-50 flex flex-col items-center justify-between px-4 py-5 text-base border-b shadow-sm bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">
+          <div className="absolute top-0 left-0 right-0 flex flex-col items-center justify-between px-4 py-5 text-base border-b shadow-sm z-[100] bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">
             <div className="flex-1 pr-4 mb-3 font-medium xl:mb-0">
               You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete.
               <button type="button" className="ml-2 font-semibold text-blue-700 hover:underline" onClick={onViewTasks}>View task list</button>
@@ -72,6 +72,6 @@ export default function EmployeeSelfServiceAlerts({
           <Button className="font-medium text-white bg-indigo-600 shrink-0 hover:bg-indigo-700" onClick={onOpenOnboarding}><CheckCircle className="w-4 h-4 mr-2" />View Tasks Checklist</Button>
         </div>
       )}
-    </>
+    </div>
   );
 }

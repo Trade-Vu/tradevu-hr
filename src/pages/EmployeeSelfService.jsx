@@ -35,7 +35,7 @@ export default function EmployeeSelfService() {
   const service = useEmployeeSelfService();
   const [activeTab, setActiveTab] = useState("profile");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const { employee, employeeId, isLoadingEmployee, leaveBalances, attendance, myTasks, documents } =
+  const { employee, employeeId, isLoadingEmployee, leaveTypes, leaveBalances, attendance, myTasks, documents } =
     service;
   const isEditing = service.isEditing;
   const editData = service.editData;
@@ -48,26 +48,9 @@ export default function EmployeeSelfService() {
   const rejectionRecord = statusHistory.find(
     (item) => item.previousStatus === "PENDING_APPROVAL" && item.newStatus === "DRAFT",
   );
-  const annualBalance = leaveBalances.find((balance) =>
-    String(balance.leaveType || "")
-      .toLowerCase()
-      .includes("annual"),
-  );
-  const sickBalance = leaveBalances.find((balance) =>
-    String(balance.leaveType || "")
-      .toLowerCase()
-      .includes("sick"),
-  );
-  const annual = {
-    total: annualBalance?.allocatedDays ?? employee?.leave_balances?.annual_leave_total ?? 21,
-    used: annualBalance?.usedDays ?? employee?.leave_balances?.annual_leave_used ?? 0,
-  };
-  const sick = {
-    total: sickBalance?.allocatedDays ?? employee?.leave_balances?.sick_leave_total ?? 30,
-    used: sickBalance?.usedDays ?? employee?.leave_balances?.sick_leave_used ?? 0,
-  };
-  annual.remaining = annual.total - annual.used;
-  sick.remaining = sick.total - sick.used;
+  // Total remaining across every leave type the org has configured, not just annual/sick -
+  // LeaveTab renders the full per-type breakdown via the shared LeaveBalances component.
+  const totalLeaveRemaining = leaveBalances.reduce((sum, balance) => sum + (balance.available || 0), 0);
   const monthAttendance = attendance.filter((item) => {
     const date = new Date(item.date);
     const now = new Date();
@@ -144,7 +127,7 @@ export default function EmployeeSelfService() {
   if (isLoadingAuth || (isLoadingEmployee && employeeId)) return <LoadingState />;
   if (!employee) return <EmptyProfile onBack={() => navigate(PAGE_ROUTES.HOME)} />;
   return (
-    <div className="min-h-screen p-8 -m-4 md:-m-8 bg-gradient-to-br from-indigo-50 via-white to-blue-50 md:p-12">
+    <div className="relative min-h-screen p-8 -m-4 md:-m-8 bg-gradient-to-br from-indigo-50 via-white to-blue-50 md:p-12">
       <motion.div className="mx-auto space-y-8 max-w-7xl" initial="hidden" animate="visible">
         <motion.div variants={itemVariants}>
           <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 border rounded-full shadow-sm bg-white/80 border-slate-200/60">
@@ -176,7 +159,7 @@ export default function EmployeeSelfService() {
             stats={[
               {
                 key: "leave",
-                value: annual.remaining,
+                value: totalLeaveRemaining,
                 label: "Leave Days Remaining",
                 clickable: true,
               },
@@ -239,9 +222,8 @@ export default function EmployeeSelfService() {
             <TabsContent value="leave">
               <LeaveTab
                 balances={leaveBalances}
+                leaveTypes={leaveTypes}
                 requests={service.leaveRequests}
-                annual={annual}
-                sick={sick}
                 onOpenLeave={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
               />
             </TabsContent>

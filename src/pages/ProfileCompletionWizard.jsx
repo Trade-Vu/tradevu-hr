@@ -286,14 +286,14 @@ export default function ProfileCompletionWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-8">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50">
+      <div className="w-full max-w-2xl">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900">Welcome to Tradevu!</h1>
-          <p className="text-slate-600 mt-2">Please complete your employee profile to get started.</p>
+          <p className="mt-2 text-slate-600">Please complete your employee profile to get started.</p>
         </div>
 
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-slate-500">Step {step} of {totalSteps}</span>
@@ -315,7 +315,7 @@ export default function ProfileCompletionWizard() {
           <CardContent className="space-y-6">
             
             {step === 1 && (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-1">
                 <div className="space-y-2">
                   <Label>Private Email <span className="text-red-500">*</span></Label>
                   <Input 
@@ -378,10 +378,10 @@ export default function ProfileCompletionWizard() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={nationalityOpen}
-                        className="w-full justify-between font-normal"
+                        className="justify-between w-full font-normal"
                       >
                         {formData.nationality || "Select Nationality"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronsUpDown className="w-4 h-4 ml-2 opacity-50 shrink-0" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="start">
@@ -419,7 +419,7 @@ export default function ProfileCompletionWizard() {
 
             {step === 2 && (
               <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-4 md:grid-cols-1">
                   <div className="space-y-2">
                     <Label>Document Type <span className="text-red-500">*</span></Label>
                     <Select value={identityType} onValueChange={setIdentityType}>
@@ -444,7 +444,7 @@ export default function ProfileCompletionWizard() {
 
                 <div className="space-y-2">
                   <Label>Upload Document <span className="text-red-500">*</span></Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors">
+                  <div className="p-6 text-center transition-colors border-2 border-dashed rounded-lg border-slate-300 hover:bg-slate-50">
                     <input
                       type="file"
                       id="document-upload"
@@ -457,14 +457,14 @@ export default function ProfileCompletionWizard() {
                         }
                       }}
                     />
-                    <Label htmlFor="document-upload" className="cursor-pointer flex flex-col items-center">
-                      <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-3">
+                    <Label htmlFor="document-upload" className="flex flex-col items-center cursor-pointer">
+                      <div className="flex items-center justify-center w-12 h-12 mb-3 text-indigo-600 bg-indigo-100 rounded-full">
                         <Upload className="w-6 h-6" />
                       </div>
                       <span className="text-sm font-medium text-slate-700">
                         {documentData.file ? documentData.file.name : "Click to select a file"}
                       </span>
-                      <span className="text-xs text-slate-500 mt-1">PDF, JPG, or PNG up to 10MB</span>
+                      <span className="mt-1 text-xs text-slate-500">PDF, JPG, or PNG up to 10MB</span>
                     </Label>
                   </div>
                 </div>
@@ -475,33 +475,33 @@ export default function ProfileCompletionWizard() {
             {step === 3 && hasCSVStep && (
               <div className="space-y-6">
                 {importResults ? (
-                  <div className="text-center py-6 space-y-4">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <div className="py-6 space-y-4 text-center">
+                    <div className="flex items-center justify-center w-16 h-16 mx-auto bg-green-100 rounded-full">
                       <CheckCircle2 className="w-8 h-8 text-green-600" />
                     </div>
                     <h3 className="font-semibold text-slate-900">Import successful!</h3>
-                    <p className="text-slate-600 text-sm">{importResults.length} employees imported into the system.</p>
+                    <p className="text-sm text-slate-600">{importResults.length} employees imported into the system.</p>
                   </div>
                 ) : (
                   <>
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
+                    <div className="p-4 text-sm text-indigo-800 border border-indigo-100 bg-indigo-50 rounded-xl">
                       <p><strong>Required columns:</strong> fullName, email, jobTitle, hireDate</p>
                       <p><strong>Optional columns:</strong> department, employmentType, basicSalary</p>
                     </div>
 
                     {/* CSV Format Table */}
-                    <div className="border rounded-lg overflow-hidden bg-white">
+                    <div className="overflow-hidden bg-white border rounded-lg">
                       <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">fullName</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">email</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">jobTitle</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">department</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">hireDate</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">fullName</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">email</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">jobTitle</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">department</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">hireDate</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200 font-mono text-xs text-slate-600">
+                        <tbody className="font-mono text-xs divide-y divide-slate-200 text-slate-600">
                           <tr>
                             <td className="px-4 py-2">Jane Smith</td>
                             <td className="px-4 py-2">jane@example.com</td>
@@ -521,7 +521,7 @@ export default function ProfileCompletionWizard() {
                     </div>
 
                     <div
-                      className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+                      className="p-8 text-center transition-colors border-2 border-dashed cursor-pointer border-slate-300 rounded-xl hover:bg-slate-50"
                       onClick={() => csvInputRef.current?.click()}
                     >
                       <input
@@ -532,15 +532,15 @@ export default function ProfileCompletionWizard() {
                         onChange={handleCSVFileChange}
                         data-testid="csv-file-input"
                       />
-                      <FileSpreadsheet className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+                      <FileSpreadsheet className="w-10 h-10 mx-auto mb-3 text-indigo-400" />
                       <p className="text-sm font-medium text-slate-700">
                         {csvFile ? csvFile.name : 'Click to select a CSV file'}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">CSV format only</p>
+                      <p className="mt-1 text-xs text-slate-500">CSV format only</p>
                     </div>
 
                     {csvError && (
-                      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-sm">
+                      <div className="flex items-start gap-2 p-3 text-sm text-red-700 border border-red-100 rounded-lg bg-red-50">
                         <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                         {csvError}
                       </div>
@@ -549,12 +549,12 @@ export default function ProfileCompletionWizard() {
                     {csvPreview.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-slate-700">Preview (first {csvPreview.length} rows):</p>
-                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                        <div className="overflow-x-auto border rounded-lg border-slate-200">
                           <table className="w-full text-xs">
                             <thead className="bg-slate-50">
                               <tr>
                                 {Object.keys(csvPreview[0]).map(col => (
-                                  <th key={col} className="px-3 py-2 text-left font-medium text-slate-600">{col}</th>
+                                  <th key={col} className="px-3 py-2 font-medium text-left text-slate-600">{col}</th>
                                 ))}
                               </tr>
                             </thead>
