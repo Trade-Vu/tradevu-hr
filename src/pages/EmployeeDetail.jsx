@@ -282,6 +282,35 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     initialData: [],
   });
 
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ['leave-types'],
+    queryFn: async () => {
+      const res = await leaveApi.getLeaveTypes();
+      const list = Array.isArray(res) ? res : res?.data || [];
+      return list.map(type => ({ ...type, id: type.id || type._id }));
+    },
+    initialData: [],
+  });
+
+  const { data: employeeLeaveBalances = [] } = useQuery({
+    queryKey: ['employee-leave-balances', employeeId],
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const res = await leaveApi.getBalances(employeeId);
+      const item = Array.isArray(res) ? res : res?.data || res;
+      const balances = Array.isArray(item?.balances) ? item.balances : [];
+      return balances.map(balance => ({
+        leaveTypeId: balance.leaveTypeId?._id || balance.leaveTypeId || '',
+        leaveType: balance.leaveTypeId?.name || 'Leave',
+        total: balance.allocated ?? 0,
+        used: balance.used ?? 0,
+        remaining: balance.remaining ?? 0,
+      }));
+    },
+    enabled: !!employeeId,
+    initialData: [],
+  });
+
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['employee-leaves', employeeId],
     queryFn: async () => {
@@ -1224,64 +1253,52 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
             <div className="pt-6 border-t">
               <h3 className="text-lg font-semibold text-slate-900">Leave Balance</h3>
-              {isEditing ? (
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label>Annual Leave Total</Label>
-                    <Input
-                      type="number"
-                      value={editData.leave_balances?.annual_leave_total || 21}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        leave_balances: { ...prev.leave_balances, annual_leave_total: parseFloat(e.target.value) }
-                      }))}
-                    />
+              {/*
+                Read-only: driven by the org's actual configured leave types and this
+                employee's real LeaveBalance record (GET /leave/balances/:employeeId), not
+                the old employee.leave_balances field (which the Employee schema never had -
+                it always rendered fabricated 21/30 defaults). There's currently no backend
+                endpoint for an admin to directly set/adjust a balance - it only changes via
+                the leave approval flow - so this is display-only.
+              */}
+              {(() => {
+                const rows = employeeLeaveBalances.length > 0
+                  ? employeeLeaveBalances.map(balance => ({
+                      key: balance.leaveTypeId,
+                      name: balance.leaveType,
+                      total: balance.total,
+                      used: balance.used,
+                      remaining: balance.remaining,
+                    }))
+                  : leaveTypes.map(type => ({ key: type.id, name: type.name, total: 0, used: 0, remaining: 0 }));
+                const colors = [
+                  { bg: 'bg-blue-50', text: 'text-blue-700' },
+                  { bg: 'bg-green-50', text: 'text-green-700' },
+                  { bg: 'bg-purple-50', text: 'text-purple-700' },
+                  { bg: 'bg-amber-50', text: 'text-amber-700' },
+                  { bg: 'bg-rose-50', text: 'text-rose-700' },
+                  { bg: 'bg-cyan-50', text: 'text-cyan-700' },
+                ];
+                if (rows.length === 0) {
+                  return <p className="text-sm text-slate-500 mt-3">No leave types configured for this organization.</p>;
+                }
+                return (
+                  <div className="grid md:grid-cols-3 gap-6 mt-4">
+                    {rows.map((row, index) => {
+                      const color = colors[index % colors.length];
+                      return (
+                        <div key={row.key} className={`p-6 rounded-xl text-center ${color.bg}`}>
+                          <p className={`text-3xl font-bold ${color.text}`}>{row.remaining}</p>
+                          <p className="text-sm text-slate-600 mt-2">{row.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {row.used} used of {row.total}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Annual Leave Used</Label>
-                    <Input
-                      type="number"
-                      value={editData.leave_balances?.annual_leave_used || 0}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        leave_balances: { ...prev.leave_balances, annual_leave_used: parseFloat(e.target.value) }
-                      }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Sick Leave Total</Label>
-                    <Input
-                      type="number"
-                      value={editData.leave_balances?.sick_leave_total || 30}
-                      onChange={(e) => setEditData(prev => ({
-                        ...prev,
-                        leave_balances: { ...prev.leave_balances, sick_leave_total: parseFloat(e.target.value) }
-                      }))}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="p-6 bg-blue-50 rounded-xl text-center">
-                    <p className="text-3xl font-bold text-blue-700">
-                      {(employee.leave_balances?.annual_leave_total || 21) - (employee.leave_balances?.annual_leave_used || 0)}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-2">Annual Leave Days</p>
-                    <p className="text-xs text-slate-500">
-                      {employee.leave_balances?.annual_leave_used || 0} used of {employee.leave_balances?.annual_leave_total || 21}
-                    </p>
-                  </div>
-                  <div className="p-6 bg-green-50 rounded-xl text-center">
-                    <p className="text-3xl font-bold text-green-700">
-                      {(employee.leave_balances?.sick_leave_total || 30) - (employee.leave_balances?.sick_leave_used || 0)}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-2">Sick Leave Days</p>
-                    <p className="text-xs text-slate-500">
-                      {employee.leave_balances?.sick_leave_used || 0} used of {employee.leave_balances?.sick_leave_total || 30}
-                    </p>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="pt-6">
                 <h4 className="font-semibold text-slate-900 mb-3">Leave History</h4>

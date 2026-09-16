@@ -52,7 +52,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
   };
 
   return (
-    <Card className="max-w-3xl mx-auto border-slate-200 shadow-lg">
+    <Card className="max-w-3xl mx-auto shadow-lg border-slate-200">
       <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
         <CardTitle className="flex items-center gap-2 text-2xl">
           <UserPlus className="w-6 h-6 text-blue-600" />
@@ -63,11 +63,11 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Personal Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
               <UserPlus className="w-5 h-5" />
               Personal Information
             </h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name *</Label>
                 <Input
@@ -79,8 +79,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
+                <Label htmlFor="email" className="">
                   Email *
                 </Label>
                 <Input
@@ -93,8 +92,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="start_date" className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
+                <Label htmlFor="start_date" className="">
                   Start Date *
                 </Label>
                 <Input
@@ -110,11 +108,11 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
 
           {/* Job Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
               <Briefcase className="w-5 h-5" />
               Job Details
             </h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="job_title">Job Title *</Label>
                 <Input
@@ -158,7 +156,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
 
           {/* Onboarding Template */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
               <FileText className="w-5 h-5" />
               Onboarding Template
             </h3>
