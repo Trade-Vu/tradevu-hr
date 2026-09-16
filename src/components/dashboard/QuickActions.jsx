@@ -45,7 +45,7 @@ const colorClasses = {
 
 export default function QuickActions() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {actions.map((action, i) => {
         const colors = colorClasses[action.color] || colorClasses.blue;
         return (
@@ -57,14 +57,22 @@ export default function QuickActions() {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group bg-white rounded-xl">
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center border ${colors.bg} ${colors.border}`}>
-                    <action.icon className={`w-5 h-5 ${colors.text} group-hover:scale-110 transition-transform duration-300`} />
+              <Card className="h-full transition-all duration-300 bg-white shadow-sm cursor-pointer border-slate-200/60 hover:shadow-md group rounded-xl">
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div
+                    className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center border ${colors.bg} ${colors.border}`}
+                  >
+                    <action.icon
+                      className={`w-5 h-5 ${colors.text} group-hover:scale-110 transition-transform duration-300`}
+                    />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">{action.title}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{action.description}</p>
+                    <h3 className="text-sm font-semibold truncate transition-colors text-slate-900 group-hover:text-indigo-600">
+                      {action.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                      {action.description}
+                    </p>
                   </div>
                 </CardContent>
               </Card>

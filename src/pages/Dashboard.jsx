@@ -30,8 +30,24 @@ import EmployeeDetail from "./EmployeeDetail";
 
 import { useAuth } from "@/lib/AuthContext";
 
+const employmentStatusOptions = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "PENDING_ONBOARDING", label: "Pending Onboarding" },
+  { value: "ONGOING_ONBOARDING", label: "Ongoing Onboarding" },
+  { value: "PROBATION", label: "Probation" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "ON_LEAVE", label: "On Leave" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "TERMINATED", label: "Terminated" },
+  { value: "RESIGNED", label: "Resigned" },
+  { value: "OFFBOARDED", label: "Offboarded" },
+  { value: "ARCHIVED", label: "Archived" },
+  { value: "PENDING_APPROVAL", label: "Pending Approval" },
+];
+
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isLoadingAuth } = useAuth();
+  const canLoadDashboard = Boolean(user) && !isEmployee(user);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
@@ -69,7 +85,7 @@ export default function Dashboard() {
         progress_percentage: emp.onboardingProgress ?? (emp.employmentStatus === 'ACTIVE' ? 100 : 50),
       }));
     },
-    initialData: [],
+    enabled: canLoadDashboard,
   });
 
   const { data: paginatedData, isLoading: loadingPaginated, isFetching } = useQuery({
@@ -96,6 +112,7 @@ export default function Dashboard() {
         currentPage: meta.page ?? page,
       };
     },
+    enabled: canLoadDashboard,
     placeholderData: (previousData) => previousData,
   });
 
@@ -112,6 +129,7 @@ export default function Dashboard() {
       return Array.isArray(res) ? res : (res?.data || []);
     },
     initialData: [],
+    enabled: canLoadDashboard,
   });
 
   const { data: templates = [] } = useQuery({
@@ -121,6 +139,7 @@ export default function Dashboard() {
       return Array.isArray(res) ? res : (res?.data || []);
     },
     initialData: [],
+    enabled: canLoadDashboard,
   });
 
   // Calculate stats
@@ -151,15 +170,27 @@ export default function Dashboard() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  if (isLoadingAuth) {
+    return (
+      <div className="p-8 mx-auto space-y-6 max-w-7xl animate-pulse">
+        <div className="w-1/4 h-8 rounded bg-slate-200"></div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>)}
+        </div>
+        <div className="h-96 bg-slate-200 rounded-xl"></div>
+      </div>
+    );
+  }
+
   if (isEmployee(user) && !isAdmin(user)) {
     return <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
   }
 
-  if (loadingEmployees) {
+  if (loadingEmployees || (canLoadDashboard && !employees)) {
     return (
-      <div className="p-8 max-w-7xl mx-auto space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-8 mx-auto space-y-6 max-w-7xl animate-pulse">
+        <div className="w-1/4 h-8 rounded bg-slate-200"></div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>)}
         </div>
         <div className="h-96 bg-slate-200 rounded-xl"></div>
@@ -171,7 +202,7 @@ export default function Dashboard() {
   // For standard accounts without seed data, the CEO is the only employee (length 1) or length 0.
   if (employees.length <= 1) {
     return (
-      <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+      <div className="p-4 mx-auto sm:p-8 max-w-7xl">
         <DashboardEmptyState user={user} />
       </div>
     );
@@ -182,15 +213,15 @@ export default function Dashboard() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto"
+      className="p-4 mx-auto space-y-8 md:p-8 max-w-7xl"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <motion.div variants={itemVariants} className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <p className="text-lg font-semibold text-slate-700 tracking-tight">Welcome back! Here's what's happening with onboarding.</p>
+          <p className="text-lg font-semibold tracking-tight text-slate-700">Welcome back! Here's what's happening with onboarding.</p>
         </div>
         <Link to={`${PAGE_ROUTES.EMPLOYEES}?action=add`}>
-          <Button className="bg-slate-900 text-white hover:bg-slate-800 shadow-sm rounded-lg px-5 transition-all">
+          <Button className="px-5 text-white transition-all rounded-lg shadow-sm bg-slate-900 hover:bg-slate-800">
             <Plus className="w-4 h-4 mr-2" />
             Add New Hire
           </Button>
@@ -199,13 +230,13 @@ export default function Dashboard() {
 
       {/* Pending Approvals CEO/Admin Banner */}
       {pendingProfilesCount > 0 && (
-        <motion.div variants={itemVariants} className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <motion.div variants={itemVariants} className="flex flex-col items-start justify-between gap-4 p-5 text-white shadow-md bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl sm:flex-row sm:items-center">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md shrink-0">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-base">
+              <h3 className="text-base font-semibold">
                 {pendingProfilesCount} Employee {pendingProfilesCount === 1 ? 'Profile' : 'Profiles'} Awaiting Approval
               </h3>
               <p className="text-sm text-blue-100 mt-0.5">
@@ -214,7 +245,7 @@ export default function Dashboard() {
             </div>
           </div>
           <Link to={PAGE_ROUTES.PENDING_APPROVALS}>
-            <Button className="bg-white text-blue-900 hover:bg-blue-50 font-medium shadow-sm shrink-0">
+            <Button className="font-medium text-blue-900 bg-white shadow-sm hover:bg-blue-50 shrink-0">
               Review Approvals ({pendingProfilesCount})
             </Button>
           </Link>
@@ -222,7 +253,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 md:gap-6">
         <StatsCard
           title="Total Employees"
           value={totalEmployees}
@@ -265,35 +296,37 @@ export default function Dashboard() {
       {/* Main Content Grid */}
       <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 h-[500px] mb-8">
         {/* Employee List - Takes 2 columns */}
-        <div className="lg:col-span-2 min-h-0 flex flex-col">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col min-h-0 lg:col-span-2">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-white border shadow-sm rounded-xl border-slate-200/60">
             <div className="p-5 border-b border-slate-100 shrink-0">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Employees</h2>
-                <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                <h2 className="text-lg font-semibold tracking-tight text-slate-900">Employees</h2>
+                <div className="flex w-full gap-2 md:w-auto">
                   <div className="relative flex-1 md:flex-none">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-slate-400" />
                     <Input
                       placeholder="Search employees..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 w-full md:w-64 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                      className="w-full transition-colors pl-9 md:w-64 bg-slate-50 border-slate-200 focus:bg-white"
                     />
                   </div>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-700 transition-colors cursor-pointer"
+                    className="px-3 py-2 text-sm transition-colors border rounded-lg cursor-pointer border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-700"
                   >
                     <option value="all">All Status</option>
-                    <option value="not_started">Not Started</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
+                    {employmentStatusOptions.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
             </div>
-            <div className="flex-1 p-0 relative min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="relative flex-1 min-h-0 p-0 overflow-y-auto custom-scrollbar">
               {(loadingPaginated || isFetching) && (
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none">
                   {/* Optional spinner */}
@@ -306,7 +339,7 @@ export default function Dashboard() {
               />
             </div>
             {paginatedData?.totalPages > 1 && (
-              <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm shrink-0">
+              <div className="flex items-center justify-between p-4 text-sm border-t border-slate-100 shrink-0">
                 <span className="text-slate-500">
                   Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
                 </span>
@@ -334,16 +367,16 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity - Takes 1 column */}
-        <div className="flex flex-col gap-6 h-full min-h-0">
+        <div className="flex flex-col h-full min-h-0 gap-6">
           <CelebrationsWidget />
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex flex-col flex-1 min-h-0">
             <RecentActivity />
           </div>
         </div>
       </motion.div>
 
       <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && handleCloseDetail()}>
-        <DialogContent className="max-w-6xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-transparent" hideCloseButton>
+        <DialogContent className="max-w-6xl p-0 overflow-hidden bg-transparent border-0 shadow-2xl rounded-2xl" hideCloseButton>
           <DialogTitle className="sr-only">Employee Detail</DialogTitle>
           <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
           {selectedEmployeeId && (

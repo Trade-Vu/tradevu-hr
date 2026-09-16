@@ -3,10 +3,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { leaveApi, organizationsApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
+import { isHrAdmin, isSuperAdmin } from '@/lib/roleUtils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Switch } from '../components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { Plus, Trash2, Edit, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,6 +36,7 @@ export default function SettingsLeaveTypes() {
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [leaveTypeToDelete, setLeaveTypeToDelete] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
 
   const { data: orgData } = useQuery({
@@ -71,6 +83,19 @@ export default function SettingsLeaveTypes() {
   });
 
   const isPending = isCreating || isUpdating;
+  const canDeleteLeaveTypes = isSuperAdmin(user) || isHrAdmin(user);
+
+  const { mutate: deleteLeaveType, isPending: isDeleting } = useMutation({
+    mutationFn: (id) => leaveApi.deleteLeaveType(id),
+    onSuccess: () => {
+      toast.success('Leave Type deleted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['leaveTypes'] });
+      setLeaveTypeToDelete(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to delete leave type.');
+    },
+  });
 
   const resetForm = () => {
     setIsAdding(false);
@@ -98,6 +123,12 @@ export default function SettingsLeaveTypes() {
     });
     setEditingId(lt.id);
     setIsAdding(true);
+  };
+
+  const handleDelete = (lt) => {
+    const leaveTypeId = lt.id || lt._id;
+    if (!leaveTypeId) return;
+    setLeaveTypeToDelete({ id: leaveTypeId, name: lt.name });
   };
 
   const handleSubmit = (e) => {
@@ -193,9 +224,23 @@ export default function SettingsLeaveTypes() {
                         </div>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(lt)} className="ml-4 flex-shrink-0 text-slate-400 hover:text-indigo-600">
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <div className="ml-4 flex flex-shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(lt)} className="text-slate-400 hover:text-indigo-600">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      {canDeleteLeaveTypes && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(lt)}
+                          disabled={isDeleting}
+                          className="text-slate-400 hover:bg-red-50 hover:text-red-600"
+                          aria-label={`Delete ${lt.name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -315,6 +360,30 @@ export default function SettingsLeaveTypes() {
           )}
         </div>
       </div>
+
+      <AlertDialog
+        open={!!leaveTypeToDelete}
+        onOpenChange={(open) => !open && setLeaveTypeToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete leave type?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate {leaveTypeToDelete?.name || 'this leave type'} and remove it from available leave types. Existing records will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteLeaveType(leaveTypeToDelete.id)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete leave type'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

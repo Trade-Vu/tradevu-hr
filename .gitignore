@@ -31,3 +31,6 @@ dist-ssr
 cypress/videos
 cypress/screenshots
 cypress.env.json
+
+# Claude Code project context (local-only)
+CLAUDE.md

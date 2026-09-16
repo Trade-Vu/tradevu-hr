@@ -17,7 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getRefId } from "@/lib/utils";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
 
 /**
  * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
@@ -67,7 +68,7 @@ function parseEmployeeCSV(csvText, departments = []) {
 
 export default function ProfileCompletionWizard() {
   const { user, checkAppState } = useAuth();
-  const employeeId = user?.employeeId?._id || user?.employeeId || user?.employee?._id || user?.employee?.id;
+  const employeeId = getRefId(user?.employeeId) || getRefId(user?.employee);
   const isHRAdmin = user?.role === 'HR_ADMIN';
   // HR admins get an extra Step 3 for CSV import (if feature is enabled)
   const hasCSVStep = isHRAdmin && isFeatureEnabled('CSV_IMPORT');
@@ -107,15 +108,7 @@ export default function ProfileCompletionWizard() {
     enabled: !!employeeId
   });
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const res = await apiClient.get('/departments');
-      return { departments: Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []) };
-    },
-    enabled: hasCSVStep
-  });
-  const departments = departmentsData?.departments || [];
+  const { data: departments = [] } = useDepartments({ enabled: hasCSVStep });
 
   React.useEffect(() => {
     if (employeeDataObj?.employee) {

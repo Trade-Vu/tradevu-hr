@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
 
 export default function LeaveHeatmapCalendar() {
   const { user } = useAuth();
@@ -52,15 +53,7 @@ export default function LeaveHeatmapCalendar() {
     }
   });
 
-  const { data: departments } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const QUERY = gql`query { departments { id name } }`;
-      const data = await gqlClient.request(QUERY);
-      return data.departments || [];
-    },
-    enabled: isAdmin
-  });
+  const { data: departments } = useDepartments({ enabled: isAdmin });
 
   const { data: teamPlans, isLoading: teamPlansLoading } = useQuery({
     queryKey: ['teamLeavePlans', currentYear, selectedDepartment],

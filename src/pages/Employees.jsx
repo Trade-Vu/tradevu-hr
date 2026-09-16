@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { employeesApi, departmentsApi, onboardingApi } from "@/api";
+import { employeesApi, onboardingApi } from "@/api";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { ArrowLeft, Plus, Upload, Grid, List, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
@@ -126,19 +127,7 @@ export default function Employees() {
     initialData: [],
   });
 
-  const { data: departments = [] } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const res = await departmentsApi.getDepartments();
-      const list = Array.isArray(res) ? res : res?.data || [];
-      return list.map(d => ({
-        ...d,
-        id: d._id || d.id,
-        name: d.name,
-      }));
-    },
-    initialData: [],
-  });
+  const { data: departments = [] } = useDepartments();
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (employeeData) => {
