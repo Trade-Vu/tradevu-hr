@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const ProbationNoticeEmail = ({ fullName, status, evaluationDate, deepLink }) => {
@@ -41,7 +41,7 @@ ProbationNoticeEmail.PreviewProps = {
   fullName: 'Jane Doe',
   status: 'Confirmed',
   evaluationDate: 'August 1, 2026',
-  deepLink: 'http://localhost:5173/profile'
+  deepLink: `${getPreviewBaseUrl()}/profile`
 };
 
 export default ProbationNoticeEmail;

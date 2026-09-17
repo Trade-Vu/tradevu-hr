@@ -127,7 +127,7 @@ const renderStatusHistoryBadge = (status, isNew = false) => {
     return <Badge className="bg-amber-50 text-amber-700 border-amber-200">{label}</Badge>;
   }
   if (s === 'PENDING_APPROVAL' || s === 'PENDING_ONBOARDING' || s === 'ONGOING_ONBOARDING') {
-    return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{label}</Badge>;
+    return <Badge className="text-blue-700 border-blue-200 bg-blue-50">{label}</Badge>;
   }
   if (s === 'DRAFT') {
     return <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">{label}</Badge>;
@@ -426,9 +426,10 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const requestPromotionMutation = useMutation({
     mutationFn: async (input) => {
       return await employeesApi.updateEmployee(employeeId, {
-        jobTitle: input.jobTitle || undefined,
-        departmentId: input.departmentId || undefined,
-        employeeClass: input.employeeClass || undefined,
+        jobTitle: input.newJobTitle || undefined,
+        departmentId: input.newDepartmentId || undefined,
+        employeeClass: input.newEmployeeClass || undefined,
+        effectiveDate: input.effectiveDate || undefined,
       });
     },
     onSuccess: () => {
@@ -741,7 +742,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (isLoading || !employee) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
       </div>
     );
   }
@@ -758,15 +759,15 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const leaveDays = thisMonthAttendance.filter(a => a.status === 'leave').length;
 
   const PremiumField = ({ icon: Icon, label, value, action }) => (
-    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50/50 border border-slate-100/60 hover:bg-slate-50 transition-colors relative">
-      <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shrink-0 shadow-sm">
+    <div className="relative flex items-start gap-4 p-4 transition-colors border rounded-2xl bg-slate-50/50 border-slate-100/60 hover:bg-slate-50">
+      <div className="flex items-center justify-center w-10 h-10 bg-white border shadow-sm rounded-xl border-slate-100 shrink-0">
         <Icon className="w-5 h-5 text-indigo-500" />
       </div>
       <div className="pt-0.5 flex-1 pr-12">
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
-        <div className="font-medium text-slate-900 break-words">{value}</div>
+        <div className="font-medium break-words text-slate-900">{value}</div>
       </div>
-      {action && <div className="absolute right-4 top-1/2 -translate-y-1/2">{action}</div>}
+      {action && <div className="absolute -translate-y-1/2 right-4 top-1/2">{action}</div>}
     </div>
   );
 
@@ -795,8 +796,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               }}
             />
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-5">About</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="mb-5 text-lg font-semibold text-slate-900">About</h3>
+              <div className="grid gap-4 md:grid-cols-2">
                 {isEditing ? (
                   <>
                     <div className="space-y-2">
@@ -896,21 +897,21 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
             </div>
 
             <div className="pt-8 border-t border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900 mb-5">Contact</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="mb-5 text-lg font-semibold text-slate-900">Contact</h3>
+              <div className="grid gap-4 md:grid-cols-2">
                 <PremiumField
                   icon={Mail}
                   label="Work Email"
                   value={employee.email}
                   action={
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.email, 'work')}>
+                    <Button size="icon" variant="ghost" className="w-8 h-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.email, 'work')}>
                       <Mail className="w-4 h-4" />
                     </Button>
                   }
                 />
 
                 {isEditing ? (
-                  <div className="space-y-2 col-span-1 md:col-span-2">
+                  <div className="col-span-1 space-y-2 md:col-span-2">
                     <Label>Private Email</Label>
                     <Input
                       type="email"
@@ -925,7 +926,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     label="Private Email"
                     value={employee.private_email}
                     action={
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.private_email, 'private')}>
+                      <Button size="icon" variant="ghost" className="w-8 h-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendEmail(employee.private_email, 'private')}>
                         <Mail className="w-4 h-4" />
                       </Button>
                     }
@@ -939,10 +940,10 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   action={
                     employee.phone && (
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendSMS(employee.phone)} title="Send SMS">
+                        <Button size="icon" variant="ghost" className="w-8 h-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => handleSendSMS(employee.phone)} title="Send SMS">
                           <MessageSquare className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-green-600 hover:bg-green-50" onClick={() => handleSendWhatsApp(employee.phone)} title="Send WhatsApp">
+                        <Button size="icon" variant="ghost" className="w-8 h-8 text-slate-400 hover:text-green-600 hover:bg-green-50" onClick={() => handleSendWhatsApp(employee.phone)} title="Send WhatsApp">
                           <MessageCircle className="w-4 h-4" />
                         </Button>
                       </div>
@@ -959,7 +960,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-slate-900">Job Information</h3>
             {isEditing ? (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Job Title</Label>
                   <Input
@@ -1074,23 +1075,23 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </div>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <PremiumField icon={Briefcase} label="Job Title" value={employee.job_title} />
                 <PremiumField icon={Building} label="Department" value={employee.department_name || employee.department_id || 'Not assigned'} />
                 <PremiumField icon={FileText} label="Employment Type" value={employee.employment_type?.replace('_', ' ')} />
                 <PremiumField icon={Shield} label="Employee Class" value={employee.employeeClass || 'Permanent'} />
-                <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="bg-green-100 text-green-700 hover:bg-green-200">{employee.employment_status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge>} />
+                <PremiumField icon={CheckCircle} label="Employment Status" value={<Badge className="text-green-700 bg-green-100 hover:bg-green-200">{employee.employment_status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge>} />
                 <PremiumField icon={Calendar} label="Start Date" value={employee.start_date ? format(new Date(employee.start_date), 'MMM dd, yyyy') : 'Not set'} />
                 <PremiumField icon={User} label="Reports To" value={employee.manager_email || 'Not assigned'} />
               </div>
             )}
 
             {!isEditing && (
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                <div className="space-y-4 mb-8">
+              <div className="pt-8 mt-8 border-t border-slate-100">
+                <div className="mb-8 space-y-4">
                   <h4 className="font-medium text-slate-800">Promotion History</h4>
                   {employee.promotion_history && employee.promotion_history.length > 0 ? (
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="overflow-hidden border rounded-lg border-slate-200">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-500">
                           <tr>
@@ -1119,7 +1120,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                       </table>
                     </div>
                   ) : (
-                    <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                    <div className="p-4 text-sm border rounded-lg border-slate-200 bg-slate-50 text-slate-500">
                       No promotion history found.
                     </div>
                   )}
@@ -1128,9 +1129,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 <div className="space-y-4">
                   <h4 className="font-medium text-slate-800">Status History</h4>
                   {employee.status_history && employee.status_history.length > 0 ? (
-                    <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                    <div className="overflow-hidden bg-white border rounded-lg shadow-sm border-slate-200">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 border-b border-slate-200">
+                        <thead className="border-b bg-slate-50 border-slate-200">
                           <tr>
                             <th className="px-4 py-3 font-medium text-slate-700">Date</th>
                             <th className="px-4 py-3 font-medium text-slate-700">Previous Status</th>
@@ -1150,15 +1151,15 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                               const prevStatus = sh.previousStatus || sh.from || 'N/A';
                               const newStatus = sh.newStatus || sh.to || 'N/A';
                               return (
-                                <tr key={sh.id || sh._id || `sh-${idx}`} className="bg-white hover:bg-slate-50 transition-colors">
-                                  <td className="px-4 py-3 text-slate-600 font-mono text-xs">{formatStatusDate(rawDate)}</td>
+                                <tr key={sh.id || sh._id || `sh-${idx}`} className="transition-colors bg-white hover:bg-slate-50">
+                                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{formatStatusDate(rawDate)}</td>
                                   <td className="px-4 py-3 text-slate-600">
                                     {renderStatusHistoryBadge(prevStatus, false)}
                                   </td>
                                   <td className="px-4 py-3">
                                     {renderStatusHistoryBadge(newStatus, true)}
                                   </td>
-                                  <td className="px-4 py-3 text-slate-600 text-xs">{sh.reason || 'N/A'}</td>
+                                  <td className="px-4 py-3 text-xs text-slate-600">{sh.reason || 'N/A'}</td>
                                 </tr>
                               );
                             })}
@@ -1166,7 +1167,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                       </table>
                     </div>
                   ) : (
-                    <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                    <div className="p-4 text-sm border rounded-lg border-slate-200 bg-slate-50 text-slate-500">
                       No status history found.
                     </div>
                   )}
@@ -1181,7 +1182,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-slate-900">Contract Details</h3>
             {isEditing ? (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Contract Type</Label>
                   <Select
@@ -1243,7 +1244,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </div>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <PremiumField icon={FileText} label="Contract Type" value={employee.contract_details?.contract_type || 'Not set'} />
                 <PremiumField icon={Clock} label="Assigned Shift" value={shifts.find(s => s.id === employee.work_schedule?.shift_id)?.shift_name || 'Not assigned'} />
                 <PremiumField icon={Calendar} label="Contract Start" value={employee.contract_details?.contract_start_date ? format(new Date(employee.contract_details.contract_start_date), 'MMM dd, yyyy') : 'Not set'} />
@@ -1280,16 +1281,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   { bg: 'bg-cyan-50', text: 'text-cyan-700' },
                 ];
                 if (rows.length === 0) {
-                  return <p className="text-sm text-slate-500 mt-3">No leave types configured for this organization.</p>;
+                  return <p className="mt-3 text-sm text-slate-500">No leave types configured for this organization.</p>;
                 }
                 return (
-                  <div className="grid md:grid-cols-3 gap-6 mt-4">
+                  <div className="grid gap-6 mt-4 md:grid-cols-3">
                     {rows.map((row, index) => {
                       const color = colors[index % colors.length];
                       return (
                         <div key={row.key} className={`p-6 rounded-xl text-center ${color.bg}`}>
                           <p className={`text-3xl font-bold ${color.text}`}>{row.remaining}</p>
-                          <p className="text-sm text-slate-600 mt-2">{row.name}</p>
+                          <p className="mt-2 text-sm text-slate-600">{row.name}</p>
                           <p className="text-xs text-slate-500">
                             {row.used} used of {row.total}
                           </p>
@@ -1301,16 +1302,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               })()}
 
               <div className="pt-6">
-                <h4 className="font-semibold text-slate-900 mb-3">Leave History</h4>
+                <h4 className="mb-3 font-semibold text-slate-900">Leave History</h4>
                 {leaveRequests.length === 0 ? (
-                  <div className="text-center py-8">
+                  <div className="py-8 text-center">
                     <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                     <p className="text-slate-500">No leave requests</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {leaveRequests.map(leave => (
-                      <div key={leave.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                      <div key={leave.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                         <div>
                           <p className="font-medium text-slate-900">{leave.leave_type.replace('_', ' ')}</p>
                           <p className="text-sm text-slate-500">
@@ -1336,10 +1337,10 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
       case 'financial':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">Financial & Banking Details</h3>
               {!isEditing && ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
-                <Button onClick={() => setShowCompDialog(true)} className="bg-slate-900 text-white hover:bg-slate-800">
+                <Button onClick={() => setShowCompDialog(true)} className="text-white bg-slate-900 hover:bg-slate-800">
                   Request Compensation Update
                 </Button>
               )}
@@ -1379,7 +1380,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   <Button
                     onClick={() => requestCompensationUpdateMutation.mutate(compForm)}
                     disabled={requestCompensationUpdateMutation.isPending || !compForm.basicSalary || !compForm.reason}
-                    className="w-full bg-slate-900 text-white"
+                    className="w-full text-white bg-slate-900"
                   >
                     {requestCompensationUpdateMutation.isPending ? 'Submitting...' : 'Submit Request'}
                   </Button>
@@ -1389,7 +1390,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
             {isEditing ? (
               <>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Bank Name</Label>
                     <Input
@@ -1450,15 +1451,15 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               </>
             ) : (
               <>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-slate-600 mb-1">Basic Salary</p>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="p-4 rounded-lg bg-green-50">
+                    <p className="mb-1 text-sm text-slate-600">Basic Salary</p>
                     <p className="text-2xl font-bold text-green-700">
                       {employee.payroll_details?.basic_salary?.toLocaleString() || 0} NGN
                     </p>
                   </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-slate-600 mb-1">Total Compensation</p>
+                  <div className="p-4 rounded-lg bg-blue-50">
+                    <p className="mb-1 text-sm text-slate-600">Total Compensation</p>
                     <p className="text-2xl font-bold text-blue-700">
                       {((employee.payroll_details?.basic_salary || 0) +
                         Object.values(employee.payroll_details?.allowances || {}).reduce((sum, val) => sum + (val || 0), 0)
@@ -1467,50 +1468,50 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">Allowances</h4>
-                  <div className="grid md:grid-cols-2 gap-3">
+                  <h4 className="mb-3 font-semibold text-slate-900">Allowances</h4>
+                  <div className="grid gap-3 md:grid-cols-2">
                     {Object.entries(employee.payroll_details?.allowances || {}).map(([key, value]) => (
                       value > 0 && (
-                        <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                          <span className="text-slate-600 capitalize">{key}</span>
+                        <div key={key} className="flex justify-between p-3 rounded-lg bg-slate-50">
+                          <span className="capitalize text-slate-600">{key}</span>
                           <span className="font-medium">{value.toLocaleString()} NGN</span>
                         </div>
                       )
                     ))}
                     {Object.values(employee.payroll_details?.allowances || {}).every(val => !val) && (
-                      <p className="text-slate-500 text-sm">No allowances currently set.</p>
+                      <p className="text-sm text-slate-500">No allowances currently set.</p>
                     )}
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">Banking Information</h4>
+                  <h4 className="mb-3 font-semibold text-slate-900">Banking Information</h4>
                   <div className="space-y-3">
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Bank Name</span>
                       <span className="font-medium">{employee.payroll_details?.bank_name || 'Not set'}</span>
                     </div>
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Account Number</span>
-                      <span className="font-medium font-mono">{employee.payroll_details?.iban || 'Not set'}</span>
+                      <span className="font-mono font-medium">{employee.payroll_details?.iban || 'Not set'}</span>
                     </div>
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Pension / Tax ID</span>
                       <span className="font-medium">{employee.payroll_details?.gosi_number || 'Not set'}</span>
                     </div>
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Pension Administrator</span>
                       <span className="font-medium">{employee.pensionAdministrator || 'Not set'}</span>
                     </div>
                   </div>
                 </div>
                 <div className="mt-6">
-                  <h4 className="font-semibold text-slate-900 mb-3">Health Insurance (HMO)</h4>
+                  <h4 className="mb-3 font-semibold text-slate-900">Health Insurance (HMO)</h4>
                   <div className="space-y-3">
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">HMO Plan</span>
                       <span className="font-medium">{employee.hmoPlan || 'Not set'}</span>
                     </div>
-                    <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">HMO Provider</span>
                       <span className="font-medium">{employee.hmoProvider || 'Not set'}</span>
                     </div>
@@ -1518,8 +1519,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </div>
 
                 <div className="mt-8">
-                  <h4 className="font-semibold text-slate-900 mb-3">Salary History</h4>
-                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <h4 className="mb-3 font-semibold text-slate-900">Salary History</h4>
+                  <div className="overflow-hidden bg-white border rounded-lg border-slate-200">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1533,7 +1534,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                       <TableBody>
                         {salaryHistory.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-4 text-slate-500">No salary history recorded.</TableCell>
+                            <TableCell colSpan={5} className="py-4 text-center text-slate-500">No salary history recorded.</TableCell>
                           </TableRow>
                         ) : (
                           salaryHistory.map(history => {
@@ -1569,7 +1570,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
       case 'attendance':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900">Attendance Overview</h3>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={handlePrintAttendance}>
@@ -1587,36 +1588,36 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               </div>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="p-4 bg-green-50 rounded-lg text-center">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="p-4 text-center rounded-lg bg-green-50">
                 <p className="text-3xl font-bold text-green-700">{presentDays}</p>
-                <p className="text-sm text-slate-600 mt-1">Present</p>
+                <p className="mt-1 text-sm text-slate-600">Present</p>
               </div>
-              <div className="p-4 bg-red-50 rounded-lg text-center">
+              <div className="p-4 text-center rounded-lg bg-red-50">
                 <p className="text-3xl font-bold text-red-700">{absentDays}</p>
-                <p className="text-sm text-slate-600 mt-1">Absent</p>
+                <p className="mt-1 text-sm text-slate-600">Absent</p>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg text-center">
+              <div className="p-4 text-center rounded-lg bg-yellow-50">
                 <p className="text-3xl font-bold text-yellow-700">{lateDays}</p>
-                <p className="text-sm text-slate-600 mt-1">Late</p>
+                <p className="mt-1 text-sm text-slate-600">Late</p>
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg text-center">
+              <div className="p-4 text-center rounded-lg bg-blue-50">
                 <p className="text-3xl font-bold text-blue-700">{leaveDays}</p>
-                <p className="text-sm text-slate-600 mt-1">On Leave</p>
+                <p className="mt-1 text-sm text-slate-600">On Leave</p>
               </div>
             </div>
 
             <div className="pt-6 border-t">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Attendance Calendar - {format(new Date(), 'MMMM yyyy')}</h3>
+              <h3 className="mb-4 text-lg font-semibold text-slate-900">Attendance Calendar - {format(new Date(), 'MMMM yyyy')}</h3>
               {thisMonthAttendance.length === 0 ? (
-                <div className="text-center py-8">
+                <div className="py-8 text-center">
                   <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                   <p className="text-slate-500">No attendance records this month</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {thisMonthAttendance.map(record => (
-                    <div key={record.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div key={record.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
                       <div className="flex items-center gap-3">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         <div>
@@ -1652,7 +1653,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">Documents</h3>
               <Dialog open={showDocDialog} onOpenChange={setShowDocDialog}>
                 <DialogTrigger asChild>
@@ -1675,7 +1676,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="category">Category</Label>
-                      <select id="category" value={docForm.category} onChange={(e) => setDocForm(prev => ({ ...prev, category: e.target.value }))} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                      <select id="category" value={docForm.category} onChange={(e) => setDocForm(prev => ({ ...prev, category: e.target.value }))} className="flex items-center justify-between w-full h-10 px-3 py-2 text-sm bg-white border rounded-md border-slate-200">
                         <option value="Employment Contract">Employment Contract</option>
                         <option value="Offer Letter">Offer Letter</option>
                         <option value="Government ID">Government ID</option>
@@ -1691,7 +1692,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="visibility_level">Visibility Level</Label>
-                      <select id="visibility_level" value={docForm.visibility_level} onChange={(e) => setDocForm(prev => ({ ...prev, visibility_level: e.target.value }))} className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                      <select id="visibility_level" value={docForm.visibility_level} onChange={(e) => setDocForm(prev => ({ ...prev, visibility_level: e.target.value }))} className="flex items-center justify-between w-full h-10 px-3 py-2 text-sm bg-white border rounded-md border-slate-200">
                         <option value="hr_only">HR Admin / Super Admin (Private)</option>
                         <option value="employee">Employee & HR</option>
                         <option value="manager">Manager, Employee & HR</option>
@@ -1719,7 +1720,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
             <div className="flex gap-4 mb-6">
               <Input placeholder="Search documents..." value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} className="max-w-xs" />
-              <select value={docCategoryFilter} onChange={(e) => setDocCategoryFilter(e.target.value)} className="flex h-10 items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm w-64">
+              <select value={docCategoryFilter} onChange={(e) => setDocCategoryFilter(e.target.value)} className="flex items-center justify-between w-64 h-10 px-3 py-2 text-sm bg-white border rounded-md border-slate-200">
                 <option value="All">All Categories</option>
                 <option value="Employment Contract">Employment Contract</option>
                 <option value="Offer Letter">Offer Letter</option>
@@ -1736,16 +1737,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
             </div>
 
             {filteredDocs.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="py-12 text-center">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                 <p className="text-slate-500">No documents match.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredDocs.map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                  <div key={doc.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
                         <FileText className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
@@ -1753,7 +1754,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline">{doc.category}</Badge>
                           <Badge variant="secondary" className="bg-slate-200 text-slate-700">{doc.visibilityLevel === 'hr_only' ? 'HR Only' : doc.visibilityLevel === 'manager' ? 'Manager+' : 'Employee+'}</Badge>
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-700">v{doc.currentVersion || 1}</Badge>
+                          <Badge variant="secondary" className="text-blue-700 bg-blue-100">v{doc.currentVersion || 1}</Badge>
                           {doc.status && (
                             <Badge variant="secondary" className={
                               doc.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
@@ -1768,18 +1769,18 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           )}
                         </div>
                         {doc.rejectionReason && (
-                          <p className="text-xs text-rose-600 mt-1">Rejection reason: {doc.rejectionReason}</p>
+                          <p className="mt-1 text-xs text-rose-600">Rejection reason: {doc.rejectionReason}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {canApprove && doc.status !== 'approved' && doc.status !== 'pending_upload' && doc.file_url && (
-                        <Button size="sm" variant="ghost" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 text-xs h-8 px-2" onClick={() => approveDocumentMutation.mutate({ id: doc.id })} disabled={approveDocumentMutation.isPending}>
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => approveDocumentMutation.mutate({ id: doc.id })} disabled={approveDocumentMutation.isPending}>
                           Approve
                         </Button>
                       )}
                       {canApprove && doc.status !== 'rejected' && doc.status !== 'pending_upload' && doc.file_url && (
-                        <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs h-8 px-2" onClick={() => {
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => {
                           const reason = window.prompt("Enter rejection reason (optional):");
                           if (reason !== null) {
                             rejectDocumentMutation.mutate({ id: doc.id, notes: reason });
@@ -1835,7 +1836,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   }
                 }} className="space-y-4">
                   <div className="space-y-2">
-                    <p className="text-sm text-slate-600 mb-2">Replacing: <strong>{docToReplace?.document_name}</strong> (Current v{docToReplace?.currentVersion || 1})</p>
+                    <p className="mb-2 text-sm text-slate-600">Replacing: <strong>{docToReplace?.document_name}</strong> (Current v{docToReplace?.currentVersion || 1})</p>
                     <Label htmlFor="replace-upload">New File</Label>
                     <input type="file" onChange={handleReplaceDocUpload} className="hidden" id="replace-upload" />
                     <Button type="button" variant="outline" className="w-full" onClick={() => document.getElementById('replace-upload').click()} disabled={uploadingFile}>
@@ -1862,11 +1863,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </DialogHeader>
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                   {documentHistory.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">No previous versions.</p>
+                    <p className="py-4 text-sm text-center text-slate-500">No previous versions.</p>
                   ) : (
                     <div className="space-y-3">
                       {documentHistory.map(hist => (
-                        <div key={hist.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
+                        <div key={hist.id} className="flex items-center justify-between p-3 border rounded-lg border-slate-200">
                           <div>
                             <p className="font-medium">Version {hist.version}</p>
                             <p className="text-xs text-slate-500">Uploaded {format(!isNaN(Number(hist.createdAt)) ? new Date(Number(hist.createdAt)) : new Date(hist.createdAt), 'PPpp')}</p>
@@ -1948,17 +1949,17 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 </div>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 {Object.entries(employee.benefits || {}).map(([key, value]) => (
                   typeof value === 'boolean' && value && (
-                    <div key={key} className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
+                    <div key={key} className="flex items-center gap-3 p-4 rounded-lg bg-green-50">
                       <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-slate-900 capitalize">{key.replace('_', ' ')}</span>
+                      <span className="font-medium capitalize text-slate-900">{key.replace('_', ' ')}</span>
                     </div>
                   )
                 ))}
                 {!employee.benefits || Object.values(employee.benefits).every(v => !v) && (
-                  <div className="col-span-2 text-center py-8">
+                  <div className="col-span-2 py-8 text-center">
                     <Gift className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                     <p className="text-slate-500">No benefits assigned</p>
                   </div>
@@ -1971,21 +1972,21 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
       case 'assets':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">Assigned Assets</h3>
             </div>
 
             {assets.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="py-12 text-center">
                 <Laptop className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                 <p className="text-slate-500">No assets assigned</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {assets.map(asset => (
-                  <div key={asset.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                  <div key={asset.id} className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
                         <Laptop className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
@@ -1994,7 +1995,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-green-100 text-green-700">{asset.assignment_status || 'Active'}</Badge>
+                      <Badge className="text-green-700 bg-green-100">{asset.assignment_status || 'Active'}</Badge>
                       <Dialog open={assetToRemove?.id === asset.id} onOpenChange={(open) => !open && setAssetToRemove(null)}>
                         <DialogTrigger asChild>
                           <Button size="sm" variant="ghost" onClick={() => setAssetToRemove(asset)}>
@@ -2028,14 +2029,14 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
             <h3 className="text-lg font-semibold text-slate-900">Performance Evaluations</h3>
 
             {evaluations.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="py-12 text-center">
                 <TrendingUp className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                 <p className="text-slate-500">No performance evaluations yet</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {evaluations.map(evaluation => (
-                  <div key={evaluation.id} className="p-5 bg-slate-50 rounded-lg border border-slate-200">
+                  <div key={evaluation.id} className="p-5 border rounded-lg bg-slate-50 border-slate-200">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
@@ -2073,12 +2074,12 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
                     {evaluation.competencies && Object.keys(evaluation.competencies).length > 0 && (
                       <div className="mb-3">
-                        <p className="text-sm font-medium text-slate-700 mb-2">Competencies:</p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <p className="mb-2 text-sm font-medium text-slate-700">Competencies:</p>
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                           {Object.entries(evaluation.competencies).map(([key, value]) => (
                             value > 0 && (
                               <div key={key} className="flex items-center justify-between text-sm">
-                                <span className="text-slate-600 capitalize">{key.replace('_', ' ')}:</span>
+                                <span className="capitalize text-slate-600">{key.replace('_', ' ')}:</span>
                                 <span className="font-medium text-slate-900">{value}/5</span>
                               </div>
                             )
@@ -2089,20 +2090,20 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
                     {evaluation.strengths && (
                       <div className="mb-3">
-                        <p className="text-sm font-medium text-slate-700 mb-1">Strengths:</p>
+                        <p className="mb-1 text-sm font-medium text-slate-700">Strengths:</p>
                         <p className="text-sm text-slate-600">{evaluation.strengths}</p>
                       </div>
                     )}
 
                     {evaluation.areas_for_improvement && (
                       <div className="mb-3">
-                        <p className="text-sm font-medium text-slate-700 mb-1">Areas for Improvement:</p>
+                        <p className="mb-1 text-sm font-medium text-slate-700">Areas for Improvement:</p>
                         <p className="text-sm text-slate-600">{evaluation.areas_for_improvement}</p>
                       </div>
                     )}
 
                     {evaluation.document_url && (
-                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200">
+                      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-200">
                         <FileText className="w-4 h-4 text-slate-500" />
                         <a
                           href={evaluation.document_url}
@@ -2135,7 +2136,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               />
             ) : (
               <div className="p-4 bg-slate-50 rounded-lg min-h-[200px]">
-                <p className="text-slate-700 whitespace-pre-wrap">{employee.notes || 'No notes yet'}</p>
+                <p className="whitespace-pre-wrap text-slate-700">{employee.notes || 'No notes yet'}</p>
               </div>
             )}
           </div>
@@ -2169,7 +2170,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
       default:
         return (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <p className="text-slate-500">Section under development</p>
           </div>
         );
@@ -2179,7 +2180,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
       </div>
     );
   }
@@ -2187,9 +2188,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (isError) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center p-8 bg-white rounded-xl shadow border border-red-200">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Employee</h2>
-          <p className="text-slate-600 mb-4">{error?.message || "Failed to fetch employee details"}</p>
+        <div className="p-8 text-center bg-white border border-red-200 shadow rounded-xl">
+          <h2 className="mb-2 text-xl font-semibold text-red-600">Error Loading Employee</h2>
+          <p className="mb-4 text-slate-600">{error?.message || "Failed to fetch employee details"}</p>
           <Button onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       </div>
@@ -2199,9 +2200,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (!employee) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center p-8 bg-white rounded-xl shadow border border-slate-200">
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Employee Not Found</h2>
-          <p className="text-slate-600 mb-4">The employee you're looking for doesn't exist or you don't have access.</p>
+        <div className="p-8 text-center bg-white border shadow rounded-xl border-slate-200">
+          <h2 className="mb-2 text-xl font-semibold text-slate-800">Employee Not Found</h2>
+          <p className="mb-4 text-slate-600">The employee you're looking for doesn't exist or you don't have access.</p>
         </div>
       </div>
     );
@@ -2227,20 +2228,20 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const content = (
     <motion.div variants={itemVariants} className={`w-full ${isModal ? 'h-full flex flex-col flex-1 min-h-0' : ''}`}>
       <Card className={`border-slate-200/60 overflow-hidden ${isModal ? 'shadow-none border-0 h-full rounded-none flex flex-col bg-white flex-1 min-h-0' : 'shadow-xl shadow-slate-200/40 rounded-2xl bg-white/70 backdrop-blur-md'}`}>
-        <div className="bg-slate-900 text-white relative border-b border-slate-800">
+        <div className="relative text-white border-b bg-slate-900 border-slate-800">
           {/* Subtle background pattern/gradient */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 -mt-20 -mr-20 rounded-full bg-indigo-500/10 blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 -mb-20 -ml-20 rounded-full w-80 h-80 bg-blue-500/10 blur-3xl"></div>
           </div>
 
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 md:p-8 relative z-10 gap-4">
+          <div className="relative z-10 flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center md:p-8">
             <div className="flex items-center gap-5">
-              <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 shadow-xl overflow-hidden shrink-0">
+              <div className="flex items-center justify-center w-20 h-20 overflow-hidden border shadow-xl bg-slate-800 rounded-2xl border-slate-700 shrink-0">
                 {employee.avatar_url ? (
-                  <img src={employee.avatar_url} alt={employee.full_name} className="w-full h-full object-cover" />
+                  <img src={employee.avatar_url} alt={employee.full_name} className="object-cover w-full h-full" />
                 ) : (
-                  <span className="text-3xl text-indigo-400 font-bold">
+                  <span className="text-3xl font-bold text-indigo-400">
                     {employee.full_name.charAt(0).toUpperCase()}
                   </span>
                 )}
@@ -2255,9 +2256,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent hidden sm:flex">
+              {/* <Button variant="outline" className="hidden bg-transparent border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 sm:flex">
                 <MessageSquare className="w-4 h-4 mr-2" /> Message
-              </Button>
+              </Button> */}
               {['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -2318,7 +2319,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           </div>
 
           <div className={`flex-1 p-8 ${isModal ? 'overflow-y-auto' : ''}`}>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-slate-900">
                 {menuItems.find(m => m.id === activeSection)?.label}
               </h2>
@@ -2350,14 +2351,14 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
             {canApprove && isPendingApprovalOrDraft && (
               <div className="mb-6">
-                <Card className="border-blue-200 bg-blue-50/90 shadow-sm rounded-xl overflow-hidden">
-                  <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <Card className="overflow-hidden border-blue-200 shadow-sm bg-blue-50/90 rounded-xl">
+                  <CardContent className="flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center">
                     <div>
-                      <h3 className="font-semibold text-blue-950 flex items-center gap-2">
+                      <h3 className="flex items-center gap-2 font-semibold text-blue-950">
                         <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
                         {isDraft ? "Draft Employee Profile" : "Pending Profile Approval"}
                       </h3>
-                      <p className="text-sm text-blue-800 mt-1">
+                      <p className="mt-1 text-sm text-blue-800">
                         {isDraft
                           ? "This employee profile is currently in Draft status. You can review their details and approve/activate their profile to change their status to Active."
                           : "This employee has completed their profile data and submitted it for review. Approve to activate their profile, or request revisions."}
@@ -2366,13 +2367,13 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <div className="flex items-center gap-2.5 shrink-0">
                       <Button
                         variant="outline"
-                        className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        className="text-red-700 border-red-200 hover:bg-red-50 hover:text-red-800"
                         onClick={() => setShowRejectProfileDialog(true)}
                       >
                         Request Revision
                       </Button>
                       <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                        className="text-white bg-blue-600 shadow-sm hover:bg-blue-700"
                         disabled={isApprovingProfile}
                         onClick={async () => {
                           try {
@@ -2381,9 +2382,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                             toast.success("Employee profile approved and activated!");
                             queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
                             queryClient.invalidateQueries({ queryKey: ['employees'] });
-                            queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
-                            queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
-                            queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
+                            // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
                           } catch (err) {
                             toast.error(extractErrorMessage(err, "Failed to approve employee data."));
                             console.error(err);
@@ -2420,7 +2419,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 onChange={(e) => setPromoteForm({ ...promoteForm, jobTitle: e.target.value })}
                 placeholder="e.g. Senior Software Engineer"
               />
-              {employee.job_title && <p className="text-xs text-slate-500 mt-1">Current: {employee.job_title}</p>}
+              {employee.job_title && <p className="mt-1 text-xs text-slate-500">Current: {employee.job_title}</p>}
             </div>
             <div className="space-y-2">
               <Label>New Department</Label>
@@ -2435,7 +2434,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   ))}
                 </SelectContent>
               </Select>
-              {employee.department_name && <p className="text-xs text-slate-500 mt-1">Current: {employee.department_name}</p>}
+              {employee.department_name && <p className="mt-1 text-xs text-slate-500">Current: {employee.department_name}</p>}
             </div>
 
             <div className="space-y-2">
@@ -2451,9 +2450,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   ))}
                 </SelectContent>
               </Select>
-              {employee.employeeClass && <p className="text-xs text-slate-500 mt-1">Current: {employee.employeeClass}</p>}
+              {employee.employeeClass && <p className="mt-1 text-xs text-slate-500">Current: {employee.employeeClass}</p>}
             </div>
-            <div className="flex items-center space-x-2 mt-4">
+            <div className="flex items-center mt-4 space-x-2">
               <Checkbox
                 id="isHead"
                 checked={promoteForm.isHeadOfDepartment}
@@ -2484,7 +2483,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 });
               }}
               disabled={requestPromotionMutation.isPending || (!promoteForm.jobTitle && !promoteForm.employeeClass)}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="w-full text-white bg-indigo-600 hover:bg-indigo-700"
             >
               {requestPromotionMutation.isPending ? 'Requesting...' : 'Confirm Promotion'}
             </Button>
@@ -2510,7 +2509,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               <Label>Reason</Label>
               <Textarea value={suspendForm.reason} onChange={e => setSuspendForm({ ...suspendForm, reason: e.target.value })} placeholder="Reason for suspension..." />
             </div>
-            <div className="flex items-center space-x-2 py-2">
+            <div className="flex items-center py-2 space-x-2">
               <Checkbox id="sa-approve" checked={suspendForm.superAdminApproved} onCheckedChange={c => setSuspendForm({ ...suspendForm, superAdminApproved: !!c })} />
               <Label htmlFor="sa-approve">Super Admin Approved</Label>
             </div>
@@ -2530,7 +2529,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 setShowSuspendDialog(false);
               }}
               disabled={suspendEmployeeMutation.isPending || !suspendForm.superAdminApproved}
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+              className="w-full text-white bg-amber-600 hover:bg-amber-700"
             >
               Confirm Suspension
             </Button>
@@ -2568,7 +2567,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowOffboardDialog(false)}>Cancel</Button>
             <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="text-white bg-red-600 hover:bg-red-700"
               onClick={() => {
                 requestOffboardingMutation.mutate({
                   id: employee.id,
@@ -2615,7 +2614,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowProbationDialog(false)}>Cancel</Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="text-white bg-indigo-600 hover:bg-indigo-700"
               onClick={() => {
                 requestProbationMutation.mutate({
                   data: {
@@ -2640,7 +2639,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <DialogHeader>
             <DialogTitle>Request Profile Revision</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="py-4 space-y-4">
             <p className="text-sm text-slate-600">
               Provide feedback for the employee on what details need to be corrected or updated. Their profile status will return to Draft.
             </p>
@@ -2657,7 +2656,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRejectProfileDialog(false)}>Cancel</Button>
             <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="text-white bg-red-600 hover:bg-red-700"
               disabled={isRejectingProfile}
               onClick={async () => {
                 try {
@@ -2668,9 +2667,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                   setRejectProfileReason('');
                   queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
                   queryClient.invalidateQueries({ queryKey: ['employees'] });
-                  queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
-                  queryClient.invalidateQueries({ queryKey: ['pending-approvals-counts'] });
-                  queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
+                  // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
                 } catch (err) {
                   toast.error(extractErrorMessage(err, "Failed to request profile revision."));
                   console.error(err);
@@ -2696,7 +2693,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         className="h-[85vh] flex flex-col relative bg-white w-full rounded-2xl overflow-hidden"
       >
         {onClose && (
-          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 z-50 rounded-full bg-slate-900/50 backdrop-blur-sm border border-slate-700 transition-all shadow-sm" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="absolute z-50 transition-all border rounded-full shadow-sm top-4 right-4 text-slate-400 hover:text-white hover:bg-slate-800 bg-slate-900/50 backdrop-blur-sm border-slate-700" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         )}
@@ -2706,9 +2703,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4 md:p-8">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-indigo-50 via-white to-blue-50 md:p-8">
       <motion.div
-        className="max-w-7xl mx-auto space-y-6"
+        className="mx-auto space-y-6 max-w-7xl"
         variants={containerVariants}
         initial="hidden"
         animate="visible"

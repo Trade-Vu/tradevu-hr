@@ -15,4 +15,5 @@ export { default as usersApi } from './users.api';
 export { default as auditLogsApi } from './auditLogs.api';
 export { default as projectsApi } from './projects.api';
 export { default as approvalsApi } from './approvals.api';
+export { default as notificationsApi } from './notifications.api';
 

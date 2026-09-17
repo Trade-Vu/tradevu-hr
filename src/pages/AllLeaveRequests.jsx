@@ -177,7 +177,7 @@ export default function AllLeaveRequests() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setEditingLeave(null);
       setShowForm(false);

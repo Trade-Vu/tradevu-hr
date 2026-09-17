@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Send } from 'lucide-react';
+import { CheckCircle, Send, PartyPopper, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function EmployeeSelfServiceAlerts({
@@ -17,9 +17,36 @@ export default function EmployeeSelfServiceAlerts({
   onCompleteAll,
   onSubmitForReview,
   onOpenOnboarding,
+  notifications = [],
+  onDismissNotification,
 }) {
   return (
-    <div>
+    <div className="space-y-4">
+      {notifications.map((notification) => {
+        const isPromotion = notification.type === 'PROMOTION';
+        return (
+          <div
+            key={notification.id}
+            className={`flex items-start justify-between gap-4 p-5 border shadow-sm rounded-2xl ${isPromotion ? 'border-purple-200 bg-purple-50/90 text-purple-900' : 'border-blue-200 bg-blue-50/90 text-blue-900'}`}
+          >
+            <div className="flex items-start gap-3">
+              {isPromotion ? <PartyPopper className="w-5 h-5 mt-0.5 shrink-0" /> : <Info className="w-5 h-5 mt-0.5 shrink-0" />}
+              <div>
+                <h3 className="text-lg font-semibold">{notification.title}</h3>
+                <p className={`mt-1 text-sm ${isPromotion ? 'text-purple-700' : 'text-blue-700'}`}>{notification.message}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="p-1 rounded-full shrink-0 hover:bg-black/5"
+              onClick={() => onDismissNotification?.(notification.id)}
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
       {!hideBanner && pendingTasksCount > 0 && (
         <>
           <div className="absolute top-0 left-0 right-0 flex flex-col items-center justify-between px-4 py-5 text-base border-b shadow-sm z-[100] bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">

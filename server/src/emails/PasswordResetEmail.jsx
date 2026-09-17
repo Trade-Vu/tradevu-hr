@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section, Hr } from '@react-email/components';
 
 export const PasswordResetEmail = ({ userName, resetLink }) => {
@@ -46,7 +46,7 @@ export const PasswordResetEmail = ({ userName, resetLink }) => {
 
 PasswordResetEmail.PreviewProps = {
   userName: 'Chiza',
-  resetLink: 'https://staging.hr.tradevu.co/resetpassword?token=preview-token-456',
+  resetLink: `${getPreviewBaseUrl()}/resetpassword?token=preview-token-456`,
 };
 
 export default PasswordResetEmail;

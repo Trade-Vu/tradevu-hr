@@ -119,7 +119,7 @@ export default function PendingApprovals() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['departments'] });
   };

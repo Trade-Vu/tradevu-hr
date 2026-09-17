@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Section, Hr, Button } from '@react-email/components';
 
 export const ExitNoticeEmail = ({ fullName, exitType, exitDate, deepLink }) => {
@@ -50,7 +50,7 @@ ExitNoticeEmail.PreviewProps = {
   fullName: 'Jane Doe',
   exitType: 'RESIGNATION',
   exitDate: 'August 15, 2026',
-  deepLink: 'http://localhost:5173/offboarding'
+  deepLink: `${getPreviewBaseUrl()}/offboarding`
 };
 
 export default ExitNoticeEmail;

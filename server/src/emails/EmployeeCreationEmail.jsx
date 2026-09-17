@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword, buttonText }) => {
@@ -43,7 +43,7 @@ export const EmployeeCreationEmail = ({ fullName, loginLink, temporaryPassword, 
 
 EmployeeCreationEmail.PreviewProps = {
   fullName: 'Jane Doe',
-  loginLink: 'http://localhost:5173/resetpassword?token=XYZ',
+  loginLink: `${getPreviewBaseUrl()}/resetpassword?token=XYZ`,
   buttonText: 'Set Your Password'
 };
 

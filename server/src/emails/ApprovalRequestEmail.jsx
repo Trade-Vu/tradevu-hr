@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const ApprovalRequestEmail = ({ fullName, message, deepLink }) => {
@@ -34,7 +34,7 @@ export const ApprovalRequestEmail = ({ fullName, message, deepLink }) => {
 ApprovalRequestEmail.PreviewProps = {
   fullName: 'Admin',
   message: 'John Doe has completed their profile setup and is awaiting review.',
-  deepLink: 'http://localhost:5173/PendingApprovals'
+  deepLink: `${getPreviewBaseUrl()}/PendingApprovals`
 };
 
 export default ApprovalRequestEmail;

@@ -64,6 +64,26 @@ export const leaveApi = {
     }
     return apiClient.get(`/leave/balances/${employeeId}`, { params: year ? { year } : {} });
   },
+
+  submitLeavePlan: async (year, plannedDates) => {
+    return apiClient.post('/leave/plans', { year, plannedDates });
+  },
+
+  getMyLeavePlan: async (year) => {
+    return apiClient.get('/leave/plans/my', { params: year ? { year } : {} });
+  },
+
+  getTeamLeavePlans: async (year, departmentId) => {
+    return apiClient.get('/leave/plans/team', { params: { year, ...(departmentId ? { departmentId } : {}) } });
+  },
+
+  reviewLeavePlan: async (id, dto) => {
+    return apiClient.put(`/leave/plans/${id}/review`, dto);
+  },
+
+  getLeaveCalendar: async (year, departmentId) => {
+    return apiClient.get('/leave/calendar', { params: { year, ...(departmentId ? { departmentId } : {}) } });
+  },
 };
 
 export default leaveApi;
