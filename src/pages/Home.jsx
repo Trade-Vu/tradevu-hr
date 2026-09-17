@@ -43,7 +43,7 @@ export default function Home() {
       <div className="pt-32 pb-20 sm:pt-40 sm:pb-24 overflow-hidden relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-100/50 rounded-full blur-3xl -z-10 opacity-70"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8">
+          <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-8">
             The modern HR OS for <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
               growing enterprises
@@ -72,7 +72,7 @@ export default function Home() {
       <div className="py-24 bg-white border-y border-slate-100 relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Everything you need to run your team</h2>
+            <h2 className="font-heading text-3xl font-bold text-slate-900 tracking-tight">Everything you need to run your team</h2>
             <p className="mt-4 text-lg text-slate-600">Powerful tools designed to save you time and keep your data secure.</p>
           </div>
           
@@ -81,7 +81,7 @@ export default function Home() {
               <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6">
                 <Users className="w-6 h-6 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">Employee Directory</h3>
+              <h3 className="font-heading text-xl font-semibold text-slate-900 mb-3">Employee Directory</h3>
               <p className="text-slate-600 leading-relaxed">Keep all your employee data organized, secure, and easily accessible from anywhere.</p>
             </div>
             
@@ -89,7 +89,7 @@ export default function Home() {
               <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6">
                 <Zap className="w-6 h-6 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">Automated Payroll</h3>
+              <h3 className="font-heading text-xl font-semibold text-slate-900 mb-3">Automated Payroll</h3>
               <p className="text-slate-600 leading-relaxed">Run payroll in minutes with automated tax calculations and direct deposits.</p>
             </div>
             
@@ -97,7 +97,7 @@ export default function Home() {
               <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6">
                 <Building2 className="w-6 h-6 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">Self-Service Portal</h3>
+              <h3 className="font-heading text-xl font-semibold text-slate-900 mb-3">Self-Service Portal</h3>
               <p className="text-slate-600 leading-relaxed">Empower employees to manage their own time off, payslips, and personal details.</p>
             </div>
           </div>

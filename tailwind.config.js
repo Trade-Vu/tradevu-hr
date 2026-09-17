@@ -4,6 +4,10 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['"Public Sans"', 'system-ui', '-apple-system', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
+  			heading: ['"Bricolage Grotesque"', 'system-ui', '-apple-system', 'Avenir', 'Helvetica', 'Arial', 'sans-serif']
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
