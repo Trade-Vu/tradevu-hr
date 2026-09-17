@@ -13,18 +13,23 @@ import {
 } from '@react-email/components';
 import React from 'react';
 
-export const BaseTemplate = ({ children, previewText, headerTitle = "Tradevu HR" }) => {
-  const currentYear = new Date().getFullYear();
-  
-  // Safely get base URL for images
-  let baseUrl = 'https://trade-hriscp.vercel.app';
+// Shared by BaseTemplate (image asset URLs) and every template's PreviewProps (sample
+// links shown in `npm run email:dev`), so preview links track FRONTEND_URL instead of
+// each file hardcoding its own localhost/staging URL.
+export const getPreviewBaseUrl = () => {
   try {
     if (typeof process !== 'undefined' && process.env.FRONTEND_URL) {
-      baseUrl = process.env.FRONTEND_URL;
+      return process.env.FRONTEND_URL;
     }
   } catch (e) {
     // Ignore errors in environments without process
   }
+  return 'https://trade-hriscp.vercel.app';
+};
+
+export const BaseTemplate = ({ children, previewText, headerTitle = "Tradevu HR" }) => {
+  const currentYear = new Date().getFullYear();
+  const baseUrl = getPreviewBaseUrl();
 
   return (
     <Html>

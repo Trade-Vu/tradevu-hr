@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { departmentsApi, employeesApi } from "@/api";
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
@@ -24,6 +24,7 @@ export default function SettingsDepartments() {
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [deptForm, setDeptForm] = useState({ name: '', code: '', headEmployeeId: 'none' });
   const [selectedDeptId, setSelectedDeptId] = useState(null);
+  const [capacityDraft, setCapacityDraft] = useState('');
 
   const { data: rawDepartments = [], isLoading: deptLoading } = useDepartments();
 
@@ -62,6 +63,10 @@ export default function SettingsDepartments() {
   });
 
   const selectedDept = departments.find(d => d.id === selectedDeptId) || null;
+
+  useEffect(() => {
+    setCapacityDraft(selectedDept?.maxConcurrentLeave ?? '');
+  }, [selectedDeptId]);
 
   const createDeptMutation = useMutation({
     mutationFn: async (data) => {
@@ -111,8 +116,8 @@ export default function SettingsDepartments() {
 
   const updateDeptMutation = useMutation({
     mutationFn: async ({ id, headEmployeeId }) => {
-      return await departmentsApi.updateDepartment(id, { 
-        managerId: headEmployeeId && headEmployeeId !== 'none' ? headEmployeeId : null 
+      return await departmentsApi.updateDepartment(id, {
+        managerId: headEmployeeId && headEmployeeId !== 'none' ? headEmployeeId : null
       });
     },
     onSuccess: () => {
@@ -121,6 +126,19 @@ export default function SettingsDepartments() {
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to update department head");
+    }
+  });
+
+  const updateCapacityMutation = useMutation({
+    mutationFn: async ({ id, maxConcurrentLeave }) => {
+      return await departmentsApi.updateDepartment(id, { maxConcurrentLeave });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast.success("Leave capacity updated");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update leave capacity");
     }
   });
 
@@ -286,6 +304,39 @@ export default function SettingsDepartments() {
                         </div>
                         <p className="text-sm font-semibold text-slate-900">{selectedDept.employees?.length || 0} Employees</p>
                       </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 mb-1.5">Leave Capacity</p>
+                      {(currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="No limit"
+                            value={capacityDraft}
+                            onChange={(e) => setCapacityDraft(e.target.value)}
+                            className="w-24 bg-white"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={updateCapacityMutation.isPending}
+                            onClick={() => updateCapacityMutation.mutate({
+                              id: selectedDept.id,
+                              maxConcurrentLeave: capacityDraft === '' ? null : Number(capacityDraft),
+                            })}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedDept.maxConcurrentLeave ? `${selectedDept.maxConcurrentLeave} people max` : 'No limit set'}
+                        </p>
+                      )}
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Max employees who can be off on the same day before the Annual Leave Planner flags a conflict.
+                      </p>
                     </div>
                   </div>
 

@@ -116,7 +116,7 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[1rem] flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-600/20 transform hover:scale-105 transition-transform">
               <Building2 className="w-7 h-7 text-white" />
             </div>
-            <CardTitle className="text-2xl sm:text-3xl font-extrabold mb-1.5 tracking-tight text-slate-900">Welcome to EonHR! 🎉</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl font-extrabold mb-1.5 tracking-tight text-slate-900">Welcome to {orgData?.name || 'Tradevu HR'}! 🎉</CardTitle>
             <p className="text-sm sm:text-base text-slate-500 font-medium">Let's set up your organization in just a few steps</p>
           </div>
         </CardHeader>

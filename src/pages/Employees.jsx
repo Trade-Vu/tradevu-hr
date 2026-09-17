@@ -19,27 +19,27 @@ import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const CardSkeleton = () => (
-  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
     {Array(6).fill(0).map((_, i) => (
       <div key={i} className="h-[280px] bg-white border border-slate-100 rounded-2xl shadow-sm p-6 flex flex-col animate-pulse">
         <div className="flex items-start gap-4 mb-5">
-          <div className="w-14 h-14 bg-slate-100 rounded-full shrink-0"></div>
-          <div className="flex-1 space-y-2 py-1">
-            <div className="h-4 bg-slate-100 rounded w-3/4"></div>
+          <div className="rounded-full w-14 h-14 bg-slate-100 shrink-0"></div>
+          <div className="flex-1 py-1 space-y-2">
+            <div className="w-3/4 h-4 rounded bg-slate-100"></div>
             <div className="flex gap-2">
-              <div className="h-4 bg-slate-100 rounded w-1/4"></div>
-              <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+              <div className="w-1/4 h-4 rounded bg-slate-100"></div>
+              <div className="w-1/3 h-4 rounded bg-slate-100"></div>
             </div>
           </div>
         </div>
-        <div className="space-y-3 mb-auto">
-          <div className="flex gap-3 items-center"><div className="w-6 h-6 bg-slate-100 rounded-md"></div><div className="h-3 bg-slate-100 rounded w-2/3"></div></div>
-          <div className="flex gap-3 items-center"><div className="w-6 h-6 bg-slate-100 rounded-md"></div><div className="h-3 bg-slate-100 rounded w-1/2"></div></div>
-          <div className="flex gap-3 items-center"><div className="w-6 h-6 bg-slate-100 rounded-md"></div><div className="h-3 bg-slate-100 rounded w-1/3"></div></div>
+        <div className="mb-auto space-y-3">
+          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-2/3 h-3 rounded bg-slate-100"></div></div>
+          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-1/2 h-3 rounded bg-slate-100"></div></div>
+          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-1/3 h-3 rounded bg-slate-100"></div></div>
         </div>
-        <div className="pt-4 border-t border-slate-100 mt-4 flex justify-between">
-          <div className="h-3 bg-slate-100 rounded w-1/4"></div>
-          <div className="h-3 bg-slate-100 rounded w-1/4"></div>
+        <div className="flex justify-between pt-4 mt-4 border-t border-slate-100">
+          <div className="w-1/4 h-3 rounded bg-slate-100"></div>
+          <div className="w-1/4 h-3 rounded bg-slate-100"></div>
         </div>
       </div>
     ))}
@@ -225,10 +225,10 @@ export default function Employees() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="p-4 md:p-8 max-w-7xl mx-auto space-y-8"
+      className="p-4 mx-auto space-y-8 md:p-8 max-w-7xl"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <motion.div variants={itemVariants} className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div className="flex items-start gap-4">
           {showAddForm && (
             <Button
@@ -247,11 +247,11 @@ export default function Employees() {
             {!showAddForm && (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
                 <Users className="w-4 h-4 text-indigo-600" />
-                <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Directory</span>
+                <span className="text-xs font-semibold tracking-wider text-indigo-700 uppercase">Directory</span>
               </div>
             )}
             
-            <p className="text-slate-500 mt-1">
+            <p className="mt-1 text-slate-500">
               {showAddForm 
                 ? "Add a new team member to your organization." 
                 : `Manage your ${totalEmployees} employee${totalEmployees !== 1 ? 's' : ''}`
@@ -261,25 +261,25 @@ export default function Employees() {
         </div>
         {!showAddForm && (
           <div className="flex gap-3 shrink-0">
-            <Button 
+            {/* <Button 
               onClick={() => setShowInviteDialog(true)}
               variant="outline"
-              className="rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              className="text-indigo-700 border-indigo-200 rounded-lg hover:bg-indigo-50"
             >
               <Users className="w-4 h-4 mr-2" />
               Invite User
-            </Button>
+            </Button> */}
             <Button 
               onClick={() => setShowImportDialog(true)}
               variant="outline"
-              className="rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              className="text-indigo-700 border-indigo-200 rounded-lg hover:bg-indigo-50"
             >
               <Upload className="w-4 h-4 mr-2" />
               Import CSV
             </Button>
             <Button 
               onClick={() => setShowAddForm(true)}
-              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              className="text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Employee
@@ -305,23 +305,23 @@ export default function Employees() {
       ) : (
         <motion.div variants={itemVariants} className="space-y-6">
           {/* Filters and View Toggle */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200/60">
+            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+              <div className="flex flex-col w-full gap-3 sm:flex-row md:w-auto">
                 <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-slate-400" />
                   <Input
                     placeholder="Search employees..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-full rounded-lg border-slate-200 bg-slate-50 focus:bg-white transition-colors"
+                    className="w-full pl-10 transition-colors rounded-lg border-slate-200 bg-slate-50 focus:bg-white"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
-                  <SelectTrigger className="w-full sm:w-40 rounded-lg border-slate-200 bg-slate-50 focus:bg-white">
+                  <SelectTrigger className="w-full rounded-lg sm:w-40 border-slate-200 bg-slate-50 focus:bg-white">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                  <SelectContent className="shadow-lg rounded-xl border-slate-100">
                     <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="PROBATION">Probation</SelectItem>
@@ -359,22 +359,22 @@ export default function Employees() {
 
           {loadingPaginated && !paginatedData ? (
             viewMode === 'list' ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+              <div className="overflow-hidden bg-white border shadow-sm rounded-2xl border-slate-200/60">
                 <EmployeeList employees={[]} isLoading={true} onOpenDetail={handleOpenDetail} />
               </div>
             ) : (
               <CardSkeleton />
             )
           ) : currentEmployees.length === 0 ? (
-            <div className="bg-white/50 border border-slate-200/60 border-dashed rounded-2xl p-16 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4">
+            <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed bg-white/50 border-slate-200/60 rounded-2xl">
+              <div className="flex items-center justify-center w-16 h-16 mb-4 bg-white border shadow-sm rounded-2xl border-slate-100">
                 <Users className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-semibold text-slate-900">No employees found</h3>
-              <p className="text-slate-500 mt-1 max-w-sm">We couldn't find any employees matching your search criteria.</p>
+              <p className="max-w-sm mt-1 text-slate-500">We couldn't find any employees matching your search criteria.</p>
             </div>
           ) : viewMode === 'list' ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden relative">
+            <div className="relative overflow-hidden bg-white border shadow-sm rounded-2xl border-slate-200/60">
               {(loadingPaginated || isFetching) && (
                 <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center pointer-events-none" />
               )}
@@ -382,7 +382,7 @@ export default function Employees() {
             </div>
           ) : (
             <motion.div 
-              className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 relative"
+              className="relative grid gap-6 md:grid-cols-2 lg:grid-cols-3"
               variants={containerVariants}
               initial="hidden"
               animate="show"
@@ -402,7 +402,7 @@ export default function Employees() {
           )}
 
           {paginatedData?.totalPages > 1 && (
-            <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm mt-6">
+            <div className="flex items-center justify-between p-4 mt-6 text-sm border-t border-slate-100">
               <span className="text-slate-500">
                 Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
               </span>
@@ -444,7 +444,7 @@ export default function Employees() {
       />
 
       <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && handleCloseDetail()}>
-        <DialogContent className="max-w-6xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-transparent" hideCloseButton>
+        <DialogContent className="max-w-6xl p-0 overflow-hidden bg-transparent border-0 shadow-2xl rounded-2xl" hideCloseButton>
           <DialogTitle className="sr-only">Employee Detail</DialogTitle>
           <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
           {selectedEmployeeId && (

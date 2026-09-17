@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const EmployeeActivationEmail = ({ fullName, deepLink }) => {
@@ -33,7 +33,7 @@ export const EmployeeActivationEmail = ({ fullName, deepLink }) => {
 
 EmployeeActivationEmail.PreviewProps = {
   fullName: 'Jane Doe',
-  deepLink: 'http://localhost:5173/dashboard'
+  deepLink: `${getPreviewBaseUrl()}/dashboard`
 };
 
 export default EmployeeActivationEmail;

@@ -183,7 +183,7 @@ export default function LeaveOverview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
@@ -224,7 +224,7 @@ export default function LeaveOverview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
@@ -262,7 +262,7 @@ export default function LeaveOverview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       
       let actionText = 'updated';

@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { organizationsApi, approvalsApi } from "@/api";
 import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges } from "@/lib/roleUtils";
+import { usePendingApprovalsStream } from "@/hooks/usePendingApprovalsStream";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -191,12 +192,16 @@ export default function Layout({ children }) {
   const userIsHrAdmin = isHrAdmin(user);
   const userHasPrivileges = hasAdminPrivileges(user);
 
+  const pendingCountsStreamEnabled = !!user?.organizationId && userHasPrivileges;
   const { data: pendingData } = useQuery({
     queryKey: ['pendingApprovalsCount'],
     queryFn: () => approvalsApi.getPendingCounts(),
-    enabled: !!user?.organizationId && userHasPrivileges,
-    refetchInterval: 10000,
+    enabled: pendingCountsStreamEnabled,
+    // Live updates arrive via usePendingApprovalsStream (SSE) below; this interval is just a
+    // safety net for dropped connections or an emit site that was missed, not the primary path.
+    refetchInterval: 60000,
   });
+  usePendingApprovalsStream(pendingCountsStreamEnabled);
 
   const totalApprovalsCount = pendingData?.totalApprovalsCount || 0;
   const pendingOffboardingCount = pendingData?.pendingOffboardingCount || 0;

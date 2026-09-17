@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section, Hr } from '@react-email/components';
 
 export const PayslipReadyEmail = ({ fullName, month, payslipLink }) => {
@@ -39,7 +39,7 @@ export const PayslipReadyEmail = ({ fullName, month, payslipLink }) => {
 PayslipReadyEmail.PreviewProps = {
   fullName: 'Amara Okafor',
   month: 'June 2026',
-  payslipLink: 'https://staging.hr.tradevu.co/employeeselfservice',
+  payslipLink: `${getPreviewBaseUrl()}/employeeselfservice`,
 };
 
 export default PayslipReadyEmail;

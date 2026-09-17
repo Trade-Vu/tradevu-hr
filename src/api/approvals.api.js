@@ -5,6 +5,10 @@ export const approvalsApi = {
     return apiClient.get('/approvals/pending-counts');
   },
 
+  getPendingCountsStreamToken: async () => {
+    return apiClient.post('/approvals/pending-counts/stream-token');
+  },
+
   getPendingApprovals: async () => {
     return apiClient.get('/approvals/pending');
   },

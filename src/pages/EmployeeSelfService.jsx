@@ -153,6 +153,8 @@ export default function EmployeeSelfService() {
           onCompleteAll={service.handleCompleteAll}
           onSubmitForReview={submitForReview}
           onOpenOnboarding={() => setActiveTab("onboarding")}
+          notifications={service.dashboardNotifications}
+          onDismissNotification={(id) => service.markNotificationReadMutation.mutate(id)}
         />
         <motion.div variants={itemVariants}>
           <EmployeeSelfServiceQuickStats
