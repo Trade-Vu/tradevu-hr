@@ -72,7 +72,7 @@ export default function ResetPassword() {
         <div className="w-full max-w-md space-y-10 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
           <div className="text-center">
             <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Create New Password</h1>
+            <h1 className="font-heading text-3xl font-bold text-slate-900 tracking-tight">Create New Password</h1>
             <p className="text-slate-500 mt-2 text-base">
               Please enter your new password below.
             </p>
@@ -83,7 +83,7 @@ export default function ResetPassword() {
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Password Reset Successful</h3>
+              <h3 className="font-heading text-xl font-medium text-slate-900">Password Reset Successful</h3>
               <p className="text-slate-600">
                 Your password has been successfully updated. You will be redirected to the login page shortly.
               </p>

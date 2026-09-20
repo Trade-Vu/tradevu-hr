@@ -24,6 +24,10 @@ export const authApi = {
   acceptInvite: async ({ token, fullName, password }) => {
     return apiClient.post('/auth/accept-invite', { token, fullName, password });
   },
+
+  getInviteDetails: async (token) => {
+    return apiClient.get(`/auth/invite/${token}`);
+  },
 };
 
 export default authApi;

@@ -169,8 +169,9 @@ export default function useEmployeeSelfService() {
       listFrom(await expensesApi.getMyExpenses()).map((e) => ({
         ...e,
         id: e._id || e.id,
-        expense_type: e.category || e.type || e.expense_type || "expense",
+        expense_type: e.expenseType || e.category || e.type || e.expense_type || "expense",
         amount: e.amount || 0,
+        currency: e.currency || "NGN",
         date: e.date || e.createdAt,
         description: e.description || "",
       })),

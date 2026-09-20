@@ -30,7 +30,37 @@ export default function AcceptInvite() {
   useEffect(() => {
     if (!token) {
       setError('Invalid or missing invite token. Please request a new invite link.');
+      return;
     }
+
+    let cancelled = false;
+    setIsLoading(true);
+    authApi.getInviteDetails(token)
+      .then((details) => {
+        if (cancelled) return;
+        setInviteDetails(details);
+
+        // Prefill from the name collected when the invite was sent (e.g. the "Add
+        // Employee" form). Skip generic placeholders the backend falls back to for
+        // ad hoc email-only invites (InviteHRModal, the optional HR email at
+        // registration) that never collected a real name - leave those blank for
+        // the invitee to fill in themselves.
+        const placeholderNames = ['hr manager', 'employee'];
+        const fullName = details?.fullName?.trim();
+        if (fullName && !placeholderNames.includes(fullName.toLowerCase())) {
+          const [first, ...rest] = fullName.split(' ');
+          setFirstName(first || '');
+          setLastName(rest.join(' '));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'This invite link is invalid or has expired. Please request a new one.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [token]);
 
   const handleSubmit = async (e) => {
@@ -87,8 +117,6 @@ export default function AcceptInvite() {
     }
   };
 
-  console.log({ inviteDetails })
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -107,7 +135,7 @@ export default function AcceptInvite() {
               <div className="mx-auto w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Invite Invalid</h3>
+              <h3 className="font-heading text-xl font-medium text-slate-900">Invite Invalid</h3>
               <p className="text-slate-600">{error}</p>
               <Button onClick={() => navigate(PAGE_ROUTES.LOGIN)} className="w-full mt-4">
                 Return to Login
@@ -118,7 +146,7 @@ export default function AcceptInvite() {
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
+              <h3 className="font-heading text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
               <p className="text-slate-600">
                 Your account has been created successfully. Redirecting you to your dashboard...
               </p>
@@ -127,7 +155,7 @@ export default function AcceptInvite() {
             <>
               <div className="text-center">
                 <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
+                <h1 className="font-heading text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
                 <p className="text-slate-500 mt-2 text-base">
                   You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
                   <span className="font-medium text-slate-700">{inviteDetails?.email}</span>
