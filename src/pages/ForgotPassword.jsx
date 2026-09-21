@@ -41,7 +41,7 @@ export default function ForgotPassword() {
         <div className="w-full max-w-md space-y-10 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
           <div className="text-center">
             <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reset Password</h1>
+            <h1 className="font-heading text-3xl font-bold text-slate-900 tracking-tight">Reset Password</h1>
             <p className="text-slate-500 mt-2 text-base">
               Enter your email address and we'll send you a link to reset your password.
             </p>
@@ -52,7 +52,7 @@ export default function ForgotPassword() {
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Check your email</h3>
+              <h3 className="font-heading text-xl font-medium text-slate-900">Check your email</h3>
               <p className="text-slate-600">
                 If an account exists for <span className="font-medium text-slate-900">{email}</span>, you will receive password reset instructions shortly.
               </p>

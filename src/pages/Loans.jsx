@@ -133,11 +133,11 @@ export default function Loans() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-between items-start">
+    <div className="min-h-screen p-4 bg-gradient-to-br from-slate-50 to-blue-50 md:p-8">
+      <div className="mx-auto space-y-8 max-w-7xl">
+        <div className="flex items-start justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-white rounded-full shadow-sm">
               <DollarSign className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-slate-700">Loan Management</span>
             </div>
@@ -146,7 +146,7 @@ export default function Loans() {
           </div>
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+              <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 New Loan Request
               </Button>
@@ -183,7 +183,7 @@ export default function Loans() {
                   </div>
                 )}
                 
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
                   <div className="flex items-center gap-3 mb-3">
                     <User className="w-5 h-5 text-blue-600" />
                     <div>
@@ -246,13 +246,13 @@ export default function Loans() {
           </Dialog>
         </div>
 
-        <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
           {myLoans.map(loan => (
-            <Card key={loan.id} className="border-slate-200 hover:shadow-xl transition-all overflow-hidden">
-              <div className="bg-white p-6 border-b border-slate-100">
+            <Card key={loan.id} className="overflow-hidden transition-all border-slate-200 hover:shadow-xl">
+              <div className="p-6 bg-white border-b border-slate-100">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl">
                       <DollarSign className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
@@ -266,63 +266,63 @@ export default function Loans() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-700 font-semibold">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-slate-50">
+                  <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                    <span className="font-semibold text-blue-700">
                       {loan.employee_name?.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-slate-600 italic">"{loan.loan_reason}"</p>
+                    <p className="text-sm italic text-slate-600">"{loan.loan_reason}"</p>
                   </div>
                 </div>
               </div>
 
               <CardContent className="p-6 bg-slate-50">
                 <div className="mb-6">
-                  <p className="text-sm font-medium text-slate-700 mb-2">To be paid from</p>
+                  <p className="mb-2 text-sm font-medium text-slate-700">To be paid from</p>
                   <p className="text-lg font-bold text-slate-900">{loan.paid_from || 'New Era LLC'}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-4 rounded-lg">
+                  <div className="p-4 bg-white rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <DollarSign className="w-4 h-4 text-slate-400" />
-                      <p className="text-xs text-slate-500 uppercase">Loan Type</p>
+                      <p className="text-xs uppercase text-slate-500">Loan Type</p>
                     </div>
-                    <p className="font-semibold text-slate-900 capitalize">{loan.loan_type.replace('_', ' ')}</p>
+                    <p className="font-semibold capitalize text-slate-900">{loan.loan_type.replace('_', ' ')}</p>
                   </div>
 
-                  <div className="bg-white p-4 rounded-lg">
+                  <div className="p-4 bg-white rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <DollarSign className="w-4 h-4 text-slate-400" />
-                      <p className="text-xs text-slate-500 uppercase">Amount</p>
+                      <p className="text-xs uppercase text-slate-500">Amount</p>
                     </div>
                     <p className="font-semibold text-slate-900">SAR {loan.loan_amount.toLocaleString()}</p>
                   </div>
 
-                  <div className="bg-white p-4 rounded-lg">
+                  <div className="p-4 bg-white rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="w-4 h-4 text-slate-400" />
-                      <p className="text-xs text-slate-500 uppercase">Loan Duration</p>
+                      <p className="text-xs uppercase text-slate-500">Loan Duration</p>
                     </div>
                     <p className="font-semibold text-slate-900">{loan.duration_months} months</p>
                   </div>
 
-                  <div className="bg-white p-4 rounded-lg">
+                  <div className="p-4 bg-white rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <DollarSign className="w-4 h-4 text-slate-400" />
-                      <p className="text-xs text-slate-500 uppercase">Monthly Instalment</p>
+                      <p className="text-xs uppercase text-slate-500">Monthly Instalment</p>
                     </div>
                     <p className="font-semibold text-slate-900">SAR {loan.monthly_installment?.toFixed(2)}</p>
                   </div>
 
-                  <div className="bg-white p-4 rounded-lg col-span-2">
+                  <div className="col-span-2 p-4 bg-white rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar className="w-4 h-4 text-slate-400" />
-                      <p className="text-xs text-slate-500 uppercase">Payment Month / First Instalment</p>
+                      <p className="text-xs uppercase text-slate-500">Payment Month / First Instalment</p>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex items-center justify-between">
                       <p className="font-semibold text-slate-900">
                         {format(new Date(loan.start_month + '-01'), 'MMMM yyyy')}
                       </p>
@@ -340,8 +340,8 @@ export default function Loans() {
             <Card className="col-span-full border-slate-200">
               <CardContent className="p-12 text-center">
                 <DollarSign className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No loans yet</h3>
-                <p className="text-slate-500 mb-4">Create your first loan request</p>
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">No loans yet</h3>
+                <p className="mb-4 text-slate-500">Create your first loan request</p>
                 <Button onClick={() => setShowForm(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Loan Request
@@ -351,9 +351,9 @@ export default function Loans() {
           )}
         </div>
         
-        <div className="mt-6 flex items-center justify-between px-2">
-          <p className="text-sm text-slate-500 font-medium">
-            Showing <span className="text-slate-900 font-semibold">{((page - 1) * limit) + 1}</span> to <span className="text-slate-900 font-semibold">{Math.min(page * limit, totalLoans)}</span> of <span className="text-slate-900 font-semibold">{totalLoans}</span> loans
+        <div className="flex items-center justify-between px-2 mt-6">
+          <p className="text-sm font-medium text-slate-500">
+            Showing <span className="font-semibold text-slate-900">{((page - 1) * limit) + 1}</span> to <span className="font-semibold text-slate-900">{Math.min(page * limit, totalLoans)}</span> of <span className="font-semibold text-slate-900">{totalLoans}</span> loans
           </p>
           <div className="flex gap-2">
             <Button

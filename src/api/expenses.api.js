@@ -12,6 +12,18 @@ export const expensesApi = {
   createExpense: async (dto) => {
     return apiClient.post('/expenses', dto);
   },
+
+  approveExpense: async (id) => {
+    return apiClient.put(`/expenses/${id}/approve`);
+  },
+
+  rejectExpense: async (id, rejectionReason) => {
+    return apiClient.put(`/expenses/${id}/reject`, { rejectionReason });
+  },
+
+  reimburseExpense: async (id) => {
+    return apiClient.put(`/expenses/${id}/reimburse`);
+  },
 };
 
 export default expensesApi;

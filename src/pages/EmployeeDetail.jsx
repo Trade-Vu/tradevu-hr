@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import countryList from 'country-list';
-import { employeesApi, approvalsApi, organizationsApi, documentsApi, leaveApi, attendanceApi, assetsApi } from "@/api";
+import { employeesApi, approvalsApi, organizationsApi, documentsApi, leaveApi, attendanceApi, assetsApi, payrollApi } from "@/api";
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { normalizeEmployeeClasses } from "@/lib/formOptions";
 import { useAuth } from "@/lib/AuthContext";
@@ -99,8 +99,10 @@ const mapEmployeeData = (e) => {
       basic_salary: e.payrollInfo?.basicSalary ?? e.payroll_details?.basic_salary ?? e.basicSalary ?? 0,
       bank_name: e.payrollInfo?.bankName ?? e.payroll_details?.bank_name ?? e.bankName ?? '',
       iban: e.payrollInfo?.iban ?? e.payroll_details?.iban ?? e.bankAccountNumber ?? '',
-      gosi_number: e.payrollInfo?.gosiNumber ?? e.payroll_details?.gosi_number ?? e.pensionId ?? ''
+      gosi_number: e.payrollInfo?.gosiNumber ?? e.payroll_details?.gosi_number ?? e.pensionId ?? '',
+      pay_grade: e.payrollInfo?.payGrade ?? ''
     },
+    allowances: Array.isArray(e.allowances) ? e.allowances : [],
     contract_details: e.contract_details || {},
     promotion_history: e.promotionHistory || e.promotion_history || [],
     status_history: e.statusHistory || e.status_history || []
@@ -363,7 +365,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const { data: salaryHistory = [] } = useQuery({
     queryKey: ['salary-history', employeeId],
     queryFn: async () => {
-      return employee?.salaryHistory || [];
+      const res = await payrollApi.getSalaryHistory(employeeId);
+      return Array.isArray(res) ? res : res?.data || [];
     },
     enabled: !!employeeId,
     initialData: [],
@@ -383,15 +386,14 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const requestCompensationUpdateMutation = useMutation({
     mutationFn: async (input) => {
-      const allowancesObj = {
-        housing: parseFloat(input.housing) || 0,
-        transport: parseFloat(input.transport) || 0,
-        food: parseFloat(input.food) || 0,
-        other: parseFloat(input.other) || 0
-      };
+      const legacyToType = { housing: 'housing', transport: 'transport', food: 'meal', other: 'other' };
+      const allowances = Object.entries(legacyToType)
+        .map(([formKey, type]) => ({ type, mode: 'fixed', value: parseFloat(input[formKey]) || 0, taxable: true }))
+        .filter(a => a.value > 0);
       return await employeesApi.updateEmployee(employeeId, {
         basicSalary: parseFloat(input.basicSalary) || 0,
-        allowances: allowancesObj
+        allowances,
+        salaryChangeReason: input.reason,
       });
     },
     onSuccess: () => {
@@ -508,6 +510,9 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         basicSalary: data.payroll_details?.basic_salary !== undefined ? Number(data.payroll_details.basic_salary) : undefined,
         bankName: data.payroll_details?.bank_name || undefined,
         iban: data.payroll_details?.iban || undefined,
+        payGrade: data.payroll_details?.pay_grade || undefined,
+        salaryChangeReason: data.payroll_details?.salary_change_reason || undefined,
+        allowances: Array.isArray(data.allowances) ? data.allowances : undefined,
         employeeClass: data.employeeClass || undefined
       };
 
@@ -1422,6 +1427,16 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label>Pay Grade</Label>
+                    <Input
+                      value={editData.payroll_details?.pay_grade || ''}
+                      onChange={(e) => setEditData(prev => ({
+                        ...prev,
+                        payroll_details: { ...prev.payroll_details, pay_grade: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Pension Administrator</Label>
                     <Input
                       value={editData.pensionAdministrator || ''}
@@ -1462,7 +1477,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <p className="mb-1 text-sm text-slate-600">Total Compensation</p>
                     <p className="text-2xl font-bold text-blue-700">
                       {((employee.payroll_details?.basic_salary || 0) +
-                        Object.values(employee.payroll_details?.allowances || {}).reduce((sum, val) => sum + (val || 0), 0)
+                        (employee.allowances || []).reduce((sum, a) => sum + (
+                          a.mode === 'percentage'
+                            ? ((employee.payroll_details?.basic_salary || 0) * (Number(a.value) || 0)) / 100
+                            : (Number(a.value) || 0)
+                        ), 0)
                       ).toLocaleString()} NGN
                     </p>
                   </div>
@@ -1470,16 +1489,19 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                 <div>
                   <h4 className="mb-3 font-semibold text-slate-900">Allowances</h4>
                   <div className="grid gap-3 md:grid-cols-2">
-                    {Object.entries(employee.payroll_details?.allowances || {}).map(([key, value]) => (
-                      value > 0 && (
-                        <div key={key} className="flex justify-between p-3 rounded-lg bg-slate-50">
-                          <span className="capitalize text-slate-600">{key}</span>
-                          <span className="font-medium">{value.toLocaleString()} NGN</span>
-                        </div>
-                      )
-                    ))}
-                    {Object.values(employee.payroll_details?.allowances || {}).every(val => !val) && (
+                    {(employee.allowances || []).length === 0 ? (
                       <p className="text-sm text-slate-500">No allowances currently set.</p>
+                    ) : (
+                      employee.allowances.map((a, idx) => (
+                        <div key={idx} className="flex justify-between p-3 rounded-lg bg-slate-50">
+                          <span className="capitalize text-slate-600">
+                            {a.type?.replace(/_/g, ' ')} {a.taxable ? '' : '(non-taxable)'}
+                          </span>
+                          <span className="font-medium">
+                            {a.mode === 'percentage' ? `${a.value}%` : `${Number(a.value).toLocaleString()} NGN`}
+                          </span>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
@@ -1497,6 +1519,10 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Pension / Tax ID</span>
                       <span className="font-medium">{employee.payroll_details?.gosi_number || 'Not set'}</span>
+                    </div>
+                    <div className="flex justify-between p-3 rounded-lg bg-slate-50">
+                      <span className="text-slate-600">Pay Grade</span>
+                      <span className="font-medium">{employee.payroll_details?.pay_grade || 'Not set'}</span>
                     </div>
                     <div className="flex justify-between p-3 rounded-lg bg-slate-50">
                       <span className="text-slate-600">Pension Administrator</span>
@@ -1528,7 +1554,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           <TableHead>Basic Salary</TableHead>
                           <TableHead>Allowances</TableHead>
                           <TableHead>Reason</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>Approved By</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1538,22 +1564,18 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                           </TableRow>
                         ) : (
                           salaryHistory.map(history => {
-                            const parsedAllowances = history.allowances ? JSON.parse(history.allowances) : {};
-                            const allowanceTotal = Object.values(parsedAllowances).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+                            const allowanceTotal = (history.allowances || []).reduce((sum, a) => sum + (
+                              a.mode === 'percentage'
+                                ? ((history.basicSalary || 0) * (Number(a.value) || 0)) / 100
+                                : (Number(a.value) || 0)
+                            ), 0);
                             return (
-                              <TableRow key={history.id}>
+                              <TableRow key={history._id}>
                                 <TableCell>{format(new Date(history.effectiveDate), 'MMM d, yyyy')}</TableCell>
-                                <TableCell>{history.basicSalary.toLocaleString()} NGN</TableCell>
+                                <TableCell>{(history.basicSalary || 0).toLocaleString()} NGN</TableCell>
                                 <TableCell>{allowanceTotal > 0 ? `${allowanceTotal.toLocaleString()} NGN` : '-'}</TableCell>
                                 <TableCell>{history.reason}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className={
-                                    history.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                                      history.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                                  }>
-                                    {history.status}
-                                  </Badge>
-                                </TableCell>
+                                <TableCell>{history.approvedBy?.fullName || '-'}</TableCell>
                               </TableRow>
                             );
                           })

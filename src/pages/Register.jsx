@@ -89,7 +89,7 @@ export default function Register() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 className="w-8 h-8 text-green-600" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">You're all set!</h1>
+                <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">You're all set!</h1>
                 <p className="text-slate-500 mt-3 text-lg mb-8">
                   Your workspace has been created. Redirecting to your dashboard...
                 </p>
@@ -97,7 +97,7 @@ export default function Register() {
               </>
             ) : (
               <>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+                <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">
                   {step === 1 && "Create workspace"}
                   {step === 2 && "Admin email"}
                   {step === 3 && "Secure account"}
@@ -265,7 +265,7 @@ export default function Register() {
         
         <div className="absolute inset-0 z-20 flex flex-col justify-end p-16 pb-24 text-white bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent">
           <div className="max-w-xl">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
+            <h2 className="font-heading text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
               Your OS for HR
             </h2>
             <p className="text-lg lg:text-xl text-slate-200 leading-relaxed font-light drop-shadow">

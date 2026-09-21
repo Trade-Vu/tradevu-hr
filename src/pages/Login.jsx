@@ -59,7 +59,7 @@ export default function Login() {
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
             <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
-            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
             <p className="text-slate-500 mt-3 text-lg">Sign in to your Tradevu HR workspace.</p>
           </div>
 
@@ -174,7 +174,7 @@ export default function Login() {
         {/* Content overlay */}
         <div className="absolute inset-0 z-20 flex flex-col justify-end p-16 pb-24 text-white bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent">
           <div className="max-w-xl">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
+            <h2 className="font-heading text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
               Empower your workforce.
             </h2>
             <p className="text-lg lg:text-xl text-slate-200 leading-relaxed font-light drop-shadow">

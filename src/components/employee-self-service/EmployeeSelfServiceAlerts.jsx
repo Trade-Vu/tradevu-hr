@@ -48,22 +48,19 @@ export default function EmployeeSelfServiceAlerts({
         );
       })}
       {!hideBanner && pendingTasksCount > 0 && (
-        <>
-          <div className="absolute top-0 left-0 right-0 flex flex-col items-center justify-between px-4 py-5 text-base border-b shadow-sm z-[100] bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">
-            <div className="flex-1 pr-4 mb-3 font-medium xl:mb-0">
-              You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete.
-              <button type="button" className="ml-2 font-semibold text-blue-700 hover:underline" onClick={onViewTasks}>View task list</button>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-medium whitespace-nowrap">
-              <button type="button" className="px-4 py-2 transition-colors rounded text-slate-600 hover:bg-slate-200 hover:text-slate-900" onClick={onRemindLater}>Remind me later</button>
-              <button type="button" className="px-4 py-2 transition-colors bg-transparent border rounded border-slate-300 text-slate-800 hover:bg-slate-200" onClick={onViewTasks}>Only view tasks</button>
-              <button type="button" className="px-4 py-2 transition-colors bg-white border rounded shadow-sm border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-50" onClick={onCompleteAll} disabled={isCompletingTasks}>
-                {isCompletingTasks ? 'Completing...' : 'Accept & Complete all'}
-              </button>
-            </div>
+        <div className="sticky top-0 z-[100] flex flex-col items-center justify-between px-4 py-5 text-base border shadow-sm rounded-2xl bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">
+          <div className="flex-1 pr-4 mb-3 font-medium xl:mb-0">
+            You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete.
+            <button type="button" className="ml-2 font-semibold text-blue-700 hover:underline" onClick={onViewTasks}>View task list</button>
           </div>
-          <div className="w-full h-28 xl:h-20" />
-        </>
+          <div className="flex items-center gap-2 text-sm font-medium whitespace-nowrap">
+            <button type="button" className="px-4 py-2 transition-colors rounded text-slate-600 hover:bg-slate-200 hover:text-slate-900" onClick={onRemindLater}>Remind me later</button>
+            <button type="button" className="px-4 py-2 transition-colors bg-transparent border rounded border-slate-300 text-slate-800 hover:bg-slate-200" onClick={onViewTasks}>Only view tasks</button>
+            <button type="button" className="px-4 py-2 transition-colors bg-white border rounded shadow-sm border-slate-300 text-slate-800 hover:bg-slate-50 disabled:opacity-50" onClick={onCompleteAll} disabled={isCompletingTasks}>
+              {isCompletingTasks ? 'Completing...' : 'Accept & Complete all'}
+            </button>
+          </div>
+        </div>
       )}
 
       {isDraft && (

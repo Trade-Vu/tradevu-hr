@@ -67,6 +67,24 @@ export default function DashboardEmptyState({ user }) {
     },
   });
 
+  // An HR manager can already have been invited two ways that never show up as an
+  // Employee record: (1) the optional "HR Email" field on Register.jsx step 4, which
+  // only creates a User (role HR_ADMIN, isActive:false) with no Employee, or (2) an
+  // invite sent here that the invitee hasn't accepted yet. Both are inactive users, so
+  // they're excluded from GET /users by default — pass includeInactive to see them too.
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ['users', 'org', 'includeInactive'],
+    queryFn: async () => {
+      try {
+        const res = await usersApi.getUsers({ includeInactive: true });
+        return Array.isArray(res) ? res : res?.data || [];
+      } catch (err) {
+        return [];
+      }
+    },
+    enabled: isCEO,
+  });
+
   const hasHREmployee = employees.some(
     e => e.role === 'HR_ADMIN' ||
          e.jobTitle?.toLowerCase().includes('hr') ||
@@ -74,6 +92,8 @@ export default function DashboardEmptyState({ user }) {
          e.departmentId?.name?.toLowerCase().includes('resource') ||
          e.department?.toLowerCase().includes('resource')
   );
+
+  const hasHRInvited = hasHREmployee || orgUsers.some(u => u.role === 'HR_ADMIN');
 
   const hasCompletedOrg = Boolean(
     orgData?.setupCompleted ||
@@ -89,7 +109,7 @@ export default function DashboardEmptyState({ user }) {
 
   const isStepCompleted = (stepId) => {
     if (completedSteps.includes(stepId)) return true;
-    if (stepId === 'hr' && hasHREmployee) return true;
+    if (stepId === 'hr' && hasHRInvited) return true;
     if (stepId === 'org' && hasCompletedOrg) return true;
     return false;
   };
