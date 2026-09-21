@@ -73,8 +73,7 @@ export default function Dashboard() {
   const { data: employees = [], isLoading: loadingEmployees } = useQuery({
     queryKey: ['employees', 'dashboard-all'],
     queryFn: async () => {
-      const res = await employeesApi.getEmployees({ limit: 100 });
-      const list = Array.isArray(res) ? res : res?.data || [];
+      const list = await employeesApi.getAllEmployees();
       return list.map(emp => ({
         ...emp,
         id: emp._id || emp.id,

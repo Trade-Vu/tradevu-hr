@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leaveApi, employeesApi, approvalsApi } from "@/api";
+import { leaveApi, approvalsApi } from "@/api";
+import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
+import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
+import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 import { isPendingLeaveStatus, formatLeaveStatus, getLeaveStatusBadgeClass, normalizeLeaveStatus, LEAVE_STATUS } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,7 +66,7 @@ export default function AllLeaveRequests() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
-    leave_type: 'annual',
+    leave_type: '',
     start_date: '',
     end_date: '',
     reason: '',
@@ -82,8 +86,8 @@ export default function AllLeaveRequests() {
       const list = Array.isArray(payload) ? payload : payload?.data || [];
       return {
         data: list,
-        total: list.length,
-        totalPages: Math.max(1, Math.ceil(list.length / limit)),
+        total: payload?.pagination?.total ?? list.length,
+        totalPages: Math.max(1, payload?.pagination?.totalPages ?? Math.ceil(list.length / limit)),
         currentPage: page,
         leaveRequests: list.map(l => ({
           ...l,
@@ -102,23 +106,18 @@ export default function AllLeaveRequests() {
     },
   });
 
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['leaveTypes'],
-    queryFn: async () => {
-      const res = await leaveApi.getLeaveTypes();
-      return Array.isArray(res) ? res : res?.data || [];
-    }
-  });
+  const { data: leaveTypes = [] } = useLeaveTypes();
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const data = await employeesApi.getEmployees();
-      const list = Array.isArray(data) ? data : data?.data || [];
-      return list.map(e => ({ ...e, id: e._id || e.id, full_name: e.fullName || e.full_name }));
-    },
-    initialData: [],
-  });
+  // Default the picker to a real leave type id (it used to default to the string 'annual',
+  // which isn't an id, so a request submitted without touching the picker failed).
+  useEffect(() => {
+    if (leaveTypes.length > 0 && !formData.leave_type) {
+      setFormData(prev => ({ ...prev, leave_type: leaveTypes[0].id }));
+    }
+  }, [leaveTypes, formData.leave_type]);
+
+  // Only onboarded, still-employed staff can have leave filed for them.
+  const { data: employees = [] } = useLeaveEligibleEmployees();
 
   const createAuditLog = async (action, entityId, entityName, changes = {}) => {
     // Mocked for now
@@ -130,6 +129,7 @@ export default function AllLeaveRequests() {
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
       const leave = await leaveApi.createRequest({
+        employeeId: data.employee_id,
         leaveTypeId: data.leave_type,
         startDate: new Date(start || new Date()).toISOString(),
         endDate: new Date(end || new Date()).toISOString(),
@@ -147,7 +147,7 @@ export default function AllLeaveRequests() {
       setEditingLeave(null);
       setFormData({
         employee_id: '',
-        leave_type: 'annual',
+        leave_type: '',
         start_date: '',
         end_date: '',
         total_days: 0,
@@ -157,6 +157,9 @@ export default function AllLeaveRequests() {
         useMultipleDates: false,
         selectedDates: [],
       });
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error, "Failed to create leave request."));
     },
   });
 
@@ -271,7 +274,7 @@ export default function AllLeaveRequests() {
   };
 
   const displayRequests = leaveRequestsData?.leaveRequests || [];
-  const totalRequests = leaveRequestsData?.totalCount || 0;
+  const totalRequests = leaveRequestsData?.total || 0;
   const totalPages = leaveRequestsData?.totalPages || 1;
 
   const containerVariants = {
@@ -310,7 +313,7 @@ export default function AllLeaveRequests() {
               setEditingLeave(null);
               setFormData({
                 employee_id: '',
-                leave_type: 'annual',
+                leave_type: '',
                 start_date: '',
                 end_date: '',
                 total_days: 0,
@@ -337,6 +340,14 @@ export default function AllLeaveRequests() {
                 if (editingLeave) {
                   updateLeaveMutation.mutate({ id: editingLeave.id, data: formData, oldData: editingLeave });
                 } else {
+                  if (!formData.employee_id) {
+                    toast.error('Select the employee this leave request is for.');
+                    return;
+                  }
+                  if (!formData.leave_type) {
+                    toast.error('Select a leave type.');
+                    return;
+                  }
                   createLeaveMutation.mutate(formData);
                 }
               }} className="pt-4 space-y-4">

@@ -32,7 +32,7 @@ export default function PayrollAdjustments() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-basic'],
-    queryFn: async () => listFrom(await employeesApi.getEmployees()),
+    queryFn: () => employeesApi.getAllEmployees(),
   });
 
   const createMutation = useMutation({

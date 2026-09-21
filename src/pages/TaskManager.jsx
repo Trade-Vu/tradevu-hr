@@ -106,8 +106,7 @@ export default function TaskManager() {
   const { data: employeesData } = useQuery({
     queryKey: ['task-manager-employees'],
     queryFn: async () => {
-      const res = await employeesApi.getEmployees({ limit: 100 });
-      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
+      return employeesApi.getAllEmployees();
     },
   });
   const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);

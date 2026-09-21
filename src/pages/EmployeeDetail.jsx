@@ -5,6 +5,7 @@ import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { normalizeEmployeeClasses } from "@/lib/formOptions";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { useNavigate, useParams } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import {
@@ -226,9 +227,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const { data: employees = [] } = useQuery({
     queryKey: ['all-employees'],
     queryFn: async () => {
-      const res = await employeesApi.getEmployees({ limit: 500 });
-      const list = Array.isArray(res) ? res : res?.data || [];
-      return (Array.isArray(list) ? list : []).map(emp => ({
+      const list = await employeesApi.getAllEmployees();
+      return list.map(emp => ({
         ...emp,
         id: emp._id || emp.id,
         full_name: emp.fullName || emp.full_name,
@@ -285,15 +285,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     initialData: [],
   });
 
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['leave-types'],
-    queryFn: async () => {
-      const res = await leaveApi.getLeaveTypes();
-      const list = Array.isArray(res) ? res : res?.data || [];
-      return list.map(type => ({ ...type, id: type.id || type._id }));
-    },
-    initialData: [],
-  });
+  const { data: leaveTypes = [] } = useLeaveTypes();
 
   const { data: employeeLeaveBalances = [] } = useQuery({
     queryKey: ['employee-leave-balances', employeeId],

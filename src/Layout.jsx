@@ -9,7 +9,7 @@ import {
   Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange,
   LayoutDashboardIcon
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -186,7 +186,12 @@ export default function Layout({ children }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const [manualActivePrimary, setManualActivePrimary] = useState(null);
+  // Section picked by clicking a rail icon, tagged with the pathname it was picked on so it
+  // expires on its own once the user navigates (no reset effect / extra render needed).
+  const [manualPrimary, setManualPrimary] = useState(null); // { title, pathname }
+  // Last section the URL matched, so routes that aren't in the nav (e.g. /employeedetail)
+  // keep showing the section the user came from instead of jumping back to navItems[0].
+  const [lastMatchedTitle, setLastMatchedTitle] = useState(null);
 
   const userIsAdmin = isAdmin(user);
   const userIsSuperAdmin = isSuperAdmin(user);
@@ -278,27 +283,27 @@ export default function Layout({ children }) {
     return item;
   });
 
-  // Sync active primary based on URL or manual selection
-  const getActivePrimaryNav = () => {
-    if (manualActivePrimary) return manualActivePrimary;
-    for (const item of navItems) {
-      if (item.children && item.children.some(child => location.pathname.toLowerCase() === child.url.toLowerCase())) {
-        return item;
-      }
-    }
-    return navItems[0];
-  };
+  // Resolve by title against the *current* navItems (not a stored object) so badges stay live
+  // and a section that no longer exists after a view-mode switch can't be selected.
+  const findNavItem = (title) => (title ? navItems.find(item => item.title === title) : undefined);
+  const pathname = location.pathname.toLowerCase();
+  const urlMatchedItem = navItems.find(item =>
+    item.children?.some(child => child.url.toLowerCase() === pathname)
+  );
 
-  const activePrimary = getActivePrimaryNav();
+  const activePrimary =
+    (manualPrimary?.pathname === location.pathname && findNavItem(manualPrimary.title)) ||
+    urlMatchedItem ||
+    findNavItem(lastMatchedTitle) ||
+    navItems[0];
+
+  useEffect(() => {
+    if (urlMatchedItem) setLastMatchedTitle(urlMatchedItem.title);
+  }, [urlMatchedItem?.title]);
 
   const handlePrimaryClick = (item) => {
-    setManualActivePrimary(item);
+    setManualPrimary({ title: item.title, pathname: location.pathname });
   };
-
-  // Reset manual state when a sub-menu link is actually clicked and the URL changes
-  useEffect(() => {
-    setManualActivePrimary(null);
-  }, [location.pathname]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden font-sans md:flex-row bg-slate-50">
@@ -442,12 +447,13 @@ export default function Layout({ children }) {
         
 
         <div className="relative flex-1 px-3 pb-6 overflow-y-auto">
-          <AnimatePresence mode="wait">
+          {/* Enter-only animation, deliberately without AnimatePresence mode="wait": when the key
+              changed again mid-exit (fast rail clicks, or a navigation re-render), framer-motion could
+              drop the exiting list without mounting the new one, leaving this panel empty until reload. */}
             <motion.div
               key={activePrimary?.title}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15 }}
               className="space-y-1"
             >
@@ -480,7 +486,6 @@ export default function Layout({ children }) {
                 );
               })}
             </motion.div>
-          </AnimatePresence>
         </div>
 
       </aside>

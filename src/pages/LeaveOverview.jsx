@@ -6,7 +6,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leaveApi, employeesApi, approvalsApi } from "@/api";
+import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
+import { leaveApi, approvalsApi } from "@/api";
+import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
+import { isLeaveEligibleStatus, isSeparatedStatus } from "@/lib/employmentStatus";
+import { isSuperAdmin, isHrAdmin } from "@/lib/roleUtils";
 import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,12 +38,22 @@ import {
 
 export default function LeaveOverview() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [employee, setEmployee] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isPastLeave, setIsPastLeave] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR_ADMIN' || user?.is_organization_owner;
+  // Matches the backend's check for filing leave on someone else's behalf (SUPER_ADMIN/HR_ADMIN/org owner).
+  const isAdmin = isSuperAdmin(user) || isHrAdmin(user);
+  // employeeId is populated with employmentStatus by /auth/me; if it isn't, let the backend decide.
+  const selfEmploymentStatus = user?.employeeId?.employmentStatus;
+  const canRequestForSelf = !selfEmploymentStatus || isLeaveEligibleStatus(selfEmploymentStatus);
+
+  // The user object is loaded once at login, so an employee approved mid-session would still look
+  // ineligible here. Re-check once on mount, only when we'd otherwise hide the request buttons.
+  useEffect(() => {
+    if (!canRequestForSelf) refreshUser();
+  }, []);
   const isManager = user?.role === 'MANAGER';
   const [formData, setFormData] = useState({
     employee_email: user?.email || '',
@@ -60,16 +74,8 @@ export default function LeaveOverview() {
     }
   }, [user]);
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const data = await employeesApi.getEmployees();
-      const list = Array.isArray(data) ? data : data?.data || [];
-      return list.map(e => ({ ...e, id: e._id || e.id, full_name: e.fullName || e.full_name }));
-    },
-    initialData: [],
-    enabled: isAdmin,
-  });
+  // Only onboarded, still-employed staff can have leave filed for them.
+  const { data: employees = [] } = useLeaveEligibleEmployees({ enabled: isAdmin });
 
   useEffect(() => {
     if (employees.length > 0 && user) {
@@ -77,15 +83,7 @@ export default function LeaveOverview() {
     }
   }, [employees, user]);
 
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['leave-types'],
-    queryFn: async () => {
-      const res = await leaveApi.getLeaveTypes();
-      const list = Array.isArray(res) ? res : res?.data || [];
-      return list.map(type => ({ ...type, id: type.id || type._id }));
-    },
-    initialData: [],
-  });
+  const { data: leaveTypes = [] } = useLeaveTypes();
 
   const { data: publicHolidays = [] } = useQuery({
     queryKey: ['publicHolidays'],
@@ -172,6 +170,8 @@ export default function LeaveOverview() {
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
       return leaveApi.createRequest({
+        // Admins file on behalf of the selected employee; everyone else always files for themselves.
+        employeeId: isAdmin ? employees.find(e => e.email === data.employee_email)?.id : undefined,
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
@@ -213,6 +213,8 @@ export default function LeaveOverview() {
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
       return leaveApi.createRequest({
+        // Admins file on behalf of the selected employee; everyone else always files for themselves.
+        employeeId: isAdmin ? employees.find(e => e.email === data.employee_email)?.id : undefined,
         leaveTypeId: data.leave_type,
         startDate: new Date(start).toISOString(),
         endDate: new Date(end).toISOString(),
@@ -393,7 +395,14 @@ export default function LeaveOverview() {
               Request time off and manage approvals
             </p>
           </div>
-          {leaveTypes.length > 0 && (
+          {leaveTypes.length > 0 && !isAdmin && !canRequestForSelf && (
+            <p className="max-w-xs text-sm text-slate-500">
+              {isSeparatedStatus(selfEmploymentStatus)
+                ? 'Leave requests are not available for former employees.'
+                : "You'll be able to request leave once your onboarding is complete."}
+            </p>
+          )}
+          {leaveTypes.length > 0 && (isAdmin || canRequestForSelf) && (
             <div className="flex gap-2">
               <Button 
                 onClick={() => { setShowForm(true); setIsPastLeave(true); }}

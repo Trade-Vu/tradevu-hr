@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { leaveApi, organizationsApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
 import { isHrAdmin, isSuperAdmin } from '@/lib/roleUtils';
+import { useLeaveTypes, LEAVE_TYPE_KEYS } from '@/hooks/useLeaveTypesQuery';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -50,19 +51,13 @@ export default function SettingsLeaveTypes() {
 
   const KNOWN_CLASSES = orgData?.employeeClasses || ["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"];
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['leaveTypes'],
-    queryFn: async () => {
-      const res = await leaveApi.getLeaveTypes();
-      return { leaveTypes: Array.isArray(res) ? res : res?.data || [] };
-    }
-  });
+  const { data: leaveTypes = [], isLoading } = useLeaveTypes();
 
   const { mutate: createLeaveType, isPending: isCreating } = useMutation({
     mutationFn: (variables) => leaveApi.createLeaveType(variables),
     onSuccess: () => {
       toast.success("Leave Type created successfully!");
-      queryClient.invalidateQueries(['leaveTypes']);
+      queryClient.invalidateQueries({ queryKey: LEAVE_TYPE_KEYS.all });
       resetForm();
     },
     onError: (err) => {
@@ -74,7 +69,7 @@ export default function SettingsLeaveTypes() {
     mutationFn: ({ id, ...variables }) => leaveApi.updateLeaveType(id, variables),
     onSuccess: () => {
       toast.success("Leave Type updated successfully!");
-      queryClient.invalidateQueries(['leaveTypes']);
+      queryClient.invalidateQueries({ queryKey: LEAVE_TYPE_KEYS.all });
       resetForm();
     },
     onError: (err) => {
@@ -89,7 +84,7 @@ export default function SettingsLeaveTypes() {
     mutationFn: (id) => leaveApi.deleteLeaveType(id),
     onSuccess: () => {
       toast.success('Leave Type deleted successfully!');
-      queryClient.invalidateQueries({ queryKey: ['leaveTypes'] });
+      queryClient.invalidateQueries({ queryKey: LEAVE_TYPE_KEYS.all });
       setLeaveTypeToDelete(null);
     },
     onError: (err) => {
@@ -182,7 +177,6 @@ export default function SettingsLeaveTypes() {
     setFormData({ ...formData, classOverrides: newOverrides });
   };
 
-  const leaveTypes = data?.leaveTypes || [];
 
   return (
     <div className="space-y-6">

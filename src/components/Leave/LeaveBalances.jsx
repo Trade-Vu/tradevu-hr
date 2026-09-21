@@ -29,12 +29,12 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {leaveBalances.length > 0
-        ? leaveBalances.map((balance) => {
+        ? leaveBalances.map((balance, index) => {
             const type = leaveTypes.find((leaveType) => leaveType.id === balance.leaveTypeId) || {
               name: "Unknown",
             };
             return (
-              <Card key={balance.id} className="border-slate-200">
+              <Card key={balance.id + index} className="border-slate-200">
                 <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                   <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
                   <p className="my-2 text-3xl font-bold text-blue-600">{balance.available}</p>

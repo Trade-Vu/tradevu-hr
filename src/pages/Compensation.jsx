@@ -54,7 +54,7 @@ export default function Compensation() {
 
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ['employees-basic'],
-    queryFn: async () => listFrom(await employeesApi.getEmployees()),
+    queryFn: () => employeesApi.getAllEmployees(),
   });
 
   const { data: assignments = [] } = useQuery({

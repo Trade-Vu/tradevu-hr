@@ -31,8 +31,7 @@ export default function SettingsDepartments() {
   const { data: rawEmployees = [], isLoading: empLoading } = useQuery({
     queryKey: ['employees', 'all'],
     queryFn: async () => {
-      const res = await employeesApi.getEmployees({ limit: 200 });
-      return Array.isArray(res) ? res : res?.data || [];
+      return employeesApi.getAllEmployees();
     },
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
