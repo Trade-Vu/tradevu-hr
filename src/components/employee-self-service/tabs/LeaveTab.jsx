@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Plane } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatLeaveStatus, getLeaveStatusBadgeClass } from "@/lib/leaveStatus";
 
 // Cycled per leave type so the tab keeps its original two-tone block look no matter how
 // many leave types the org has configured, instead of hardcoding just Annual/Sick.
@@ -83,16 +84,8 @@ export default function LeaveTab({ balances, leaveTypes, requests, onOpenLeave }
                         {format(new Date(leave.end_date), "MMM d")}
                       </p>
                     </div>
-                    <Badge
-                      className={
-                        leave.status.toLowerCase() === "approved"
-                          ? "bg-green-100 text-green-700"
-                          : leave.status.toLowerCase() === "rejected"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                      }
-                    >
-                      {leave.status}
+                    <Badge className={getLeaveStatusBadgeClass(leave.status)}>
+                      {formatLeaveStatus(leave.status)}
                     </Badge>
                   </div>
                 </div>

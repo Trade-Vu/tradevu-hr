@@ -361,15 +361,6 @@ export default function LeaveOverview() {
     return (isAdmin || isManager) && isPendingLeaveStatus(r.status);
   });
 
-  const statusColors = {
-    APPROVED: 'bg-green-100 text-green-800 border-green-200',
-    PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    PENDING_APPROVAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    PENDING_HR: 'bg-purple-100 text-purple-800 border-purple-200',
-    REJECTED: 'bg-red-100 text-red-800 border-red-200',
-    CANCELLED: 'bg-gray-100 text-gray-800 border-gray-200'
-  };
-
   const selectedLeaveTypeObj = leaveTypes.find(t => t.id === formData.leave_type);
   const requiresAttachment = selectedLeaveTypeObj && (
     selectedLeaveTypeObj.name === 'Study Leave' || 
@@ -388,7 +379,7 @@ export default function LeaveOverview() {
   );
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-slate-50 to-blue-50 md:p-8">
+    <div className="min-h-screen">
       <div className="mx-auto space-y-8 max-w-7xl">
         {/* Header */}
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
@@ -412,7 +403,6 @@ export default function LeaveOverview() {
               </Button>
               <Button 
                 onClick={() => { setShowForm(true); setIsPastLeave(false); }}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Leave Request
@@ -675,7 +665,6 @@ export default function LeaveOverview() {
 
         <MyLeaveRequests
           requests={myRequests}
-          statusColors={statusColors}
           onCancel={handleCancel}
           safeDate={safeDate}
         />

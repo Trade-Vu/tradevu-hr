@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leaveApi, employeesApi, approvalsApi } from "@/api";
-import { isPendingLeaveStatus } from "@/lib/leaveStatus";
+import { isPendingLeaveStatus, formatLeaveStatus, getLeaveStatusBadgeClass, normalizeLeaveStatus, LEAVE_STATUS } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import { format } from "date-fns";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { motion } from "framer-motion";
 import { calculateWorkingDays } from "@/lib/leaveDays";
-import { toTitleCase } from "@/lib/utils";
 import LeaveActionDialog from "@/components/Leave/LeaveActionDialog";
 
 const StatsSkeleton = () => (
@@ -271,17 +270,6 @@ export default function AllLeaveRequests() {
     else handleReject(confirmState.leave, reason);
   };
 
-  const statusStyles = {
-    PENDING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
-    PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-    PENDING_HR: 'bg-amber-50 text-amber-700 border-amber-200',
-    PENDING_SUPER_ADMIN: 'bg-amber-50 text-amber-700 border-amber-200',
-    APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-    CANCELLED: 'bg-slate-50 text-slate-700 border-slate-200',
-    NEEDS_INFORMATION: 'bg-blue-50 text-blue-700 border-blue-200',
-  };
-
   const displayRequests = leaveRequestsData?.leaveRequests || [];
   const totalRequests = leaveRequestsData?.totalCount || 0;
   const totalPages = leaveRequestsData?.totalPages || 1;
@@ -519,7 +507,7 @@ export default function AllLeaveRequests() {
                   <CheckCircle className="w-6 h-6 text-emerald-600" />
                 </div>
                 <p className="text-3xl font-bold tracking-tight text-slate-900">
-                  {displayRequests.filter(l => String(l.status || '').toUpperCase() === 'APPROVED').length}
+                  {displayRequests.filter(l => normalizeLeaveStatus(l.status) === LEAVE_STATUS.APPROVED).length}
                 </p>
                 <p className="mt-1 text-sm font-medium text-slate-500">Approved This Month</p>
               </CardContent>
@@ -612,8 +600,8 @@ export default function AllLeaveRequests() {
                         </div>
                         
                         <div className="flex flex-row items-center justify-between gap-3 pl-16 md:flex-col md:items-end md:justify-start md:pl-0">
-                          <Badge className={`${statusStyles[String(leave.status || '').toUpperCase()] || statusStyles.PENDING_APPROVAL} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
-                            {toTitleCase(leave.status)}
+                          <Badge className={`${getLeaveStatusBadgeClass(leave.status)} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
+                            {formatLeaveStatus(leave.status)}
                           </Badge>
 
                           {isPendingLeaveStatus(leave.status) && (

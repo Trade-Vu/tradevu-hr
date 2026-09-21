@@ -223,7 +223,7 @@ export default function Dashboard() {
         <Link to={`${PAGE_ROUTES.EMPLOYEES}?action=add`}>
           <Button className="px-5 text-white transition-all rounded-lg shadow-sm bg-slate-900 hover:bg-slate-800">
             <Plus className="w-4 h-4 mr-2" />
-            Add New Hire
+            Add employee
           </Button>
         </Link>
       </motion.div>

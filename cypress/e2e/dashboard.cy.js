@@ -112,8 +112,8 @@ describe('Dashboard', () => {
       cy.contains(/quick actions|add employee|new hire/i).should('be.visible')
     })
 
-    it('Add New Hire button navigates to employees page', () => {
-      cy.contains('button, a', /add new hire/i).click()
+    it('Add employee button navigates to employees page', () => {
+      cy.contains('button, a', /Add employee/i).click()
       cy.url({ timeout: 8000 }).should('include', 'employees')
     })
   })

@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { extractErrorMessage, toTitleCase } from "@/lib/utils";
+import { formatLeaveStatus, getLeaveStatusBadgeClass } from "@/lib/leaveStatus";
 
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { format as dateFnsFormat } from "date-fns";
@@ -1323,12 +1324,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                             {format(new Date(leave.start_date), 'MMM d')} - {format(new Date(leave.end_date), 'MMM d, yyyy')} ({leave.total_days} days)
                           </p>
                         </div>
-                        <Badge className={
-                          leave.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                            leave.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'
-                        }>
-                          {toTitleCase(leave.status)}
+                        <Badge className={getLeaveStatusBadgeClass(leave.status)}>
+                          {formatLeaveStatus(leave.status)}
                         </Badge>
                       </div>
                     ))}

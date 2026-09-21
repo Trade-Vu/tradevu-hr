@@ -150,12 +150,12 @@ export default function Expenses() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="mx-auto space-y-8 max-w-7xl">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-white rounded-full shadow-sm">
               <Receipt className="w-4 h-4 text-purple-600" />
               <span className="text-sm font-medium text-slate-700">Expense Management</span>
             </div>
@@ -173,15 +173,15 @@ export default function Expenses() {
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid gap-6 md:grid-cols-4">
           <Card className="border-slate-200">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <div className="bg-yellow-100 p-3 rounded-xl">
+                <div className="p-3 bg-yellow-100 rounded-xl">
                   <Clock className="w-6 h-6 text-yellow-600" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
+              <div className="mb-1 text-3xl font-bold text-slate-900">
                 {totalPending.toLocaleString()} {DEFAULT_CURRENCY}
               </div>
               <div className="text-sm text-slate-600">Pending</div>
@@ -191,11 +191,11 @@ export default function Expenses() {
           <Card className="border-slate-200">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <div className="bg-blue-100 p-3 rounded-xl">
+                <div className="p-3 bg-blue-100 rounded-xl">
                   <CheckCircle className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
+              <div className="mb-1 text-3xl font-bold text-slate-900">
                 {totalApproved.toLocaleString()} {DEFAULT_CURRENCY}
               </div>
               <div className="text-sm text-slate-600">Approved</div>
@@ -205,11 +205,11 @@ export default function Expenses() {
           <Card className="border-slate-200">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <div className="bg-green-100 p-3 rounded-xl">
+                <div className="p-3 bg-green-100 rounded-xl">
                   <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
+              <div className="mb-1 text-3xl font-bold text-slate-900">
                 {totalReimbursed.toLocaleString()} {DEFAULT_CURRENCY}
               </div>
               <div className="text-sm text-slate-600">Reimbursed</div>
@@ -219,11 +219,11 @@ export default function Expenses() {
           <Card className="border-slate-200">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-3">
-                <div className="bg-purple-100 p-3 rounded-xl">
+                <div className="p-3 bg-purple-100 rounded-xl">
                   <Receipt className="w-6 h-6 text-purple-600" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900 mb-1">
+              <div className="mb-1 text-3xl font-bold text-slate-900">
                 {claims.length}
               </div>
               <div className="text-sm text-slate-600">Total Claims</div>
@@ -233,13 +233,13 @@ export default function Expenses() {
 
         {/* Claim Form */}
         {showClaimForm && (
-          <Card className="border-slate-200 shadow-xl">
+          <Card className="shadow-xl border-slate-200">
             <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-purple-50 to-pink-50">
               <CardTitle>Submit Expense Claim</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="expense_type">Expense Type *</Label>
                     <Select value={formData.expenseType} onValueChange={(value) => setFormData((prev) => ({ ...prev, expenseType: value }))}>
@@ -343,7 +343,7 @@ export default function Expenses() {
             ) : claims.length === 0 ? (
               <div className="p-12 text-center">
                 <Receipt className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No expense claims yet</h3>
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">No expense claims yet</h3>
                 <p className="text-slate-500">Submit your first claim to get started</p>
               </div>
             ) : (
@@ -353,11 +353,11 @@ export default function Expenses() {
                   const StatusIcon = config.icon;
 
                   return (
-                    <div key={claim.id} className="p-6 hover:bg-slate-50 transition-colors">
+                    <div key={claim.id} className="p-6 transition-colors hover:bg-slate-50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-slate-900 capitalize">
+                            <h3 className="font-semibold capitalize text-slate-900">
                               {claim.expense_type?.replace('_', ' ')}
                             </h3>
                             <Badge variant="outline" className={`${config.color} border flex items-center gap-1`}>
@@ -368,13 +368,13 @@ export default function Expenses() {
                               {claim.amount.toLocaleString()} {claim.currency}
                             </span>
                           </div>
-                          {canViewAll && <p className="text-sm text-slate-600 mb-1">{claim.employee_name}</p>}
-                          <p className="text-sm text-slate-500 mb-2">{claim.description}</p>
+                          {canViewAll && <p className="mb-1 text-sm text-slate-600">{claim.employee_name}</p>}
+                          <p className="mb-2 text-sm text-slate-500">{claim.description}</p>
                           <p className="text-xs text-slate-400">
                             Date: {format(new Date(claim.date), "MMM d, yyyy")}
                           </p>
                           {claim.rejection_reason && (
-                            <p className="text-sm text-red-600 mt-2">Reason: {claim.rejection_reason}</p>
+                            <p className="mt-2 text-sm text-red-600">Reason: {claim.rejection_reason}</p>
                           )}
                         </div>
                         <div className="flex gap-2">

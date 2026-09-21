@@ -5,14 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
-import { useAuth } from '@/lib/AuthContext';
+import { ellipsifyMiddle } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
-  const { checkAppState } = useAuth();
 
   const [inviteDetails, setInviteDetails] = useState(null);
   const [firstName, setFirstName] = useState('');
@@ -54,7 +53,11 @@ export default function AcceptInvite() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || 'This invite link is invalid or has expired. Please request a new one.');
+        if (cancelled) return;
+        const fallback = err.status === 404
+          ? 'This invite link is invalid, has expired, or the service is temporarily unavailable. Please try again shortly or request a new invite.'
+          : 'This invite link is invalid or has expired. Please request a new one.';
+        setError(ellipsifyMiddle(err.message || fallback, 160));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -99,7 +102,15 @@ export default function AcceptInvite() {
 
       if (data && data.token) {
         localStorage.setItem('token', data.token);
-        await checkAppState();
+        // No need to refresh AuthContext's user here: window.location.href below
+        // is a full page navigation, which re-initializes the whole app (and
+        // AuthProvider's own auth check) from scratch anyway. Calling
+        // checkAppState() here used to flip the global isLoadingAuth flag mid-flight,
+        // which made App.jsx swap to its full-screen spinner and unmount this
+        // component, then remount it fresh once loading finished — the fresh
+        // mount re-ran the invite-lookup effect against an already-consumed
+        // token, flashing an "invite invalid" error just before the original,
+        // still-pending setTimeout below fired the real redirect anyway.
         setIsSuccess(true);
         setTimeout(() => {
           if (data.user?.role === 'EMPLOYEE') {
@@ -111,7 +122,7 @@ export default function AcceptInvite() {
       }
     } catch (err) {
       console.error('Accept invite error:', err);
-      setError(err.message || 'Failed to complete account setup. The link may be invalid or expired.');
+      setError(ellipsifyMiddle(err.message || 'Failed to complete account setup. The link may be invalid or expired.', 160));
     } finally {
       setIsSubmitting(false);
     }
@@ -119,34 +130,34 @@ export default function AcceptInvite() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-slate-800" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
-      <div className="w-full flex flex-col items-center justify-center p-8 sm:p-12 relative z-10">
-        <div className="w-full max-w-md space-y-8 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
+    <div className="flex min-h-screen font-sans bg-slate-50">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full p-8 sm:p-12">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white border shadow-xl sm:p-10 rounded-2xl border-slate-100">
           
           {error ? (
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <div className="space-y-6 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 rounded-full bg-red-50">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="font-heading text-xl font-medium text-slate-900">Invite Invalid</h3>
+              <h3 className="text-xl font-medium font-heading text-slate-900">Invite Invalid</h3>
               <p className="text-slate-600">{error}</p>
               <Button onClick={() => navigate(PAGE_ROUTES.LOGIN)} className="w-full mt-4">
                 Return to Login
               </Button>
             </div>
           ) : isSuccess ? (
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+            <div className="space-y-6 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="font-heading text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
+              <h3 className="text-xl font-medium font-heading text-slate-900">Welcome to Tradevu HR</h3>
               <p className="text-slate-600">
                 Your account has been created successfully. Redirecting you to your dashboard...
               </p>
@@ -155,8 +166,8 @@ export default function AcceptInvite() {
             <>
               <div className="text-center">
                 <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-                <h1 className="font-heading text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
-                <p className="text-slate-500 mt-2 text-base">
+                <h1 className="text-3xl font-bold tracking-tight font-heading text-slate-900">Join {inviteDetails?.organizationName}</h1>
+                <p className="mt-2 text-base text-slate-500">
                   You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
                   <span className="font-medium text-slate-700">{inviteDetails?.email}</span>
                 </p>
@@ -165,11 +176,11 @@ export default function AcceptInvite() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">First Name</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">First Name</label>
                     <Input
                       type="text"
                       placeholder="Jane"
-                      className="py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                      className="py-6 text-base bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       disabled={isSubmitting}
@@ -177,11 +188,11 @@ export default function AcceptInvite() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Last Name</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Last Name</label>
                     <Input
                       type="text"
                       placeholder="Doe"
-                      className="py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                      className="py-6 text-base bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       disabled={isSubmitting}
@@ -192,15 +203,15 @@ export default function AcceptInvite() {
 
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Create Password</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Create Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
+                        <Lock className="w-5 h-5 text-slate-400" />
                       </div>
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                        className="py-6 text-base pl-11 pr-11 bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isSubmitting}
@@ -211,21 +222,21 @@ export default function AcceptInvite() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Confirm Password</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Confirm Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
+                        <Lock className="w-5 h-5 text-slate-400" />
                       </div>
                       <Input
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                        className="py-6 text-base pl-11 pr-11 bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         disabled={isSubmitting}
@@ -236,7 +247,7 @@ export default function AcceptInvite() {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                       >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
@@ -245,10 +256,10 @@ export default function AcceptInvite() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-6 text-base font-medium bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-all rounded-xl"
+                  className="w-full py-6 text-base font-medium text-white transition-all shadow-md bg-slate-900 hover:bg-slate-800 rounded-xl"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   ) : (
                     <>
                       Create Account

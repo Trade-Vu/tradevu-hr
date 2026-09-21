@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
-  if (leaveBalances.length === 0 && leaveTypes.length === 0) {
+    if (leaveBalances.length === 0 && leaveTypes.length === 0) {
     return (
       <Card className="border-slate-200">
         <CardContent className="flex flex-col items-center justify-center p-8 text-center">

@@ -30,6 +30,21 @@ export function toTitleCase(value) {
     .trim();
 }
 
+/**
+ * Truncates a message to a max length, ellipsizing the middle so both the
+ * start (usually the meaningful part) and end stay visible. Used as a
+ * last-resort safeguard for error text that might echo back a raw path,
+ * token, or id rather than a clean human sentence.
+ */
+export function ellipsifyMiddle(text, maxLength = 120) {
+  const str = String(text ?? '');
+  if (str.length <= maxLength) return str;
+  const keep = maxLength - 1; // reserve 1 char for the ellipsis
+  const head = Math.ceil(keep * 0.6);
+  const tail = keep - head;
+  return `${str.slice(0, head)}…${str.slice(str.length - tail)}`;
+}
+
 export function extractErrorMessage(error, defaultMsg = "An unexpected error occurred.") {
   if (!error) return defaultMsg;
   
