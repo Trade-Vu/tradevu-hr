@@ -7,6 +7,7 @@ export { default as leaveApi } from './leave.api';
 export { default as attendanceApi } from './attendance.api';
 export { default as documentsApi } from './documents.api';
 export { default as payrollApi } from './payroll.api';
+export { default as compensationApi } from './compensation.api';
 export { default as onboardingApi } from './onboarding.api';
 export { default as assetsApi } from './assets.api';
 export { default as expensesApi } from './expenses.api';

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { extractErrorMessage, getRefId } from "@/lib/utils";
@@ -91,15 +92,7 @@ export default function useEmployeeSelfService() {
     enabled: !!employee,
     initialData: [],
   });
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["leave-types"],
-    queryFn: async () =>
-      listFrom(await leaveApi.getLeaveTypes()).map((type) => ({
-        ...type,
-        id: type.id || type._id,
-      })),
-    initialData: [],
-  });
+  const { data: leaveTypes = [] } = useLeaveTypes();
   const { data: leaveBalances = [] } = useQuery({
     queryKey: ["my-leave-balances", employee?.id],
     queryFn: async () => {

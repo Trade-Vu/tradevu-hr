@@ -40,7 +40,17 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
-    const serverMessage = error.response?.data?.message;
+    let serverMessage = error.response?.data?.message;
+
+    // A 404 whose message is literally "Cannot GET /some/path" is Nest's own
+    // built-in "no route matched" message (from an unmatched route, not a
+    // NotFoundException a controller intentionally threw) — it leaks the raw
+    // request path and internal HTTP method to the UI. Never show that
+    // verbatim; a route rarely being missing is a deploy/wiring issue, not
+    // something the user did wrong.
+    if (status === 404 && /^Cannot (GET|POST|PUT|PATCH|DELETE) /.test(serverMessage || '')) {
+      serverMessage = 'The requested resource could not be found. Please try again in a moment.';
+    }
 
     // Handle token expiration or unauthorized
     if (status === 401) {

@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 
 const actions = [
   {
-    title: "Add New Hire",
+    title: "Add employee",
     description: "Onboard a new employee",
     icon: UserPlus,
     url: `${PAGE_ROUTES.EMPLOYEES}?action=add`,

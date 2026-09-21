@@ -66,7 +66,7 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
         <p className="text-sm text-slate-500 mb-6">Start by adding your first new hire</p>
         <Link to={`${PAGE_ROUTES.EMPLOYEES}?action=add`}>
           <button className="px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
-            <UserPlus className="w-4 h-4" /> Add New Hire
+            <UserPlus className="w-4 h-4" /> Add employee
           </button>
         </Link>
       </div>

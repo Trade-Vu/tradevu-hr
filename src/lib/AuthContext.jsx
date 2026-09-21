@@ -82,6 +82,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Re-fetch the current user in place, without the app-wide loading state checkUserAuth() sets.
+  // For pages that depend on fields that can change mid-session (e.g. employeeId.employmentStatus).
+  const refreshUser = async () => {
+    try {
+      const userData = await authApi.getMe();
+      if (userData) setUser({ ...userData, id: userData._id || userData.id });
+    } catch (error) {
+      console.error('Refreshing user failed:', error);
+    }
+  };
+
   const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
@@ -126,6 +137,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       navigateToLogin,
       checkAppState,
+      refreshUser,
       viewMode,
       changeViewMode
     }}>

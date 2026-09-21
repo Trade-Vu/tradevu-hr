@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Paperclip, Plane } from 'lucide-react';
 import { format } from 'date-fns';
-import { toTitleCase } from '@/lib/utils';
+import { formatLeaveStatus, getLeaveStatusBadgeClass, isPendingLeaveStatus, normalizeLeaveStatus, LEAVE_STATUS } from '@/lib/leaveStatus';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export default function MyLeaveRequests({ requests, statusColors, onCancel, safeDate }) {
+export default function MyLeaveRequests({ requests, onCancel, safeDate }) {
   return (
     <Card className="border-slate-200">
       <CardHeader className="border-b border-slate-200">
@@ -40,8 +40,8 @@ export default function MyLeaveRequests({ requests, statusColors, onCancel, safe
                         <h4 className="font-semibold text-slate-900">
                           {request.leave_type.replace("_", " ").toUpperCase()}
                         </h4>
-                        <Badge variant="outline" className={statusColors[request.status] || ""}>
-                          {request.status}
+                        <Badge variant="outline" className={getLeaveStatusBadgeClass(request.status)}>
+                          {formatLeaveStatus(request.status)}
                         </Badge>
                       </div>
                       <div className="space-y-1 text-sm text-slate-600">
@@ -85,9 +85,9 @@ export default function MyLeaveRequests({ requests, statusColors, onCancel, safe
                                 <span>{approver.actorName || approver.name || 'Unknown'}</span>
                                 <Badge
                                   variant="outline"
-                                  className={`${statusColors[approver.newStatus] || ""} text-xs`}
+                                  className={`${getLeaveStatusBadgeClass(approver.newStatus)} text-xs`}
                                 >
-                                  {toTitleCase(approver.newStatus || approver.action)}
+                                  {formatLeaveStatus(approver.newStatus || approver.action)}
                                 </Badge>
                               </div>
                             ))}
@@ -97,9 +97,8 @@ export default function MyLeaveRequests({ requests, statusColors, onCancel, safe
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {["PENDING", "PENDING_APPROVAL", "PENDING_HR", "APPROVED"].includes(
-                      request.status,
-                    ) && (
+                    {(isPendingLeaveStatus(request.status) ||
+                      normalizeLeaveStatus(request.status) === LEAVE_STATUS.APPROVED) && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
