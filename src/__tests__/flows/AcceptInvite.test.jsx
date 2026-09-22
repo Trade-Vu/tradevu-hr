@@ -71,32 +71,59 @@ describe('AcceptInvite — Token Validation', () => {
     });
   });
 
-  it('shows a clean, actionable message for a 404 — not the raw backend "Cannot GET ..." text', async () => {
-    // client.js's response interceptor rewrites Nest's internal unmatched-route
-    // message before it ever reaches a page, so the error this component sees
-    // for a 404 is already the clean generic message, not the raw path.
-    const err = new Error('The requested resource could not be found. Please try again in a moment.');
-    err.status = 404;
-    authApi.getInviteDetails.mockRejectedValueOnce(err);
-    renderWithToken('5e18be1dba3ef44711113c9a1968fbf06bd7b54da887037e02d6ea011b5d8384');
-    await waitFor(() => {
-      expect(screen.getByText(/service is temporarily unavailable|could not be found/i)).toBeInTheDocument();
-    });
-    expect(screen.queryByText(/cannot get/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/\/api\/v1\//)).not.toBeInTheDocument();
-  });
-
   it('ellipsizes an unexpectedly long error message instead of rendering it in full', async () => {
-    const longToken = '5e18be1dba3ef44711113c9a1968fbf06bd7b54da887037e02d6ea011b5d8384'.repeat(3);
-    const err = new Error(`Cannot GET /api/v1/auth/invite/${longToken}`);
-    err.status = 404;
+    const err = new Error(`Invalid or expired invite token: ${'x'.repeat(300)}`);
+    err.status = 400;
     authApi.getInviteDetails.mockRejectedValueOnce(err);
-    renderWithToken(longToken);
+    renderWithToken('some-token');
     await waitFor(() => {
       expect(screen.getByText(/…/)).toBeInTheDocument();
     });
     const shown = screen.getByText(/…/).textContent;
     expect(shown.length).toBeLessThan(err.message.length);
+  });
+
+  // The lookup only prefills the form. When it fails for any reason other than the backend's
+  // explicit 400 (e.g. a 404 because the deployed API predates GET /auth/invite/:token), the
+  // invitee must still get the form — accept-invite validates the token on submit.
+  it.each([
+    ['a 404 (API without the lookup route)', 404],
+    ['a server error', 500],
+    ['a network error', undefined],
+  ])('falls back to the plain form on %s', async (_label, status) => {
+    const err = new Error('The requested resource could not be found. Please try again in a moment.');
+    err.status = status;
+    authApi.getInviteDetails.mockRejectedValueOnce(err);
+    renderWithToken('5e18be1dba3ef44711113c9a1968fbf06bd7b54da887037e02d6ea011b5d8384');
+    await waitFor(() => {
+      expect(screen.getByText(/accept your invitation/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
+    expect(screen.queryByText(/invite invalid/i)).not.toBeInTheDocument();
+    // Without details, don't guess the invitee's role.
+    expect(screen.queryByText(/invited as/i)).not.toBeInTheDocument();
+  });
+
+  it('still accepts the invite when the lookup 404s, and surfaces accept-invite\'s own verdict', async () => {
+    const lookupErr = new Error('The requested resource could not be found.');
+    lookupErr.status = 404;
+    authApi.getInviteDetails.mockRejectedValueOnce(lookupErr);
+    const acceptErr = new Error('Invalid or expired invite token');
+    acceptErr.status = 400;
+    authApi.acceptInvite.mockRejectedValueOnce(acceptErr);
+
+    const user = userEvent.setup();
+    renderWithToken('some-token');
+    await waitFor(() => expect(screen.getByText(/accept your invitation/i)).toBeInTheDocument());
+    await user.type(screen.getByPlaceholderText('Jane'), 'Jane');
+    await user.type(screen.getByPlaceholderText('Doe'), 'Doe');
+    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+    await user.type(passwordInputs[0], 'SecurePass1!');
+    await user.type(passwordInputs[1], 'SecurePass1!');
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+
+    expect(authApi.acceptInvite).toHaveBeenCalledWith({ token: 'some-token', fullName: 'Jane Doe', password: 'SecurePass1!' });
+    await waitFor(() => expect(screen.getByText(/invalid or expired invite token/i)).toBeInTheDocument());
   });
 
   it('renders the form when token is valid', async () => {

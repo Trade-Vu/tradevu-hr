@@ -9,6 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Plus, Edit, Trash2, ArrowRight, GitBranch } from "lucide-react";
+import ApprovalStepsEditor from "@/components/approvals/ApprovalStepsEditor";
+import { getApprovalRoleLabel, normalizeApprovalSteps } from "@/lib/approvalSteps";
+
+// What an empty chain actually does server-side (it is not auto-approval).
+const EMPTY_CHAIN_MESSAGE = "No steps: a single approval from an HR Admin, Super Admin or the employee's manager completes the request.";
 
 const WORKFLOW_TYPES = [
   { value: 'leave', label: 'Leave Request' },
@@ -78,23 +83,11 @@ export default function SettingsApprovalWorkflows() {
     setWorkflowForm({
       name: workflow.name,
       type: workflow.type,
-      levels: workflow.levels,
+      // Normalized so legacy 'FINANCE' steps show as Finance Admin instead of a blank select.
+      levels: normalizeApprovalSteps(workflow.levels),
       isActive: workflow.isActive,
     });
     setShowWorkflowDialog(true);
-  };
-
-  const addApprovalLevel = () => {
-    setWorkflowForm(prev => ({
-      ...prev,
-      levels: [
-        ...prev.levels,
-        {
-          order: prev.levels.length + 1,
-          role: 'MANAGER',
-        }
-      ]
-    }));
   };
 
   return (
@@ -169,51 +162,12 @@ export default function SettingsApprovalWorkflows() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Approval Steps</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={addApprovalLevel}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Step
-                    </Button>
-                  </div>
-                  
-                  {workflowForm.levels.map((step, index) => (
-                    <Card key={index} className="p-4 border-slate-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm font-semibold">Step {index + 1}</span>
-                          <Select 
-                            value={step.role}
-                            onValueChange={(value) => {
-                              const updated = [...workflowForm.levels];
-                              updated[index].role = value;
-                              setWorkflowForm(prev => ({ ...prev, levels: updated }));
-                            }}
-                          >
-                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Role" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MANAGER">Manager</SelectItem>
-                              <SelectItem value="HR_ADMIN">HR Admin</SelectItem>
-                              <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-                              <SelectItem value="FINANCE">Finance</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button 
-                          type="button" 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => setWorkflowForm(prev => ({
-                            ...prev,
-                            levels: prev.levels.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i + 1 }))
-                          }))}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                  {workflowForm.levels.length === 0 && <p className="text-sm text-slate-500">No approval levels defined. Requests will be auto-approved if active.</p>}
+                  <Label>Approval Steps</Label>
+                  <ApprovalStepsEditor
+                    steps={workflowForm.levels}
+                    onChange={(levels) => setWorkflowForm(prev => ({ ...prev, levels }))}
+                    emptyMessage={EMPTY_CHAIN_MESSAGE}
+                  />
                 </div>
 
                 <div className="flex justify-end gap-3">
@@ -277,9 +231,9 @@ export default function SettingsApprovalWorkflows() {
                                   {step.order}
                                 </div>
                                 <div className="flex items-center justify-center w-10 h-10 text-sm font-bold text-indigo-700 border border-indigo-200 rounded-full shadow-sm bg-indigo-50">
-                                  {step.role.substring(0, 2).toUpperCase()}
+                                  {getApprovalRoleLabel(step.role).substring(0, 2).toUpperCase()}
                                 </div>
-                                <span className="text-[10px] mt-1.5 text-indigo-700 font-bold uppercase tracking-wider">{step.role.replace('_', ' ')}</span>
+                                <span className="text-[10px] mt-1.5 text-indigo-700 font-bold uppercase tracking-wider">{getApprovalRoleLabel(step.role)}</span>
                               </div>
                             </div>
                           ))}
@@ -299,7 +253,7 @@ export default function SettingsApprovalWorkflows() {
                       ) : (
                         <div className="flex items-center gap-2 p-3 border rounded-lg bg-amber-50 text-amber-700 border-amber-200/50">
                           <CheckCircle className="w-4 h-4" />
-                          <p className="text-sm font-medium">No approval steps defined. Requests are auto-approved.</p>
+                          <p className="text-sm font-medium">{EMPTY_CHAIN_MESSAGE}</p>
                         </div>
                       )}
                     </div>
