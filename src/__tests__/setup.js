@@ -12,3 +12,12 @@ afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
 });
+
+// jsdom has no ResizeObserver; Radix primitives (Switch, RadioGroup, ...) measure themselves with it.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

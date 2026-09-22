@@ -54,10 +54,18 @@ export default function AcceptInvite() {
       })
       .catch((err) => {
         if (cancelled) return;
-        const fallback = err.status === 404
-          ? 'This invite link is invalid, has expired, or the service is temporarily unavailable. Please try again shortly or request a new invite.'
-          : 'This invite link is invalid or has expired. Please request a new one.';
-        setError(ellipsifyMiddle(err.message || fallback, 160));
+        // The lookup only exists to prefill the form, so only a definitive answer about the
+        // token blocks the page: the backend's 400 "Invalid or expired invite token".
+        // Anything else (404 because the deployed API predates GET /auth/invite/:token,
+        // network errors, 5xx) falls back to the plain form — POST /auth/accept-invite
+        // validates the token itself on submit, which is how this page worked before the
+        // prefill was added. Blocking on those errors turned a missing prefill into
+        // "every invite is broken" when the frontend was deployed ahead of the backend.
+        if (err.status === 400) {
+          setError(ellipsifyMiddle(err.message || 'This invite link is invalid or has expired. Please request a new one.', 160));
+        } else {
+          console.warn('Invite details lookup failed; continuing without prefill:', err);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -166,10 +174,19 @@ export default function AcceptInvite() {
             <>
               <div className="text-center">
                 <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-                <h1 className="text-3xl font-bold tracking-tight font-heading text-slate-900">Join {inviteDetails?.organizationName}</h1>
+                <h1 className="text-3xl font-bold tracking-tight font-heading text-slate-900">
+                  {inviteDetails?.organizationName ? `Join ${inviteDetails.organizationName}` : 'Accept your invitation'}
+                </h1>
+                {/* Details are absent when the prefill lookup failed; don't guess the role or show a blank email. */}
                 <p className="mt-2 text-base text-slate-500">
-                  You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
-                  <span className="font-medium text-slate-700">{inviteDetails?.email}</span>
+                  {inviteDetails ? (
+                    <>
+                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
+                      <span className="font-medium text-slate-700">{inviteDetails.email}</span>
+                    </>
+                  ) : (
+                    'Set up your account to get started.'
+                  )}
                 </p>
               </div>
 
