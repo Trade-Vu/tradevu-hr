@@ -122,6 +122,8 @@ export default function Employees() {
       return list.map(t => ({
         id: t._id || t.id,
         name: t.name,
+        department: t.department || t.role_type || 'All Departments',
+        role_type: t.department || t.role_type || 'All Departments',
       }));
     },
     initialData: [],

@@ -32,6 +32,7 @@ apiClient.interceptors.response.use(
         return {
           data: response.data.data,
           pagination: response.data.pagination,
+          meta: response.data.pagination,
         };
       }
       return response.data.data;

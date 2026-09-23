@@ -65,9 +65,10 @@ export default function UnifiedProfileReviewDialog({
   const empInfo = employeeData;
 
   const invalidate = () => {
-    // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now, not
-    // through invalidation here - see the backend's ApprovalsEventsService for the emit side.
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.invalidateQueries({ queryKey: ['employees'] });
     queryClient.invalidateQueries({ queryKey: ['employeeDetails'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });

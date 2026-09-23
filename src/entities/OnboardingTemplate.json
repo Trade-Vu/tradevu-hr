@@ -10,9 +10,13 @@
       "type": "string",
       "description": "Template description"
     },
+    "department": {
+      "type": "string",
+      "description": "Target department or team this template is suited for (e.g. All Departments, Engineering, Sales)"
+    },
     "role_type": {
       "type": "string",
-      "description": "Job role this template is for"
+      "description": "Target department or role this template is for"
     },
     "tasks": {
       "type": "array",

@@ -43,6 +43,8 @@ export default function DocumentManager({ documents = [], employeeId }) {
   const invalidateDocs = () => {
     queryClient.invalidateQueries({ queryKey: ['documents', employeeId] });
     queryClient.invalidateQueries({ queryKey: ['employee-documents', employeeId] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
   };
 
   const updateDocumentMutation = useMutation({

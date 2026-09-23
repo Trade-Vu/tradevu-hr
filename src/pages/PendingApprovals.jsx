@@ -106,6 +106,7 @@ export default function PendingApprovals() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedUnifiedEmployeeId, setSelectedUnifiedEmployeeId] = useState(null);
   const [leaveConfirmState, setLeaveConfirmState] = useState(null); // { leave, action }
+  const [taskReviewEmpId, setTaskReviewEmpId] = useState(null);
   
   const [showOffboardDialog, setShowOffboardDialog] = useState(false);
   const [offboardTargetId, setOffboardTargetId] = useState(null);
@@ -119,9 +120,12 @@ export default function PendingApprovals() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-    // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
+    queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['departments'] });
+    queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
   };
 
   const handleError = (err) => {
@@ -139,9 +143,12 @@ export default function PendingApprovals() {
   
   const { mutate: approveCompletedTasks, isPending: isApprovingTasks } = useMutation({
     mutationFn: (variables) => approvalsApi.approveCompletedTasks(variables.employeeId, variables.taskIds),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Tasks approved successfully!");
+      setTaskReviewEmpId(null);
       invalidate();
+      await queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+      await queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
     },
     onError: handleError
   });
@@ -320,8 +327,9 @@ export default function PendingApprovals() {
     );
     if (hasUnapprovedCompletedTasks) return true;
 
-    // Fallback for older onboardingStatus flags
-    return ['PENDING_APPROVAL', 'ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus) && 
+    // Fallback for older onboardingStatus flags if employee has no tasks embedded
+    return (!e.onboardingTasks || e.onboardingTasks.length === 0) &&
+      ['PENDING_APPROVAL', 'ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus) && 
       (['IN_PROGRESS', 'in_progress', 'TASKS_COMPLETED', 'tasks_completed'].includes(e.onboardingStatus));
   });
 
@@ -504,7 +512,7 @@ export default function PendingApprovals() {
                         
                         return (
                           <motion.div 
-                            key={emp.id} 
+                            key={emp.id || emp._id} 
                             whileHover={{ y: -2 }}
                             className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
                           >
@@ -514,7 +522,7 @@ export default function PendingApprovals() {
                               <p className="text-sm text-indigo-600 font-medium mt-2">{completedTasks.length} tasks completed and awaiting approval.</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <Dialog>
+                                <Dialog open={taskReviewEmpId === (emp.id || emp._id)} onOpenChange={(open) => setTaskReviewEmpId(open ? (emp.id || emp._id) : null)}>
                                   <DialogTrigger asChild>
                                     <Button className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-2 rounded-lg shadow-sm">
                                       <CheckCircle2 className="w-4 h-4" />
@@ -528,7 +536,7 @@ export default function PendingApprovals() {
                                     </DialogHeader>
                                     <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto">
                                       {completedTasks.map(task => (
-                                        <div key={task.id} className="text-sm flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                        <div key={task.id || task._id} className="text-sm flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                                           <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                                           <div className="flex-1">
                                             <p className="text-slate-800 font-medium">{task.title}</p>
@@ -540,7 +548,10 @@ export default function PendingApprovals() {
                                     <div className="flex justify-end pt-2 border-t border-slate-100">
                                       <Button 
                                         className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
-                                        onClick={() => approveCompletedTasks({ employeeId: emp.id, taskIds: completedTasks.map(t => t.id) })}
+                                        onClick={() => approveCompletedTasks({ 
+                                          employeeId: emp.id || emp._id, 
+                                          taskIds: completedTasks.map(t => (t.id || t._id)?.toString()).filter(Boolean) 
+                                        })}
                                         disabled={isApprovingTasks}
                                       >
                                         {isApprovingTasks ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

@@ -36,10 +36,15 @@ export default function MyLeaveRequests({ requests, onCancel, safeDate }) {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <h4 className="font-semibold text-slate-900">
                           {request.leave_type.replace("_", " ").toUpperCase()}
                         </h4>
+                        {request.isAnnualPlan && (
+                          <Badge variant="outline" className="text-[10px] uppercase font-semibold border-indigo-200 text-indigo-700 bg-indigo-50">
+                            Annual Plan
+                          </Badge>
+                        )}
                         <Badge variant="outline" className={getLeaveStatusBadgeClass(request.status)}>
                           {formatLeaveStatus(request.status)}
                         </Badge>

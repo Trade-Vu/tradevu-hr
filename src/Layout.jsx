@@ -7,7 +7,9 @@ import {
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
   MessageSquare, Settings, CheckSquare, Plane, MessageCircle, Home,
   Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange,
-  LayoutDashboardIcon
+  LayoutDashboardIcon,
+  Paperclip,
+  BookTemplate
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from '@tanstack/react-query';
@@ -234,6 +236,7 @@ export default function Layout({ children }) {
         { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
         { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
         { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
+        { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
         { title: "Employee Classes", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
         { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
         { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },

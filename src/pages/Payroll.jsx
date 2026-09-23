@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, ArrowLeft, CheckCircle, FileText, Lock } from "lucide-react";
+import { Plus, ArrowLeft, CheckCircle, FileText, Lock, Download } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
@@ -224,8 +224,8 @@ export default function Payroll() {
                             size="sm"
                             onClick={() => downloadPayslip(record._id, record.employeeId?.fullName)}
                           >
-                            <FileText className="w-4 h-4 mr-2" />
-                            Payslip
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Payslip
                           </Button>
                         </TableCell>
                       </TableRow>

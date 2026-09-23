@@ -53,7 +53,7 @@ export default function Dashboard() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [page, setPage] = useState(1);
-  const limit = 5;
+  const limit = 10;
 
   const handleOpenDetail = (empOrId) => {
     if (typeof empOrId === 'object' && empOrId !== null) {
@@ -95,7 +95,9 @@ export default function Dashboard() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
       const res = await employeesApi.getEmployees(params);
       const list = Array.isArray(res) ? res : res?.data || [];
-      const meta = res?.meta || {};
+      const meta = res?.pagination || res?.meta || {};
+      const totalCount = meta.total ?? meta.totalCount ?? list.length;
+      const totalPages = meta.totalPages ?? Math.ceil(totalCount / limit) ?? 1;
       return {
         employees: list.map(emp => ({
           ...emp,
@@ -106,8 +108,8 @@ export default function Dashboard() {
           onboarding_status: emp.onboardingStatus || (emp.employmentStatus === 'ACTIVE' ? 'completed' : 'in_progress'),
           progress_percentage: emp.onboardingProgress ?? (emp.employmentStatus === 'ACTIVE' ? 100 : 50),
         })),
-        totalCount: meta.total ?? list.length,
-        totalPages: meta.totalPages ?? 1,
+        totalCount,
+        totalPages,
         currentPage: meta.page ?? page,
       };
     },
@@ -293,7 +295,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Main Content Grid */}
-      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 h-[500px] mb-8">
+      <motion.div variants={itemVariants} className="grid lg:grid-cols-3 gap-6 min-h-[550px] lg:h-[620px] mb-8">
         {/* Employee List - Takes 2 columns */}
         <div className="flex flex-col min-h-0 lg:col-span-2">
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-white border shadow-sm rounded-xl border-slate-200/60">
@@ -337,26 +339,33 @@ export default function Dashboard() {
                 onOpenDetail={handleOpenDetail}
               />
             </div>
-            {paginatedData?.totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 text-sm border-t border-slate-100 shrink-0">
-                <span className="text-slate-500">
-                  Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
+            {paginatedData?.totalCount > 0 && (
+              <div className="flex items-center justify-between p-4 text-sm border-t border-slate-100 shrink-0 bg-white">
+                <span className="text-xs text-slate-500 sm:text-sm">
+                  Showing {Math.min((page - 1) * limit + 1, paginatedData.totalCount)} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
                 </span>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    disabled={page <= 1}
+                    className="h-8 px-2.5 gap-1 text-xs"
                   >
                     <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Previous</span>
                   </Button>
+                  <span className="text-xs text-slate-600 px-1 font-medium whitespace-nowrap">
+                    Page {page} of {paginatedData.totalPages || 1}
+                  </span>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setPage(p => Math.min(paginatedData.totalPages, p + 1))}
-                    disabled={page === paginatedData.totalPages}
+                    onClick={() => setPage(p => Math.min(paginatedData.totalPages || 1, p + 1))}
+                    disabled={page >= (paginatedData.totalPages || 1)}
+                    className="h-8 px-2.5 gap-1 text-xs"
                   >
+                    <span className="hidden sm:inline">Next</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>

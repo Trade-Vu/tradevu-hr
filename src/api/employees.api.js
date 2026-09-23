@@ -54,6 +54,10 @@ export const employeesApi = {
   submitForReview: async (id) => {
     return apiClient.post(`/employees/${id}/submit-for-review`);
   },
+
+  reassignHrAdmin: async (id) => {
+    return apiClient.post(`/employees/${id}/reassign-hr-admin`);
+  },
 };
 
 export default employeesApi;

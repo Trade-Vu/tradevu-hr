@@ -167,11 +167,14 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                   <SelectValue placeholder="Choose a template" />
                 </SelectTrigger>
                 <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}{template.role_type ? ` - ${template.role_type}` : ''}
-                    </SelectItem>
-                  ))}
+                  {templates.map((template) => {
+                    const deptLabel = template.department || template.role_type || 'All Departments';
+                    return (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name} ({deptLabel})
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               <p className="text-sm text-slate-500">

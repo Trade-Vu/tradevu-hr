@@ -25,6 +25,10 @@ export const onboardingApi = {
     return apiClient.post('/onboarding/templates', dto);
   },
 
+  updateTemplate: async (id, dto) => {
+    return apiClient.put(`/onboarding/templates/${id}`, dto);
+  },
+
   assignTemplate: async (employeeId, templateId) => {
     return apiClient.post('/onboarding/assign', { employeeId, templateId });
   },

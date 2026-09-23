@@ -131,6 +131,7 @@ export default function LeaveOverview() {
           selectedDates: l.selectedDates || [],
           attachment_url: l.attachmentUrl || l.attachment_url || '',
           approvers: l.approvers || [],
+          isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
         };
       });
     },
@@ -183,7 +184,8 @@ export default function LeaveOverview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
@@ -226,7 +228,8 @@ export default function LeaveOverview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
@@ -264,7 +267,8 @@ export default function LeaveOverview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       
       let actionText = 'updated';

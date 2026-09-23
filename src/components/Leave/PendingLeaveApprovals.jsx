@@ -33,7 +33,15 @@ export default function PendingLeaveApprovals({ requests, onApprove, onReject, i
                 <div className="flex-1">
                   <h4 className="mb-2 font-semibold text-slate-900">{request.employee_name}</h4>
                   <div className="space-y-1 text-sm text-slate-600">
-                    <p><strong>Type:</strong> {request.leave_type.replace('_', ' ')} {request.isHalfDay && <Badge variant="secondary" className="ml-1 text-[10px]">Half Day</Badge>}</p>
+                    <p className="flex items-center gap-1.5 flex-wrap">
+                      <strong>Type:</strong> {request.leave_type.replace('_', ' ')}
+                      {request.isHalfDay && <Badge variant="secondary" className="text-[10px]">Half Day</Badge>}
+                      {request.isAnnualPlan && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-semibold border-indigo-200 text-indigo-700 bg-indigo-50">
+                          Annual Plan
+                        </Badge>
+                      )}
+                    </p>
                     <p><strong>Duration:</strong> {request.selectedDates?.length > 0
                       ? request.selectedDates.map((date) => format(safeDate(date), 'MMM d')).join(', ')
                       : `${format(safeDate(request.start_date), 'MMM d')} - ${format(safeDate(request.end_date), 'MMM d')}`} ({request.total_days} days)</p>
