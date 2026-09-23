@@ -40,6 +40,8 @@ export default function Compensation() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [assignTarget, setAssignTarget] = useState(null);
 
+  console.log({ assignTarget })
+
   const [structureForm, setStructureForm] = useState(emptyStructureForm());
   const [assignForm, setAssignForm] = useState({ structureId: '', reason: '', overrideBasicSalary: '' });
 
@@ -91,7 +93,7 @@ export default function Compensation() {
 
   const assignMutation = useMutation({
     mutationFn: (input) => compensationApi.assign({
-      employeeId: assignTarget.id,
+      employeeId: assignTarget._id,
       structureId: input.structureId,
       reason: input.reason || undefined,
       overrides: input.overrideBasicSalary !== '' ? { basicSalary: Number(input.overrideBasicSalary) } : undefined,

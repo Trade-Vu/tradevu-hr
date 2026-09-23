@@ -53,6 +53,10 @@ export default function TaskManager({ tasks = [], employeeId }) {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       toast.success("Task updated successfully");
     },
     onError: (err) => {

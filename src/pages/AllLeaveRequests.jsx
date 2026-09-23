@@ -100,7 +100,8 @@ export default function AllLeaveRequests() {
           total_days: l.totalDays || l.total_days || 0,
           isHalfDay: !!l.isHalfDay,
           selectedDates: l.selectedDates || [],
-          approvers: l.approvers || []
+          approvers: l.approvers || [],
+          isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
         }))
       };
     },
@@ -143,6 +144,10 @@ export default function AllLeaveRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setShowForm(false);
       setEditingLeave(null);
       setFormData({
@@ -179,7 +184,8 @@ export default function AllLeaveRequests() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      // Pending-counts badge (Layout.jsx) updates live via usePendingApprovalsStream (SSE) now.
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setEditingLeave(null);
       setShowForm(false);
@@ -577,6 +583,11 @@ export default function AllLeaveRequests() {
                               <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-slate-200 text-slate-600">
                                 {leave.leave_type.replace('_', ' ')}
                               </Badge>
+                              {leave.isAnnualPlan && (
+                                <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-indigo-200 text-indigo-700 bg-indigo-50">
+                                  Annual Plan
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mb-3 text-sm text-slate-500">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />

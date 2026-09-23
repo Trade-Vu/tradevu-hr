@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { getNormalizedRole, isManager as isManagerRole } from "@/lib/roleUtils";
+import { extractErrorMessage } from "@/lib/utils";
 
 export default function LeaveHeatmapCalendar() {
   const { user } = useAuth();
@@ -65,6 +66,33 @@ export default function LeaveHeatmapCalendar() {
     // SUPER_ADMIN has no employee record/leave plan of their own, so this endpoint would 404.
     enabled: !isSuperAdminUser,
   });
+
+  const { data: balanceData } = useQuery({
+    queryKey: ['leave-balance-my', currentYear],
+    queryFn: () => leaveApi.getMyBalance(currentYear),
+    enabled: !isSuperAdminUser,
+  });
+
+  const annualBalance = useMemo(() => {
+    const list = balanceData?.balances || [];
+    return (
+      list.find(
+        (b) =>
+          b.leaveTypeId?.name?.toLowerCase().includes("annual") ||
+          b.leaveTypeId?.code?.toLowerCase() === "annual",
+      ) || list[0]
+    );
+  }, [balanceData]);
+
+  // Total annual leave days available to plan:
+  // If myPlan already has pending plannedDates, those may count towards pending in the balance,
+  // so we add back pending plan dates from the current plan to give the true allowance for this plan.
+  const availableAnnualDays = useMemo(() => {
+    if (!annualBalance) return null;
+    const baseRemaining = annualBalance.remaining ?? 0;
+    const planPendingAdjustment = myPlan?.status === 'PENDING' ? (myPlan.plannedDates?.length || 0) : 0;
+    return Math.max(0, baseRemaining + planPendingAdjustment);
+  }, [annualBalance, myPlan]);
 
   const departmentId = selectedDepartment === "all" ? undefined : selectedDepartment;
   const { data: departments } = useDepartments({ enabled: isOrgAdmin });
@@ -144,12 +172,19 @@ export default function LeaveHeatmapCalendar() {
   const submitMutation = useMutation({
     mutationFn: (dates) => leaveApi.submitLeavePlan(currentYear, dates),
     onSuccess: () => {
-      toast.success("Leave plan submitted for approval");
+      toast.success("Leave plan submitted. Leave requests have been generated for approval.");
       queryClient.invalidateQueries({ queryKey: ['leave-plan-my', currentYear] });
       queryClient.invalidateQueries({ queryKey: ['leave-plans-team'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-balance-my', currentYear] });
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (err) => {
-      toast.error("Failed to submit plan");
+      const msg = extractErrorMessage(err, "Failed to submit plan");
+      toast.error(msg);
       console.error(err);
     }
   });
@@ -165,6 +200,13 @@ export default function LeaveHeatmapCalendar() {
     if (!isSelectableDay(day)) return;
 
     const dateStr = format(day, "yyyy-MM-dd");
+    const isAlreadySelected = selectedDates.includes(dateStr);
+
+    if (!isAlreadySelected && availableAnnualDays !== null && selectedDates.length >= availableAnnualDays) {
+      toast.error(`You cannot plan more than your available annual leave days (${availableAnnualDays} days available).`);
+      return;
+    }
+
     setSelectedDates(prev =>
       prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
     );
@@ -185,13 +227,22 @@ export default function LeaveHeatmapCalendar() {
         newDates.push(format(day, "yyyy-MM-dd"));
       }
     });
+
+    const datesToAdd = newDates.filter(d => !selectedDates.includes(d));
+    if (availableAnnualDays !== null && selectedDates.length + datesToAdd.length > availableAnnualDays) {
+      toast.error(
+        `Adding these dates would exceed your available annual leave days (${availableAnnualDays} days max, ${selectedDates.length + datesToAdd.length} attempted).`
+      );
+      return;
+    }
+
     setSelectedDates(prev => {
       const merged = new Set([...prev, ...newDates]);
       return Array.from(merged).sort();
     });
     setRangeStart("");
     setRangeEnd("");
-    toast.success(`Added ${newDates.length} days to plan.`);
+    toast.success(`Added ${datesToAdd.length} days to plan.`);
   };
 
   const getCellClasses = (day) => {
@@ -301,10 +352,19 @@ export default function LeaveHeatmapCalendar() {
           {viewMode === "personal" && !isSuperAdminUser && (
             <Button
               onClick={() => submitMutation.mutate(selectedDates)}
-              disabled={submitMutation.isPending || (myPlan?.status === 'APPROVED')}
+              disabled={
+                submitMutation.isPending ||
+                myPlan?.status === 'APPROVED' ||
+                selectedDates.length === 0 ||
+                (availableAnnualDays !== null && selectedDates.length > availableAnnualDays)
+              }
               className="bg-primary hover:bg-primary/90"
             >
-              {submitMutation.isPending ? "Submitting..." : myPlan?.status === 'APPROVED' ? "Plan Approved" : "Submit Plan"}
+              {submitMutation.isPending
+                ? "Submitting..."
+                : myPlan?.status === 'APPROVED'
+                ? "Plan Approved"
+                : "Submit Plan"}
             </Button>
           )}
         </div>
@@ -322,10 +382,28 @@ export default function LeaveHeatmapCalendar() {
           </div>
         ) : (
         <div className="flex flex-col space-y-6">
-          <div className="flex items-center justify-between text-sm font-medium">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="w-4 h-4 bg-green-500 border border-green-600 rounded-sm shadow-sm"></div>
-              <span>Total Planned Days: {selectedDates.length}</span>
+              <span>
+                Total Planned Days: <strong>{selectedDates.length}</strong>
+                {viewMode === "personal" && availableAnnualDays !== null && (
+                  <span className="text-muted-foreground font-normal"> / {availableAnnualDays} days available</span>
+                )}
+              </span>
+              {viewMode === "personal" && availableAnnualDays !== null && (
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  selectedDates.length > availableAnnualDays
+                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                    : selectedDates.length === availableAnnualDays
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                }`}>
+                  {selectedDates.length > availableAnnualDays
+                    ? `${selectedDates.length - availableAnnualDays} days over limit`
+                    : `${availableAnnualDays - selectedDates.length} days remaining to plan`}
+                </span>
+              )}
             </div>
             {myPlan && (
               <div className="flex items-center gap-2">

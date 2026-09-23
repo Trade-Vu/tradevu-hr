@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import LeaveHeatmapCalendar from "@/components/Leave/LeaveHeatmapCalendar";
+import LeavePlanDetailsSheet from "@/components/Leave/LeavePlanDetailsSheet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leaveApi } from "@/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -7,6 +8,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Eye } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -22,6 +24,7 @@ export default function LeavePlanner() {
   // SUPER_ADMIN can see the team plans for visibility, but leave plan review is an HR/manager action.
   const canReviewPlans = isAdminOrManager && role !== 'SUPER_ADMIN';
   const [capacityConflict, setCapacityConflict] = useState(null); // { planId, conflicts }
+  const [selectedPlan, setSelectedPlan] = useState(null);
 
   const { data: teamPlans, isLoading } = useQuery({
     queryKey: ['leave-plans-team', currentYear, null],
@@ -32,8 +35,18 @@ export default function LeavePlanner() {
     enabled: isAdminOrManager,
   });
 
+  const activeSelectedPlan = useMemo(() => {
+    if (!selectedPlan) return null;
+    return teamPlans?.find(p => (p._id || p.id) === (selectedPlan._id || selectedPlan.id)) || selectedPlan;
+  }, [teamPlans, selectedPlan]);
+
   const invalidatePlanQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['leave-plans-team'] });
+    queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
   };
 
   const reviewMutation = useMutation({
@@ -90,40 +103,75 @@ export default function LeavePlanner() {
                 </TableHeader>
                 <TableBody>
                   {teamPlans?.map((plan) => (
-                    <TableRow key={plan._id || plan.id}>
-                      <TableCell className="font-medium">{plan.employeeId?.fullName || 'Employee'}</TableCell>
-                      <TableCell>{(plan.plannedDates || []).length} days planned</TableCell>
+                    <TableRow
+                      key={plan._id || plan.id}
+                      className="cursor-pointer hover:bg-slate-50/80 transition-colors"
+                      onClick={() => setSelectedPlan(plan)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-semibold text-indigo-700 shrink-0">
+                            {plan.employeeId?.fullName?.charAt(0) || 'E'}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900 leading-tight">
+                              {plan.employeeId?.fullName || 'Employee'}
+                            </div>
+                            {plan.employeeId?.jobTitle && (
+                              <div className="text-xs text-slate-500 font-normal mt-0.5">
+                                {plan.employeeId.jobTitle}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          plan.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                          plan.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
+                        <span className="font-medium text-slate-800">
+                          {(plan.plannedDates || []).length} days planned
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
+                          plan.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                          plan.status === 'REJECTED' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                          'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}>
                           {plan.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
-                        {canReviewPlans && plan.status === 'PENDING' && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => reviewMutation.mutate({ planId: plan._id || plan.id, action: 'rejected' })}
-                              disabled={reviewMutation.isPending}
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => reviewMutation.mutate({ planId: plan._id || plan.id, action: 'approved' })}
-                              disabled={reviewMutation.isPending}
-                            >
-                              Approve
-                            </Button>
-                          </div>
-                        )}
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1.5 text-slate-600 hover:text-slate-900"
+                            onClick={() => setSelectedPlan(plan)}
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Details
+                          </Button>
+                          {canReviewPlans && plan.status === 'PENDING' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => reviewMutation.mutate({ planId: plan._id || plan.id, action: 'rejected' })}
+                                disabled={reviewMutation.isPending}
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => reviewMutation.mutate({ planId: plan._id || plan.id, action: 'approved' })}
+                                disabled={reviewMutation.isPending}
+                              >
+                                Approve
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -133,6 +181,16 @@ export default function LeavePlanner() {
           </CardContent>
         </Card>
       )}
+
+      <LeavePlanDetailsSheet
+        plan={activeSelectedPlan}
+        isOpen={Boolean(activeSelectedPlan)}
+        onClose={() => setSelectedPlan(null)}
+        canReview={canReviewPlans}
+        onApprove={(planId) => reviewMutation.mutate({ planId, action: 'approved' })}
+        onReject={(planId) => reviewMutation.mutate({ planId, action: 'rejected' })}
+        isReviewing={reviewMutation.isPending}
+      />
 
       <AlertDialog open={Boolean(capacityConflict)} onOpenChange={(open) => !open && setCapacityConflict(null)}>
         <AlertDialogContent>

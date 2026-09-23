@@ -203,12 +203,21 @@ export default function SettingsDepartments() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {departments.map(dept => (
+              {departments.map(dept => {
+                const isDefaultDept = dept.name?.trim().toLowerCase() === 'human resources' || dept.name?.trim().toLowerCase() === 'hr';
+                return (
               <Card key={dept.id} className="border-slate-200">
                 <CardHeader className="pb-4 bg-slate-50">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{dept.name}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">{dept.name}</CardTitle>
+                            {isDefaultDept && (
+                              <Badge variant="outline" className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border-indigo-200">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
                       <p className="text-sm text-slate-500">Code: {dept.code || 'N/A'}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -219,9 +228,11 @@ export default function SettingsDepartments() {
                         {dept.status === 'PENDING' && currentUserRole === 'SUPER_ADMIN' && (
                           <Button size="sm" onClick={() => approveDeptMutation.mutate(dept.id)} disabled={approveDeptMutation.isPending}>Approve</Button>
                         )}
-                        <Button size="sm" variant="destructive" onClick={() => deleteDeptMutation.mutate(dept.id)} disabled={deleteDeptMutation.isPending}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                            {!isDefaultDept && (
+                              <Button size="sm" variant="destructive" onClick={() => deleteDeptMutation.mutate(dept.id)} disabled={deleteDeptMutation.isPending} title="Delete department">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                       </div>
                     </div>
                   </div>
@@ -254,7 +265,8 @@ export default function SettingsDepartments() {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+                );
+              })}
           </div>
         )}
       </CardContent>
@@ -392,7 +404,7 @@ export default function SettingsDepartments() {
                   </div>
                   
                   {selectedDept.employees?.length > 0 ? (
-                    <div className="space-y-3 overflow-y-auto h-[65%]">
+                    <div className="space-y-3 overflow-y-auto h-[450px]">
                       {selectedDept.employees.map(emp => {
                         const initials = emp.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                         const isHead = emp.id === selectedDept.headEmployeeId;
