@@ -1,37 +1,125 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { isSuperAdmin, isAdmin, isManager, isFinanceAdmin } from '@/lib/roleUtils';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
-
-const DefaultFallback = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-  </div>
-);
+import { toast } from 'sonner';
 
 /**
- * ProtectedRoute — wraps authenticated pages.
- * Uses the actual AuthContext API: isAuthenticated, isLoadingAuth, authError.
+ * Route definitions and access control
  */
-export default function ProtectedRoute({ fallback = <DefaultFallback />, requiredRoles }) {
-  const { isAuthenticated, isLoadingAuth, authError, user } = useAuth();
+const ADMIN_ONLY_PAGES = new Set([
+  'employees',
+  'employeedetail',
+  'offboarding',
+  'recruitment',
+  'templates',
+  'compliancedashboard',
+  'analytics',
+  'advancedanalytics',
+  'organogram',
+  'assets',
+  'settings',
+  'settingsapprovalworkflows',
+  'settingsshifts',
+  'settingsdepartments',
+  'settingsclasses',
+  'settingsleavetypes',
+  'settingspublicholidays',
+  'auditlogs',
+]);
 
-  if (isLoadingAuth) {
-    return fallback;
+const FINANCE_OR_ADMIN_PAGES = new Set([
+  'payroll',
+  'compensation',
+  'payrolladjustments',
+  'payrollreports',
+  'payrollai',
+  'settingsstatutory',
+]);
+
+const MANAGER_OR_ADMIN_PAGES = new Set([
+  'pendingapprovals',
+  'allleaverequests',
+]);
+
+const SUPER_ADMIN_ONLY_PAGES = new Set([
+  'organizationsetup',
+]);
+
+const EMPLOYEE_ONLY_PAGES = new Set([
+  'employeeselfservice',
+  'employeeportal',
+]);
+
+function UnauthorizedRedirect({ to, message = "You do not have permission to access that page." }) {
+  useEffect(() => {
+    toast.error(message, { id: 'unauthorized-route-toast' });
+  }, [message]);
+
+  return <Navigate to={to} replace />;
+}
+
+export function RouteGuard({ pageKey, children }) {
+  const { user, viewMode } = useAuth();
+  const normalizedKey = (pageKey || '').toLowerCase();
+
+  const userIsSuperAdmin = isSuperAdmin(user);
+  const userIsAdmin = isAdmin(user);
+  const userIsFinance = isFinanceAdmin(user);
+  const userIsManager = isManager(user);
+  const userIsHrAdmin = user?.role === 'HR_ADMIN';
+
+  // Effective view mode: employees and HR admins who switched to EMPLOYEE view
+  const isEmployeeView = !userIsSuperAdmin && (!userIsAdmin || viewMode === 'EMPLOYEE');
+
+  // 1. Check Super Admin Only Pages
+  if (SUPER_ADMIN_ONLY_PAGES.has(normalizedKey) && !userIsSuperAdmin) {
+    return <UnauthorizedRedirect to={isEmployeeView ? PAGE_ROUTES.EMPLOYEE_SELF_SERVICE : PAGE_ROUTES.DASHBOARD} />;
   }
 
-  if (authError?.type === 'user_not_registered') {
-    return <UserNotRegisteredError />;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to={PAGE_ROUTES.LOGIN} replace />;
-  }
-
-  // Role-based guard: if requiredRoles is provided, check user's role
-  if (requiredRoles && user && !requiredRoles.includes(user.role)) {
+  // 2. Check Super Admin access to Employee Only Pages
+  if (userIsSuperAdmin && EMPLOYEE_ONLY_PAGES.has(normalizedKey)) {
     return <Navigate to={PAGE_ROUTES.DASHBOARD} replace />;
   }
 
-  return <Outlet />;
+  // 3. Check Role Selection: Only HR_ADMIN who can switch views
+  if (normalizedKey === 'roleselection') {
+    if (!userIsHrAdmin || userIsSuperAdmin) {
+      return <Navigate to={userIsSuperAdmin ? PAGE_ROUTES.DASHBOARD : PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} replace />;
+    }
+  }
+
+  // 4. Check Dashboard / Home in Employee View
+  if (isEmployeeView && (normalizedKey === 'dashboard' || normalizedKey === 'home')) {
+    return <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} replace />;
+  }
+
+  // 5. Check Admin-Only Pages
+  if (ADMIN_ONLY_PAGES.has(normalizedKey)) {
+    const hasAdminAccess = userIsSuperAdmin || (userIsAdmin && !isEmployeeView);
+    if (!hasAdminAccess) {
+      return <UnauthorizedRedirect to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
+    }
+  }
+
+  // 6. Check Finance or Admin Pages
+  if (FINANCE_OR_ADMIN_PAGES.has(normalizedKey)) {
+    const hasFinanceOrAdminAccess = userIsSuperAdmin || ((userIsAdmin || userIsFinance) && !isEmployeeView);
+    if (!hasFinanceOrAdminAccess) {
+      return <UnauthorizedRedirect to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
+    }
+  }
+
+  // 7. Check Manager or Admin Pages (Pending Approvals, All Leave Requests)
+  if (MANAGER_OR_ADMIN_PAGES.has(normalizedKey)) {
+    const hasApprovalAccess = userIsSuperAdmin || userIsAdmin || userIsManager;
+    if (!hasApprovalAccess) {
+      return <UnauthorizedRedirect to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
+    }
+  }
+
+  return children;
 }
+
+export default RouteGuard;

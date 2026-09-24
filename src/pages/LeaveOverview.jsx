@@ -10,7 +10,7 @@ import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { leaveApi, approvalsApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { isLeaveEligibleStatus, isSeparatedStatus } from "@/lib/employmentStatus";
-import { isSuperAdmin, isHrAdmin } from "@/lib/roleUtils";
+import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
 import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export default function LeaveOverview() {
   useEffect(() => {
     if (!canRequestForSelf) refreshUser();
   }, []);
-  const isManager = user?.role === 'MANAGER';
+  const isManager = checkIsManager(user);
   const [formData, setFormData] = useState({
     employee_email: user?.email || '',
     leave_type: '',
@@ -364,7 +364,14 @@ export default function LeaveOverview() {
   const myRequests = leaveRequests.filter(r => r.employee_email === user?.email);
   const pendingApprovals = leaveRequests.filter(r => {
     if (r.employee_email === user?.email) return false;
-    return (isAdmin || isManager) && isPendingLeaveStatus(r.status);
+    if (!isPendingLeaveStatus(r.status)) return false;
+    if (isManager && !isAdmin) {
+      const hasManagerApproved = (r.approvers || r.approvalHistory || []).some(
+        (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
+      );
+      if (hasManagerApproved) return false;
+    }
+    return isAdmin || isManager;
   });
 
   const selectedLeaveTypeObj = leaveTypes.find(t => t.id === formData.leave_type);

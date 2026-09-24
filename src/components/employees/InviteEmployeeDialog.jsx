@@ -77,6 +77,7 @@ export default function InviteEmployeeDialog({ open, onClose }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
                   <SelectItem value="HR_ADMIN">HR Manager</SelectItem>
                 </SelectContent>
               </Select>

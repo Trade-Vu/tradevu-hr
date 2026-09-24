@@ -21,6 +21,7 @@ import AcceptInvite from './pages/AcceptInvite';
 
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { isAdmin, isSuperAdmin, isHrAdmin } from '@/lib/roleUtils';
+import { RouteGuard } from '@/components/ProtectedRoute';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
   const isPublicPage = (!isAuthenticated && currentPath === PAGE_ROUTES.HOME) || 
     currentPath.includes(PAGE_ROUTES.FORGOT_PASSWORD) || 
     currentPath.includes(PAGE_ROUTES.RESET_PASSWORD) || 
+    currentPath.includes('/reset-password') || 
     currentPath.includes(PAGE_ROUTES.ACCEPT_INVITE) || 
     currentPath.includes(PAGE_ROUTES.REGISTER);
 
@@ -70,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route path={PAGE_ROUTES.LOGIN} element={Pages.Login ? <Pages.Login /> : <div>Login component missing</div>} />
         <Route path={PAGE_ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
         <Route path={PAGE_ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path={PAGE_ROUTES.ACCEPT_INVITE} element={<AcceptInvite />} />
         <Route path={PAGE_ROUTES.REGISTER} element={Pages.Register ? <Pages.Register /> : <div>Register missing</div>} />
         <Route path={PAGE_ROUTES.HOME} element={Pages.Home ? <Pages.Home /> : <MainPage />} />
@@ -122,7 +125,15 @@ const AuthenticatedApp = () => {
       <Routes>
         <Route path={PAGE_ROUTES.HOME} element={effectiveViewMode === 'EMPLOYEE' ? <Navigate to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} replace /> : <MainPage />} />
         {Object.entries(Pages).map(([path, Page]) => (
-          <Route key={path} path={`/${path.toLowerCase()}`} element={<Page />} />
+          <Route
+            key={path}
+            path={`/${path.toLowerCase()}`}
+            element={
+              <RouteGuard pageKey={path}>
+                <Page />
+              </RouteGuard>
+            }
+          />
         ))}
         {Object.entries(Pages).map(([path]) => (
           <Route key={`orig-${path}`} path={`/${path}`} element={<Navigate to={`/${path.toLowerCase()}`} replace />} />

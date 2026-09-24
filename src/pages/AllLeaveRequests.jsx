@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit, Clock, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
 import { motion } from "framer-motion";
 import { calculateWorkingDays } from "@/lib/leaveDays";
 import LeaveActionDialog from "@/components/Leave/LeaveActionDialog";
@@ -61,6 +62,8 @@ const RequestsSkeleton = () => (
 export default function AllLeaveRequests() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isSuperOrHrAdmin = isSuperAdmin(user) || isHrAdmin(user);
+  const isManagerOnly = checkIsManager(user) && !isSuperOrHrAdmin;
   const [showForm, setShowForm] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -626,36 +629,54 @@ export default function AllLeaveRequests() {
                             {formatLeaveStatus(leave.status)}
                           </Badge>
 
-                          {isPendingLeaveStatus(leave.status) && (
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="w-8 h-8 p-0 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" 
-                                onClick={() => handleEdit(leave)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                                onClick={() => setConfirmState({ leave, action: 'approve' })}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1.5" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                                onClick={() => setConfirmState({ leave, action: 'reject' })}
-                              >
-                                <XCircle className="w-4 h-4 mr-1.5" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          {isPendingLeaveStatus(leave.status) && (() => {
+                            const hasManagerApproved = Boolean(
+                              (leave.approvers || leave.approvalHistory || []).some(
+                                (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
+                              ) ||
+                              ((leave.currentApprovalLevel || 0) > 0 && Array.isArray(leave.approvalLevels) && leave.approvalLevels[0]?.role === 'MANAGER')
+                            );
+
+                            if (hasManagerApproved && isManagerOnly) {
+                              return (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-semibold">
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>Approved by Manager</span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="w-8 h-8 p-0 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" 
+                                  onClick={() => handleEdit(leave)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                                  onClick={() => setConfirmState({ leave, action: 'approve' })}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                                  onClick={() => setConfirmState({ leave, action: 'reject' })}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1.5" />
+                                  Reject
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </motion.div>
