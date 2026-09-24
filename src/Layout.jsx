@@ -16,7 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { organizationsApi, approvalsApi } from "@/api";
-import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges } from "@/lib/roleUtils";
+import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges, isManager } from "@/lib/roleUtils";
 import { usePendingApprovalsStream } from "@/hooks/usePendingApprovalsStream";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -219,11 +219,14 @@ export default function Layout({ children }) {
   // The SUPER_ADMIN should only have an adminView and they should not have the choice to select the employee view.
   // ONLY the HR_ADMIN can have the option to switch between views.
   const canSwitchViews = userIsHrAdmin && !userIsSuperAdmin;
+  const userIsManager = isManager(user);
 
   // Determine if the user is allowed to see admin views (SUPER_ADMIN always sees admin views)
   const canSeeAdminViews = userIsSuperAdmin || (userIsAdmin && (viewMode === 'ADMIN' || !viewMode));
 
-  let baseNavItems = canSeeAdminViews ? [...navigationStructure] : employeeNavigation;
+  let baseNavItems = canSeeAdminViews
+    ? [...navigationStructure]
+    : [...employeeNavigation];
 
   // Append settings if admin and allowed to see admin views
   if (canSeeAdminViews) {
@@ -246,13 +249,14 @@ export default function Layout({ children }) {
   }
 
   const navItems = baseNavItems.map(item => {
-    if (item.title === "Dashboard") {
+    if (item.title === "Dashboard" || item.title === "Home") {
+      const pendingCount = canSeeAdminViews ? totalApprovalsCount : 0;
       return {
         ...item,
-        badge: totalApprovalsCount > 0 ? totalApprovalsCount : undefined,
+        badge: pendingCount > 0 ? pendingCount : undefined,
         children: item.children.map(child => {
           if (child.title === "Approvals") {
-            return { ...child, badge: totalApprovalsCount > 0 ? totalApprovalsCount : undefined };
+            return { ...child, badge: pendingCount > 0 ? pendingCount : undefined };
           }
           return child;
         })
@@ -278,6 +282,19 @@ export default function Layout({ children }) {
         children: item.children.map(child => {
           if (child.title === "Leave Management" && pendingLeaveCount > 0) {
             return { ...child, badge: pendingLeaveCount };
+          }
+          return child;
+        })
+      };
+    }
+    if (item.title === "HR & Finance") {
+      const hrBadgeCount = userIsManager ? pendingLeaveCount : 0;
+      return {
+        ...item,
+        badge: hrBadgeCount > 0 ? hrBadgeCount : undefined,
+        children: item.children.map(child => {
+          if (child.title === "Leave Management" && hrBadgeCount > 0) {
+            return { ...child, badge: hrBadgeCount };
           }
           return child;
         })

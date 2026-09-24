@@ -181,7 +181,7 @@ export default function AcceptInvite() {
                 <p className="mt-2 text-base text-slate-500">
                   {inviteDetails ? (
                     <>
-                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
+                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'an HR Manager' : (inviteDetails.role === 'MANAGER' ? 'a Manager' : 'an Employee')}.<br/>
                       <span className="font-medium text-slate-700">{inviteDetails.email}</span>
                     </>
                   ) : (

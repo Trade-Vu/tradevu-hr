@@ -58,8 +58,7 @@ export default function ResetPassword() {
       }, 3000);
     } catch (err) {
       console.error('Password reset error:', err);
-      // Try to extract a clean error message from GraphQL response
-      const errorMessage = err.response?.errors?.[0]?.message || 'Failed to reset password. The link may have expired.';
+      const errorMessage = err.message || err.response?.data?.message || 'Failed to reset password. The link may have expired.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);

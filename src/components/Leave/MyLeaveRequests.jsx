@@ -102,8 +102,7 @@ export default function MyLeaveRequests({ requests, onCancel, safeDate }) {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {(isPendingLeaveStatus(request.status) ||
-                      normalizeLeaveStatus(request.status) === LEAVE_STATUS.APPROVED) && (
+                    {isPendingLeaveStatus(request.status) && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button

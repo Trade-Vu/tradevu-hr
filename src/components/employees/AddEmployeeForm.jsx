@@ -35,14 +35,20 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
     employeeClass: "PERMANENT"
   });
 
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email?.trim() || '');
+  const isFormValid = Boolean(
+    formData.full_name?.trim() &&
+    isEmailValid &&
+    formData.start_date &&
+    formData.job_title?.trim()
+  );
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.template_id) {
-      toast.error("Please select an onboarding template.");
-      return;
-    }
+    if (!isFormValid) return;
     const submissionData = {
-      ...formData
+      ...formData,
+      template_id: formData.template_id && formData.template_id !== 'none' ? formData.template_id : undefined,
     };
     onSubmit(submissionData);
   };
@@ -161,12 +167,19 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
               Onboarding Template
             </h3>
             <div className="space-y-2">
-              <Label htmlFor="template_id">Select Template *</Label>
-              <Select value={formData.template_id} onValueChange={(value) => handleChange("template_id", value)} required>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="template_id">Select Template</Label>
+                <span className="text-xs text-slate-400">Optional</span>
+              </div>
+              <Select 
+                value={formData.template_id} 
+                onValueChange={(value) => handleChange("template_id", value)}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a template" />
+                  <SelectValue placeholder="Choose a template (optional)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">No template (Assign default tasks)</SelectItem>
                   {templates.map((template) => {
                     const deptLabel = template.department || template.role_type || 'All Departments';
                     return (
@@ -178,7 +191,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                 </SelectContent>
               </Select>
               <p className="text-sm text-slate-500">
-                Templates automatically create tasks and document requests for the employee
+                Templates automatically create tasks and document requests for the employee. If omitted, default tasks are assigned.
               </p>
             </div>
           </div>
@@ -191,6 +204,12 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
             <Button 
               type="submit" 
               isLoading={isSubmitting}
+              disabled={!isFormValid || isSubmitting}
+              className={`transition-all duration-200 ${
+                !isFormValid 
+                  ? 'opacity-40 cursor-not-allowed filter blur-[1px] select-none hover:bg-primary' 
+                  : 'shadow-md hover:shadow-lg'
+              }`}
             >
               {isSubmitting ? "Creating..." : "Create Employee"}
             </Button>
