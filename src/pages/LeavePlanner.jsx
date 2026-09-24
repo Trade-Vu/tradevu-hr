@@ -72,7 +72,7 @@ export default function LeavePlanner() {
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="text-xl font-medium">Annual Leave Planner</h3>
+          <h3 className="text-xl font-medium">Calendar</h3>
           <p className="text-sm text-muted-foreground mt-1">
             Map out your planned leave for the entire year. Managers can view aggregated plans.
           </p>

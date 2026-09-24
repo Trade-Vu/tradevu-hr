@@ -320,7 +320,7 @@ export default function LeaveHeatmapCalendar() {
     <Card className="w-full overflow-hidden">
       <CardHeader className="flex flex-col justify-between gap-4 md:flex-row md:items-center bg-muted/20">
         <div>
-          <CardTitle>Annual Leave Planner - {currentYear}</CardTitle>
+          <CardTitle>Calendar - {currentYear}</CardTitle>
           <CardDescription className="max-w-xl mt-1.5">
             {viewMode === "personal"
               ? "Select days to map out your planned leave for the year. Weekends and public holidays are automatically excluded."

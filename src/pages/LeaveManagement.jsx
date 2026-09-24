@@ -37,7 +37,7 @@ export default function LeaveManagement() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {canViewTeamRequests && (
             <TabsTrigger value="requests" className="flex items-center gap-1.5">
-              <span>{isAdmin ? "All Requests" : "Team Requests"}</span>
+              <span>{isAdmin ? "Requests" : "Team Requests"}</span>
               {pendingLeaveCount > 0 && (
                 <span className="ml-1 bg-red-100 text-red-600 text-[11px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center">
                   {pendingLeaveCount}
@@ -45,7 +45,7 @@ export default function LeaveManagement() {
               )}
             </TabsTrigger>
           )}
-          <TabsTrigger value="planner">Annual Planner</TabsTrigger>
+          <TabsTrigger value="planner">Calendar</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           <LeaveOverview />

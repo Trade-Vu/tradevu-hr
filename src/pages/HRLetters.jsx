@@ -147,7 +147,7 @@ export default function HRLetters() {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-gradient-to-br from-indigo-50 to-purple-50 md:p-8">
+    <div className="min-h-screen p-4">
       <div className="mx-auto space-y-8 max-w-7xl">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
