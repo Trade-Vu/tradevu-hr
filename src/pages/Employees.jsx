@@ -144,6 +144,7 @@ export default function Employees() {
         email: employeeData.email,
         jobTitle: employeeData.job_title,
         departmentId: employeeData.department_id || undefined,
+        managerId: employeeData.manager_id || employeeData.managerId || undefined,
         employmentType: employeeData.employment_type || 'FULL_TIME',
         hireDate: isoHireDate,
         basicSalary: parseFloat(employeeData.basic_salary) || 0,
@@ -157,6 +158,7 @@ export default function Employees() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['allEmployees'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast.success('Employee created and invitation email sent!');

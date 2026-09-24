@@ -129,15 +129,35 @@ export default function JobDataTab({
     [departments]
   );
 
-  const managerOptions = useMemo(() => [
-    { value: "NONE", label: "No Manager" },
-    ...employees
-      .filter(e => e.id !== employee.id)
-      .map(emp => ({
-        value: emp.id,
-        label: `${emp.full_name} - ${emp.job_title}`
+  const managerOptions = useMemo(() => {
+    const currentDeptId = editData.department_id || editData.departmentId || employee.department_id || employee.departmentId;
+    const selectedDept = departments.find(d => String(d.id || d._id) === String(currentDeptId));
+    const headEmpId = selectedDept?.managerId?._id || selectedDept?.managerId?.id || 
+      (typeof selectedDept?.managerId === 'string' ? selectedDept?.managerId : null);
+
+    const filtered = employees.filter(e => {
+      const eId = String(e.id || e._id);
+      const empSelfId = String(employee.id || employee._id);
+      if (eId === empSelfId) return false;
+
+      if (currentDeptId) {
+        const empDeptId = String(e.departmentId?._id || e.departmentId?.id || e.departmentId || e.department_id || '');
+        const isSameDept = empDeptId && empDeptId === String(currentDeptId);
+        const isHead = headEmpId && eId === String(headEmpId);
+        const isCurrentManager = employee.manager_id && eId === String(employee.manager_id);
+        return isSameDept || isHead || isCurrentManager;
+      }
+      return true;
+    });
+
+    return [
+      { value: "NONE", label: "No Manager" },
+      ...filtered.map(emp => ({
+        value: emp.id || emp._id,
+        label: `${emp.full_name || emp.fullName} - ${emp.job_title || emp.jobTitle || 'Employee'}`
       }))
-  ], [employees, employee.id]);
+    ];
+  }, [employees, employee.id, employee._id, employee.manager_id, editData.department_id, editData.departmentId, employee.department_id, employee.departmentId, departments]);
 
   const readOnlyFields = [
     { icon: Briefcase, label: "Job Title", value: employee.job_title },
