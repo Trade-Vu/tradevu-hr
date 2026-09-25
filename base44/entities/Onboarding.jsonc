@@ -1,0 +1,85 @@
+{
+  "name": "Onboarding",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "hire_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hire date"
+    },
+    "contract_type": {
+      "type": "string",
+      "enum": [
+        "indefinite",
+        "fixed_term",
+        "probation",
+        "internship"
+      ],
+      "description": "Contract type"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "compensation": {
+      "type": "number",
+      "description": "Monthly compensation"
+    },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "completed_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "description": "Onboarding checklist"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "completed"
+      ],
+      "default": "in_progress",
+      "description": "Onboarding status"
+    },
+    "completion_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Percentage of checklist completed"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date onboarding was completed"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "hire_date",
+    "job_title"
+  ]
+}

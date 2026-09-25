@@ -1,0 +1,416 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Employee full name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Work email"
+    },
+    "private_email": {
+      "type": "string",
+      "description": "Personal/private email"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title/position"
+    },
+    "department_id": {
+      "type": "string",
+      "description": "Department ID"
+    },
+    "manager_email": {
+      "type": "string",
+      "description": "Direct manager email (for organogram)"
+    },
+    "employment_type": {
+      "type": "string",
+      "enum": [
+        "full_time",
+        "part_time",
+        "contract",
+        "intern",
+        "temporary"
+      ],
+      "default": "full_time",
+      "description": "Employment type"
+    },
+    "employment_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "on_leave",
+        "suspended",
+        "terminated",
+        "resigned"
+      ],
+      "default": "active",
+      "description": "Current employment status"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Onboarding template ID"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Employment start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Employment end date (if terminated)"
+    },
+    "probation_end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Probation period end date"
+    },
+    "contract_details": {
+      "type": "object",
+      "description": "Contract information",
+      "properties": {
+        "contract_type": {
+          "type": "string",
+          "enum": [
+            "indefinite",
+            "fixed_term",
+            "probation",
+            "internship"
+          ]
+        },
+        "contract_start_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "contract_end_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "contract_file_url": {
+          "type": "string"
+        },
+        "renewal_date": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "onboarding_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed"
+      ],
+      "default": "not_started",
+      "description": "Onboarding status"
+    },
+    "progress_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Onboarding completion percentage"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Work phone number"
+    },
+    "whatsapp_number": {
+      "type": "string",
+      "description": "WhatsApp number for notifications"
+    },
+    "whatsapp_notifications_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable WhatsApp notifications"
+    },
+    "personal_info": {
+      "type": "object",
+      "description": "Personal information",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string",
+          "default": "Saudi Arabia"
+        },
+        "postal_code": {
+          "type": "string"
+        },
+        "emergency_contact": {
+          "type": "string"
+        },
+        "emergency_phone": {
+          "type": "string"
+        },
+        "date_of_birth": {
+          "type": "string",
+          "format": "date"
+        },
+        "gender": {
+          "type": "string",
+          "enum": [
+            "male",
+            "female",
+            "other"
+          ]
+        },
+        "marital_status": {
+          "type": "string",
+          "enum": [
+            "single",
+            "married",
+            "divorced",
+            "widowed"
+          ]
+        },
+        "nationality": {
+          "type": "string"
+        },
+        "national_id": {
+          "type": "string"
+        },
+        "passport_number": {
+          "type": "string"
+        },
+        "visa_type": {
+          "type": "string"
+        },
+        "visa_expiry": {
+          "type": "string",
+          "format": "date"
+        },
+        "iqama_number": {
+          "type": "string"
+        },
+        "iqama_expiry": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "payroll_details": {
+      "type": "object",
+      "description": "Payroll information",
+      "properties": {
+        "basic_salary": {
+          "type": "number"
+        },
+        "bank_name": {
+          "type": "string"
+        },
+        "account_number": {
+          "type": "string"
+        },
+        "iban": {
+          "type": "string"
+        },
+        "tax_number": {
+          "type": "string"
+        },
+        "social_insurance_number": {
+          "type": "string"
+        },
+        "gosi_number": {
+          "type": "string"
+        },
+        "allowances": {
+          "type": "object",
+          "properties": {
+            "housing": {
+              "type": "number"
+            },
+            "transport": {
+              "type": "number"
+            },
+            "food": {
+              "type": "number"
+            },
+            "other": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "leave_balances": {
+      "type": "object",
+      "description": "Leave balance tracking",
+      "properties": {
+        "annual_leave_total": {
+          "type": "number",
+          "default": 21
+        },
+        "annual_leave_used": {
+          "type": "number",
+          "default": 0
+        },
+        "annual_leave_remaining": {
+          "type": "number",
+          "default": 21
+        },
+        "sick_leave_total": {
+          "type": "number",
+          "default": 30
+        },
+        "sick_leave_used": {
+          "type": "number",
+          "default": 0
+        },
+        "sick_leave_remaining": {
+          "type": "number",
+          "default": 30
+        }
+      }
+    },
+    "work_schedule": {
+      "type": "object",
+      "description": "Work schedule details",
+      "properties": {
+        "schedule_type": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "flexible",
+            "shift",
+            "remote"
+          ],
+          "default": "standard"
+        },
+        "working_hours_per_day": {
+          "type": "number",
+          "default": 8
+        },
+        "working_days": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday"
+          ]
+        },
+        "shift_start_time": {
+          "type": "string"
+        },
+        "shift_end_time": {
+          "type": "string"
+        },
+        "break_duration_minutes": {
+          "type": "number",
+          "default": 60
+        },
+        "work_location": {
+          "type": "string",
+          "enum": [
+            "office",
+            "remote",
+            "hybrid"
+          ]
+        }
+      }
+    },
+    "benefits": {
+      "type": "object",
+      "description": "Employee benefits",
+      "properties": {
+        "health_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "life_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "dental_insurance": {
+          "type": "boolean",
+          "default": false
+        },
+        "gym_membership": {
+          "type": "boolean",
+          "default": false
+        },
+        "transportation": {
+          "type": "boolean",
+          "default": false
+        },
+        "meal_allowance": {
+          "type": "boolean",
+          "default": false
+        },
+        "education_assistance": {
+          "type": "boolean",
+          "default": false
+        },
+        "custom_benefits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "performance_reviews": {
+      "type": "array",
+      "description": "Performance review history",
+      "items": {
+        "type": "object",
+        "properties": {
+          "review_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "reviewer": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "comments": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "welcome_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether welcome email was sent"
+    },
+    "onboarding_completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date onboarding was completed"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Employee profile photo URL"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Internal notes about employee"
+    }
+  },
+  "required": [
+    "organization_id",
+    "full_name",
+    "email",
+    "job_title",
+    "start_date"
+  ]
+}

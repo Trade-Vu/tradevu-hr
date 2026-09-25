@@ -1,0 +1,78 @@
+{
+  "name": "HRLetterRequest",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee requesting the letter"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "letter_type": {
+      "type": "string",
+      "enum": [
+        "employment",
+        "salary_certificate",
+        "recommendation",
+        "warning",
+        "experience",
+        "resignation_acceptance",
+        "other"
+      ],
+      "description": "Type of letter requested"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Purpose of the letter"
+    },
+    "request_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of request"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "completed"
+      ],
+      "default": "pending",
+      "description": "Request status"
+    },
+    "letter_content": {
+      "type": "string",
+      "description": "Generated letter content"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "HR manager who approved"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of approval"
+    },
+    "delivery_method": {
+      "type": "string",
+      "enum": [
+        "email",
+        "whatsapp",
+        "download"
+      ],
+      "description": "How letter was delivered"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "employee_id",
+    "letter_type",
+    "purpose"
+  ]
+}

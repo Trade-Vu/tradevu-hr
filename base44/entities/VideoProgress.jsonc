@@ -1,0 +1,38 @@
+{
+  "name": "VideoProgress",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "video_id": {
+      "type": "string",
+      "description": "Training video ID"
+    },
+    "progress_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Watch progress percentage (0-100)"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether video is marked as completed"
+    },
+    "last_watched_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last watched date"
+    },
+    "time_spent_minutes": {
+      "type": "number",
+      "default": 0,
+      "description": "Total time spent watching"
+    }
+  },
+  "required": [
+    "employee_id",
+    "video_id"
+  ]
+}

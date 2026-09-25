@@ -1,0 +1,60 @@
+{
+  "name": "Shift",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "shift_name": {
+      "type": "string",
+      "description": "Shift name (e.g., Morning, Evening, Night)"
+    },
+    "shift_code": {
+      "type": "string",
+      "description": "Short code (e.g., M, E, N)"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Shift start time (HH:MM)"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "Shift end time (HH:MM)"
+    },
+    "break_duration_minutes": {
+      "type": "number",
+      "default": 60,
+      "description": "Break duration in minutes"
+    },
+    "total_hours": {
+      "type": "number",
+      "description": "Total working hours"
+    },
+    "is_ramadan_shift": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is a Ramadan shift (reduced hours)"
+    },
+    "is_summer_shift": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is a summer shift"
+    },
+    "color_code": {
+      "type": "string",
+      "description": "Color for calendar display"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether shift is active"
+    }
+  },
+  "required": [
+    "organization_id",
+    "shift_name",
+    "start_time",
+    "end_time"
+  ]
+}

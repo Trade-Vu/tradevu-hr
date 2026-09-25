@@ -1,0 +1,79 @@
+{
+  "name": "WorkTimingSettings",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "setting_name": {
+      "type": "string",
+      "description": "Setting name (Regular, Ramadan, Summer)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this timing is currently active"
+    },
+    "work_start_time": {
+      "type": "string",
+      "description": "Work start time (HH:MM)"
+    },
+    "work_end_time": {
+      "type": "string",
+      "description": "Work end time (HH:MM)"
+    },
+    "total_hours_per_day": {
+      "type": "number",
+      "description": "Total work hours per day"
+    },
+    "break_duration_minutes": {
+      "type": "number",
+      "description": "Break duration in minutes"
+    },
+    "working_days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Working days of the week"
+    },
+    "applies_to": {
+      "type": "string",
+      "enum": [
+        "all",
+        "specific_departments"
+      ],
+      "default": "all",
+      "description": "Who this timing applies to"
+    },
+    "target_departments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target departments if specific"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this timing starts"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this timing ends"
+    },
+    "overtime_rate_multiplier": {
+      "type": "number",
+      "default": 1.5,
+      "description": "Overtime pay multiplier"
+    }
+  },
+  "required": [
+    "organization_id",
+    "setting_name",
+    "work_start_time",
+    "work_end_time"
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "name": "TrainingNeed",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee ID"
+    },
+    "skill_name": {
+      "type": "string",
+      "description": "Skill or competency name"
+    },
+    "current_level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced",
+        "expert"
+      ],
+      "description": "Current skill level"
+    },
+    "target_level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced",
+        "expert"
+      ],
+      "description": "Target skill level"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium",
+      "description": "Priority level"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "identified",
+        "planned",
+        "in_progress",
+        "completed"
+      ],
+      "default": "identified",
+      "description": "Training status"
+    },
+    "recommended_training": {
+      "type": "string",
+      "description": "Recommended training or course"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Target completion date"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    },
+    "identified_by": {
+      "type": "string",
+      "description": "Who identified this need (self, manager, evaluation)"
+    }
+  },
+  "required": [
+    "employee_id",
+    "skill_name",
+    "current_level",
+    "target_level"
+  ]
+}

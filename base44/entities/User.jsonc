@@ -1,0 +1,100 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID this user belongs to"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title/position"
+    },
+    "department": {
+      "type": "string",
+      "description": "Department"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Profile picture URL"
+    },
+    "is_organization_owner": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether user is organization owner"
+    },
+    "invitation_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "expired"
+      ],
+      "description": "Invitation status"
+    },
+    "invited_by": {
+      "type": "string",
+      "description": "Email of user who sent invitation"
+    },
+    "invited_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When invitation was sent"
+    },
+    "last_login": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last login timestamp"
+    },
+    "social_accounts": {
+      "type": "object",
+      "description": "Connected social accounts",
+      "properties": {
+        "linkedin": {
+          "type": "string"
+        },
+        "twitter": {
+          "type": "string"
+        },
+        "github": {
+          "type": "string"
+        },
+        "facebook": {
+          "type": "string"
+        }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "description": "User preferences",
+      "properties": {
+        "language": {
+          "type": "string",
+          "default": "en"
+        },
+        "timezone": {
+          "type": "string",
+          "default": "Asia/Riyadh"
+        },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "boolean",
+              "default": true
+            },
+            "push": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": []
+}

@@ -1,0 +1,65 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee this task is assigned to"
+    },
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Task description"
+    },
+    "department": {
+      "type": "string",
+      "description": "Department responsible (HR, IT, Admin, etc.)"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of task owner"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed"
+      ],
+      "default": "pending",
+      "description": "Task status"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "Task deadline"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium",
+      "description": "Task priority"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date task was completed"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "employee_id",
+    "title",
+    "department"
+  ]
+}

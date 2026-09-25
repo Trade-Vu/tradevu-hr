@@ -1,0 +1,122 @@
+{
+  "name": "PerformanceFeedback",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee receiving feedback"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name for reference"
+    },
+    "feedback_type": {
+      "type": "string",
+      "enum": [
+        "continuous",
+        "quarterly",
+        "annual",
+        "project_based",
+        "informal"
+      ],
+      "description": "Type of feedback"
+    },
+    "feedback_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date feedback was given"
+    },
+    "given_by": {
+      "type": "string",
+      "description": "Email of person giving feedback"
+    },
+    "given_by_name": {
+      "type": "string",
+      "description": "Name of person giving feedback"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "positive",
+        "constructive",
+        "neutral"
+      ],
+      "description": "Feedback category"
+    },
+    "areas": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "communication",
+          "teamwork",
+          "technical_skills",
+          "leadership",
+          "time_management",
+          "problem_solving",
+          "creativity",
+          "quality_of_work",
+          "attitude",
+          "initiative"
+        ]
+      },
+      "description": "Areas being addressed"
+    },
+    "feedback_text": {
+      "type": "string",
+      "description": "Detailed feedback"
+    },
+    "strengths": {
+      "type": "string",
+      "description": "Employee strengths"
+    },
+    "areas_for_improvement": {
+      "type": "string",
+      "description": "Areas needing improvement"
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Action items and next steps"
+    },
+    "rating": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Overall rating (1-5)"
+    },
+    "is_private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether feedback is private (not visible to employee)"
+    },
+    "acknowledged_by_employee": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether employee has acknowledged feedback"
+    },
+    "employee_response": {
+      "type": "string",
+      "description": "Employee's response to feedback"
+    },
+    "follow_up_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Scheduled follow-up date"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "feedback_type",
+    "feedback_date",
+    "given_by",
+    "feedback_text"
+  ]
+}
