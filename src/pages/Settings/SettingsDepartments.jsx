@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { departmentsApi, employeesApi } from "@/api";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,126 +10,141 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Trash2, ExternalLink, Building, Briefcase } from "lucide-react";
+import { Users, Plus, Trash2, ExternalLink, Building, Briefcase, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { toast } from "sonner";
-
-const GET_DEPARTMENTS_AND_EMPLOYEES = gql`
-  query GetDepartmentsAndEmployees {
-    departments {
-      id
-      name
-      code
-      status
-      headEmployeeId
-      employees {
-        id
-        fullName
-        email
-        jobTitle
-      }
-    }
-    employees {
-      id
-      fullName
-      email
-    }
-    me {
-      id
-      role
-    }
-  }
-`;
-
-const CREATE_DEPARTMENT = gql`
-  mutation CreateDepartment($name: String!, $code: String, $headEmployeeId: String) {
-    createDepartment(name: $name, code: $code, headEmployeeId: $headEmployeeId) {
-      id
-    }
-  }
-`;
-
-const APPROVE_DEPARTMENT = gql`
-  mutation ApproveDepartment($id: ID!) {
-    approveDepartment(id: $id) {
-      id
-    }
-  }
-`;
-
-const DELETE_DEPARTMENT = gql`
-  mutation DeleteDepartment($id: ID!) {
-    deleteDepartment(id: $id)
-  }
-`;
-
-const UPDATE_DEPARTMENT = gql`
-  mutation UpdateDepartment($id: ID!, $headEmployeeId: String) {
-    updateDepartment(id: $id, headEmployeeId: $headEmployeeId) {
-      id
-    }
-  }
-`;
 
 export default function SettingsDepartments() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const currentUserRole = user?.role || 'HR_ADMIN';
+
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [deptForm, setDeptForm] = useState({ name: '', code: '', headEmployeeId: 'none' });
+  const [selectedDeptId, setSelectedDeptId] = useState(null);
+  const [capacityDraft, setCapacityDraft] = useState('');
 
-  const [selectedDept, setSelectedDept] = useState(null);
+  const { data: rawDepartments = [], isLoading: deptLoading } = useDepartments();
 
-  const { data: deptData = {}, isLoading: deptLoading } = useQuery({
-    queryKey: ['departmentsAndEmployees'],
-    queryFn: async () => await gqlClient.request(GET_DEPARTMENTS_AND_EMPLOYEES),
-    staleTime: 5 * 60 * 1000,
+  const { data: rawEmployees = [], isLoading: empLoading } = useQuery({
+    queryKey: ['employees', 'all'],
+    queryFn: async () => {
+      return employeesApi.getAllEmployees();
+    },
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  const departments = deptData.departments || [];
-  const employees = deptData.employees || [];
-  const currentUserRole = deptData.me?.role || 'HR_ADMIN';
+  const employees = (Array.isArray(rawEmployees) ? rawEmployees : rawEmployees?.data || []).map(emp => ({
+    ...emp,
+    id: emp._id || emp.id,
+    fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
+  }));
+
+  const departments = (Array.isArray(rawDepartments) ? rawDepartments : rawDepartments?.data || []).map(dept => {
+    const deptId = dept._id || dept.id;
+    const deptEmployees = employees.filter(emp => {
+      const empDeptId = emp.departmentId?._id || emp.departmentId?.id || emp.departmentId;
+      return empDeptId && String(empDeptId) === String(deptId);
+    });
+    const headEmpId = dept.managerId?._id || dept.managerId?.id || (typeof dept.managerId === 'string' ? dept.managerId : null);
+
+    return {
+      ...dept,
+      id: deptId,
+      code: dept.code || '',
+      status: dept.status || (dept.isActive ? 'APPROVED' : 'INACTIVE'),
+      headEmployeeId: headEmpId,
+      employees: deptEmployees,
+    };
+  });
+
+  const selectedDept = departments.find(d => d.id === selectedDeptId) || null;
+
+  useEffect(() => {
+    setCapacityDraft(selectedDept?.maxConcurrentLeave ?? '');
+  }, [selectedDeptId]);
 
   const createDeptMutation = useMutation({
     mutationFn: async (data) => {
-      const payload = { ...data };
-      if (payload.headEmployeeId === 'none') payload.headEmployeeId = null;
-      return await gqlClient.request(CREATE_DEPARTMENT, payload);
+      return await departmentsApi.createDepartment({
+        name: data.name,
+        code: data.code || undefined,
+        managerId: data.headEmployeeId && data.headEmployeeId !== 'none' ? data.headEmployeeId : undefined,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       setShowDeptDialog(false);
       setDeptForm({ name: '', code: '', headEmployeeId: 'none' });
+      toast.success("Department created successfully");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create department");
     }
   });
 
   const approveDeptMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(APPROVE_DEPARTMENT, { id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] })
+    mutationFn: async (id) => {
+      return await departmentsApi.updateDepartment(id, { status: 'APPROVED' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast.success("Department approved");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to approve department");
+    }
   });
 
   const deleteDeptMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(DELETE_DEPARTMENT, { id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] })
+    mutationFn: async (id) => {
+      return await departmentsApi.deleteDepartment(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      if (selectedDeptId) setSelectedDeptId(null);
+      toast.success("Department deleted");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to delete department");
+    }
   });
 
   const updateDeptMutation = useMutation({
     mutationFn: async ({ id, headEmployeeId }) => {
-      return await gqlClient.request(UPDATE_DEPARTMENT, { 
-        id, 
-        headEmployeeId: headEmployeeId === 'none' ? null : headEmployeeId 
+      return await departmentsApi.updateDepartment(id, {
+        managerId: headEmployeeId && headEmployeeId !== 'none' ? headEmployeeId : null
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departmentsAndEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       toast.success("Department head updated");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update department head");
+    }
+  });
+
+  const updateCapacityMutation = useMutation({
+    mutationFn: async ({ id, maxConcurrentLeave }) => {
+      return await departmentsApi.updateDepartment(id, { maxConcurrentLeave });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast.success("Leave capacity updated");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update leave capacity");
     }
   });
 
   return (
     <Card className="border-slate-200">
       <CardHeader className="border-b border-slate-200">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <CardTitle>Departments & Hierarchy</CardTitle>
           <Dialog open={showDeptDialog} onOpenChange={(open) => {
             setShowDeptDialog(open);
@@ -181,84 +197,96 @@ export default function SettingsDepartments() {
       </CardHeader>
       <CardContent className="p-6">
         {deptLoading ? <p>Loading...</p> : departments.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="py-8 text-center">
             <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
             <p className="text-slate-500">No departments found.</p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {departments.map(dept => (
+          <div className="grid gap-4 md:grid-cols-2">
+              {departments.map(dept => {
+                const isDefaultDept = dept.name?.trim().toLowerCase() === 'human resources' || dept.name?.trim().toLowerCase() === 'hr';
+                return (
               <Card key={dept.id} className="border-slate-200">
-                <CardHeader className="bg-slate-50 pb-4">
-                  <div className="flex justify-between items-start">
+                <CardHeader className="pb-4 bg-slate-50">
+                  <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{dept.name}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">{dept.name}</CardTitle>
+                            {isDefaultDept && (
+                              <Badge variant="outline" className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border-indigo-200">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
                       <p className="text-sm text-slate-500">Code: {dept.code || 'N/A'}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       {dept.status === 'PENDING' && (
-                        <Badge className="bg-orange-100 text-orange-700">Pending Approval</Badge>
+                        <Badge className="text-orange-700 bg-orange-100">Pending Approval</Badge>
                       )}
                       <div className="flex gap-2">
                         {dept.status === 'PENDING' && currentUserRole === 'SUPER_ADMIN' && (
                           <Button size="sm" onClick={() => approveDeptMutation.mutate(dept.id)} disabled={approveDeptMutation.isPending}>Approve</Button>
                         )}
-                        <Button size="sm" variant="destructive" onClick={() => deleteDeptMutation.mutate(dept.id)} disabled={deleteDeptMutation.isPending}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                            {!isDefaultDept && (
+                              <Button size="sm" variant="destructive" onClick={() => deleteDeptMutation.mutate(dept.id)} disabled={deleteDeptMutation.isPending} title="Delete department">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                       </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4">
-                  <h4 className="text-sm font-semibold mb-2 text-slate-700">Employees ({dept.employees?.length || 0})</h4>
+                  <h4 className="mb-2 text-sm font-semibold text-slate-700">Employees ({dept.employees?.length || 0})</h4>
                   <div className="space-y-2">
                     {dept.employees?.slice(0, 3).map(emp => (
-                      <div key={emp.id} className="flex justify-between items-center p-2 rounded bg-white border border-slate-100">
+                      <div key={emp.id} className="flex items-center justify-between p-2 bg-white border rounded border-slate-100">
                         <div>
-                          <p className="font-medium text-sm">{emp.fullName}</p>
+                          <p className="text-sm font-medium">{emp.fullName}</p>
                           <p className="text-xs text-slate-500">{emp.jobTitle}</p>
                         </div>
                         {emp.id === dept.headEmployeeId && (
-                          <Badge className="bg-blue-50 text-blue-700 border-blue-200">Dept Head</Badge>
+                          <Badge className="text-blue-700 border-blue-200 bg-blue-50">Dept Head</Badge>
                         )}
                       </div>
                     ))}
                     {!dept.employees?.length && <p className="text-xs text-slate-400">No employees assigned.</p>}
                     {dept.employees?.length > 3 && (
-                      <p className="text-xs text-slate-500 text-center py-1">...and {dept.employees.length - 3} more</p>
+                      <p className="py-1 text-xs text-center text-slate-500">...and {dept.employees.length - 3} more</p>
                     )}
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4 bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700"
-                    onClick={() => setSelectedDept(dept)}
+                    className="w-full mt-4 text-indigo-600 bg-white border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700"
+                    onClick={() => setSelectedDeptId(dept.id)}
                   >
                     View Details <ExternalLink className="w-3.5 h-3.5 ml-2" />
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+                );
+              })}
           </div>
         )}
       </CardContent>
 
-      <Dialog open={!!selectedDept} onOpenChange={(open) => !open && setSelectedDept(null)}>
+      <Dialog open={!!selectedDept} onOpenChange={(open) => !open && setSelectedDeptId(null)}>
         <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-0 rounded-xl overflow-hidden gap-0 bg-white">
           {selectedDept && (
             <>
               {/* Header Banner */}
-              <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 md:p-8 text-white relative">
-                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+              <div className="relative p-6 text-white bg-gradient-to-r from-indigo-600 to-violet-600 md:p-8">
+                <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-10">
                   <Building className="w-32 h-32" />
                 </div>
                 <div className="relative z-10">
-                  <h2 className="text-3xl font-bold flex items-center gap-3">
+                  <h2 className="flex items-center gap-3 text-3xl font-bold">
                     {selectedDept.name}
-                    {selectedDept.status === 'APPROVED' && <Badge className="bg-white/20 hover:bg-white/30 text-white border-none shadow-none text-xs font-medium">Approved</Badge>}
-                    {selectedDept.status === 'PENDING' && <Badge className="bg-white/20 hover:bg-white/30 text-white border-none shadow-none text-xs font-medium">Pending</Badge>}
+                    {selectedDept.status === 'APPROVED' && <Badge className="text-xs font-medium text-white border-none shadow-none bg-white/20 hover:bg-white/30">Approved</Badge>}
+                    {selectedDept.status === 'PENDING' && <Badge className="text-xs font-medium text-white border-none shadow-none bg-white/20 hover:bg-white/30">Pending</Badge>}
                   </h2>
-                  <p className="text-indigo-100 mt-2 opacity-90 flex items-center gap-2 font-medium">
+                  <p className="flex items-center gap-2 mt-2 font-medium text-indigo-100 opacity-90">
                     <Building className="w-4 h-4" /> Department Code: {selectedDept.code || 'N/A'}
                   </p>
                 </div>
@@ -268,8 +296,8 @@ export default function SettingsDepartments() {
               <div className="flex flex-col md:flex-row">
                 
                 {/* Left Sidebar (Info) */}
-                <div className="w-full md:w-1/3 bg-slate-50/50 p-6 md:p-8 border-r border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">Details</h3>
+                <div className="w-full p-6 border-r md:w-1/3 bg-slate-50/50 md:p-8 border-slate-100">
+                  <h3 className="mb-6 text-xs font-bold tracking-wider uppercase text-slate-400">Details</h3>
                   <div className="space-y-6">
                     <div>
                       <p className="text-xs font-semibold text-slate-500 mb-1.5">Department Name</p>
@@ -282,24 +310,56 @@ export default function SettingsDepartments() {
                     <div>
                       <p className="text-xs font-semibold text-slate-500 mb-1.5">Total Headcount</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                        <div className="flex items-center justify-center w-8 h-8 text-indigo-600 bg-indigo-100 rounded-full">
                           <Users className="w-4 h-4" />
                         </div>
                         <p className="text-sm font-semibold text-slate-900">{selectedDept.employees?.length || 0} Employees</p>
                       </div>
                     </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 mb-1.5">Leave Capacity</p>
+                      {(currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="No limit"
+                            value={capacityDraft}
+                            onChange={(e) => setCapacityDraft(e.target.value)}
+                            className="w-24 bg-white"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={updateCapacityMutation.isPending}
+                            onClick={() => updateCapacityMutation.mutate({
+                              id: selectedDept.id,
+                              maxConcurrentLeave: capacityDraft === '' ? null : Number(capacityDraft),
+                            })}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium text-slate-900">
+                          {selectedDept.maxConcurrentLeave ? `${selectedDept.maxConcurrentLeave} people max` : 'No limit set'}
+                        </p>
+                      )}
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                        Max employees who can be off on the same day before the Annual Leave Planner flags a conflict.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Department Head Assignment */}
-                  <div className="mt-8 pt-8 border-t border-slate-200/60">
-                    <p className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-wider">Department Head</p>
+                  <div className="pt-8 mt-8 border-t border-slate-200/60">
+                    <p className="mb-4 text-xs font-bold tracking-wider uppercase text-slate-400">Department Head</p>
                     {(currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') ? (
                       <div className="space-y-2">
                         <Select 
                           value={selectedDept.headEmployeeId || 'none'} 
                           onValueChange={(val) => {
                             updateDeptMutation.mutate({ id: selectedDept.id, headEmployeeId: val });
-                            setSelectedDept({ ...selectedDept, headEmployeeId: val === 'none' ? null : val });
                           }}
                         >
                           <SelectTrigger className="w-full bg-white border-slate-200">
@@ -312,15 +372,15 @@ export default function SettingsDepartments() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
                           The department head has access to approve workflows and manage team settings.
                         </p>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                      <div className="flex items-center gap-3 p-3 bg-white border rounded-lg shadow-sm border-slate-100">
                         {selectedDept.headEmployeeId ? (
                           <>
-                            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                            <div className="flex items-center justify-center w-10 h-10 text-sm font-bold text-indigo-700 bg-indigo-100 rounded-full">
                               {employees.find(e => e.id === selectedDept.headEmployeeId)?.fullName.substring(0, 2).toUpperCase() || 'DH'}
                             </div>
                             <div>
@@ -329,7 +389,7 @@ export default function SettingsDepartments() {
                             </div>
                           </>
                         ) : (
-                          <p className="text-sm font-medium text-slate-500 italic px-2">No head assigned</p>
+                          <p className="px-2 text-sm italic font-medium text-slate-500">No head assigned</p>
                         )}
                       </div>
                     )}
@@ -337,29 +397,29 @@ export default function SettingsDepartments() {
                 </div>
                 
                 {/* Right Main Content (Employees) */}
-                <div className="w-full md:w-2/3 p-6 md:p-8 bg-white">
+                <div className="w-full p-6 bg-white md:w-2/3 md:p-8">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-slate-800">Team Members</h3>
-                    <Badge variant="outline" className="text-slate-500 font-medium bg-slate-50">{selectedDept.employees?.length || 0} Total</Badge>
+                    <Badge variant="outline" className="font-medium text-slate-500 bg-slate-50">{selectedDept.employees?.length || 0} Total</Badge>
                   </div>
                   
                   {selectedDept.employees?.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 overflow-y-auto h-[450px]">
                       {selectedDept.employees.map(emp => {
                         const initials = emp.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                         const isHead = emp.id === selectedDept.headEmployeeId;
                         return (
                           <div 
                             key={emp.id} 
-                            onClick={() => navigate(`/employeedetail?id=${emp.id}`)}
+                            onClick={() => navigate(`${PAGE_ROUTES.EMPLOYEE_DETAIL}?id=${emp.id}`)}
                             className={`group flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm ${isHead ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50'}`}
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 flex items-center justify-center text-sm font-bold shadow-inner">
+                              <div className="flex items-center justify-center w-10 h-10 text-sm font-bold text-indigo-700 rounded-full shadow-inner bg-gradient-to-br from-indigo-100 to-violet-100">
                                 {initials}
                               </div>
                               <div>
-                                <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                                <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
                                   {emp.fullName}
                                   {isHead && <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider h-5">Head</Badge>}
                                 </div>
@@ -368,7 +428,7 @@ export default function SettingsDepartments() {
                                 </div>
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 font-medium transition-opacity">
+                            <Button variant="ghost" size="sm" className="font-medium text-indigo-600 transition-opacity opacity-0 group-hover:opacity-100 hover:bg-indigo-50 hover:text-indigo-700">
                               View Profile
                             </Button>
                           </div>
@@ -377,11 +437,11 @@ export default function SettingsDepartments() {
                     </div>
                   ) : (
                     <div className="py-16 text-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                      <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto mb-4">
+                      <div className="flex items-center justify-center mx-auto mb-4 bg-white rounded-full shadow-sm w-14 h-14">
                         <Users className="w-6 h-6 text-slate-400" />
                       </div>
                       <h3 className="text-sm font-bold text-slate-700">No team members</h3>
-                      <p className="text-sm text-slate-500 mt-1">This department has no employees yet.</p>
+                      <p className="mt-1 text-sm text-slate-500">This department has no employees yet.</p>
                     </div>
                   )}
                 </div>

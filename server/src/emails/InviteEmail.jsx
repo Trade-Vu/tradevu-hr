@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section, Hr } from '@react-email/components';
 
 export const InviteEmail = ({ inviteeName, orgName, role, inviteLink }) => {
@@ -51,7 +51,7 @@ InviteEmail.PreviewProps = {
   inviteeName: 'Amara Okafor',
   orgName: 'Tradevu Ltd',
   role: 'HR_ADMIN',
-  inviteLink: 'https://staging.hr.tradevu.co/accept-invite?token=preview-token-123',
+  inviteLink: `${getPreviewBaseUrl()}/accept-invite?token=preview-token-123`,
 };
 
 export default InviteEmail;

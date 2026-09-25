@@ -3,29 +3,9 @@ import { Mail, Lock, Building2, ArrowRight, ArrowLeft, UserCircle, CheckCircle2,
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link, useNavigate } from 'react-router-dom';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
+import { authApi } from '@/api/auth.api';
 import { useAuth } from '@/lib/AuthContext';
-
-const REGISTER_MUTATION = gql`
-  mutation Register($input: RegisterInput!) {
-    register(input: $input) {
-      token
-      user {
-        id
-        email
-        role
-        organizationId
-      }
-    }
-  }
-`;
-
-const INVITE_HR_MUTATION = gql`
-  mutation InviteHRAdmin($email: String!) {
-    inviteUser(input: { email: $email, role: "HR_ADMIN" })
-  }
-`;
 
 export default function Register() {
   const navigate = useNavigate();
@@ -53,37 +33,24 @@ export default function Register() {
     setIsSubmitting(true);
     setError('');
     try {
-      // Step 1: Create the CEO account and organization via real GraphQL mutation
-      const data = await gqlClient.request(REGISTER_MUTATION, {
-        input: {
-          email,
-          password,
-          orgName,
-        }
+      const derivedFullName = email.split('@')[0] || 'Administrator';
+      const data = await authApi.register({
+        email,
+        password,
+        fullName: derivedFullName,
+        organizationName: orgName,
+        hrEmail: hrEmail ? hrEmail.trim() : undefined,
       });
 
-      if (data.register?.token) {
-        localStorage.setItem('token', data.register.token);
-
-        // Step 2: If an HR email was provided, send them an invite
-        if (hrEmail) {
-          try {
-            await gqlClient.request(INVITE_HR_MUTATION, { email: hrEmail });
-          } catch (inviteErr) {
-            // Non-fatal: registration succeeded even if invite fails
-            console.warn('HR invite failed (non-fatal):', inviteErr);
-          }
-        }
-
-        // Step 3: Sync auth state and redirect
+      if (data && data.token) {
+        localStorage.setItem('token', data.token);
         await checkAppState();
         setIsComplete(true);
-        setTimeout(() => navigate('/dashboard'), 1500);
+        setTimeout(() => navigate(PAGE_ROUTES.DASHBOARD), 1500);
       }
     } catch (err) {
       console.error('Registration error:', err);
-      const msg = err.response?.errors?.[0]?.message || 'Registration failed. Please try again.';
-      setError(msg);
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,7 +68,7 @@ export default function Register() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 sm:p-12 lg:p-24 relative z-10">
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
-            <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
+            <img src="/Tradevu Logo.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
             
             {/* Step Indicators */}
             {!isComplete && (
@@ -122,7 +89,7 @@ export default function Register() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 className="w-8 h-8 text-green-600" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">You're all set!</h1>
+                <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">You're all set!</h1>
                 <p className="text-slate-500 mt-3 text-lg mb-8">
                   Your workspace has been created. Redirecting to your dashboard...
                 </p>
@@ -130,7 +97,7 @@ export default function Register() {
               </>
             ) : (
               <>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+                <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">
                   {step === 1 && "Create workspace"}
                   {step === 2 && "Admin email"}
                   {step === 3 && "Secure account"}
@@ -278,7 +245,7 @@ export default function Register() {
           <div className="text-center pt-6">
             <p className="text-sm text-slate-500">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-slate-900 hover:underline">
+              <Link to={PAGE_ROUTES.LOGIN} className="font-medium text-slate-900 hover:underline">
                 Sign in
               </Link>
             </p>
@@ -298,7 +265,7 @@ export default function Register() {
         
         <div className="absolute inset-0 z-20 flex flex-col justify-end p-16 pb-24 text-white bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent">
           <div className="max-w-xl">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
+            <h2 className="font-heading text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
               Your OS for HR
             </h2>
             <p className="text-lg lg:text-xl text-slate-200 leading-relaxed font-light drop-shadow">

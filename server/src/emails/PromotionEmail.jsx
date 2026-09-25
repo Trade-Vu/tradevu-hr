@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const PromotionEmail = ({ fullName, newTitle, newGrade, newClass, deepLink }) => {
@@ -50,7 +50,7 @@ PromotionEmail.PreviewProps = {
   newTitle: 'Senior Software Engineer',
   newGrade: 'Level 4',
   newClass: 'Engineering',
-  deepLink: 'http://localhost:5173/profile'
+  deepLink: `${getPreviewBaseUrl()}/profile`
 };
 
 export default PromotionEmail;

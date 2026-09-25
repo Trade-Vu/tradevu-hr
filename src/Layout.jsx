@@ -1,19 +1,24 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { 
   LayoutDashboard, Users, FileText, BarChart3, UserCircle, LogOut, Menu,
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
   MessageSquare, Settings, CheckSquare, Plane, MessageCircle, Home,
-  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange
+  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange,
+  LayoutDashboardIcon,
+  Paperclip,
+  BookTemplate
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { motion } from "framer-motion";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { organizationsApi, approvalsApi } from "@/api";
+import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges, isManager } from "@/lib/roleUtils";
+import { usePendingApprovalsStream } from "@/hooks/usePendingApprovalsStream";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,10 +39,11 @@ const navigationStructure = [
     icon: LayoutDashboard,
     isParent: true,
     children: [
-      { title: "Overview", url: "/", icon: LayoutDashboard },
-      { title: "Approvals", url: createPageUrl("PendingApprovals"), icon: CheckCircle },
-      import.meta.env.DEV && { title: "Assets", url: createPageUrl("Assets"), icon: Laptop },
-      { title: "Tasks & Projects", url: createPageUrl("TaskManager"), icon: CheckSquare },
+      // { title: "Dashboard", url: PAGE_ROUTES.DASHBOARD, icon: LayoutDashboardIcon },
+      { title: "Overview", url: PAGE_ROUTES.HOME, icon: LayoutDashboard },
+      { title: "Approvals", url: PAGE_ROUTES.PENDING_APPROVALS, icon: CheckCircle },
+      import.meta.env.DEV && { title: "Assets", url: PAGE_ROUTES.ASSETS, icon: Laptop },
+      { title: "Tasks & Projects", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
     ].filter(Boolean)
   },
   {
@@ -45,10 +51,11 @@ const navigationStructure = [
     icon: Users,
     isParent: true,
     children: [
-      { title: "All Employees", url: createPageUrl("Employees"), icon: Users },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
-      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      import.meta.env.DEV && { title: "Attendance", url: createPageUrl("Attendance"), icon: Calendar },
+      { title: "All Employees", url: PAGE_ROUTES.EMPLOYEES, icon: Users },
+      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
+      { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
+      { title: "HR Letter Requests", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
+      import.meta.env.DEV && { title: "Attendance", url: PAGE_ROUTES.ATTENDANCE, icon: Calendar },
     ].filter(Boolean)
   },
   {
@@ -56,64 +63,65 @@ const navigationStructure = [
     icon: DollarSign,
     isParent: true,
     children: [
-      { title: "Payroll", url: createPageUrl("Payroll"), icon: DollarSign },
-      { title: "Compensation", url: createPageUrl("Compensation"), icon: DollarSign },
-      { title: "Adjustments", url: createPageUrl("PayrollAdjustments"), icon: DollarSign },
-      { title: "Reports", url: createPageUrl("PayrollReports"), icon: TrendingUp },
-      { title: "Statutory", url: createPageUrl("SettingsStatutory"), icon: Settings },
-      { title: "Loans", url: createPageUrl("Loans"), icon: DollarSign },
-      { title: "Expenses", url: createPageUrl("Expenses"), icon: Receipt },
+      { title: "Payroll", url: PAGE_ROUTES.PAYROLL, icon: DollarSign },
+      { title: "Compensation", url: PAGE_ROUTES.COMPENSATION, icon: DollarSign },
+      { title: "Adjustments", url: PAGE_ROUTES.PAYROLL_ADJUSTMENTS, icon: DollarSign },
+      { title: "Reports", url: PAGE_ROUTES.PAYROLL_REPORTS, icon: TrendingUp },
+      { title: "Statutory", url: PAGE_ROUTES.SETTINGS_STATUTORY, icon: Settings },
+      { title: "Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
+      { title: "Expenses", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
     ]
   },
-  {
-    title: "Recruitment",
-    icon: UserPlus,
-    isParent: true,
-    children: [
-      { title: "Job Postings", url: createPageUrl("Recruitment"), icon: UserPlus },
-      { title: "Onboarding", url: createPageUrl("Templates"), icon: CheckCircle },
-      { title: "Offboarding", url: createPageUrl("Offboarding"), icon: CheckCircle },
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Training LMS",
-    icon: Video,
-    isParent: true,
-    children: [
-      { title: "Training", url: createPageUrl("Training"), icon: Video },
-      { title: "Evaluations", url: createPageUrl("Evaluations"), icon: ClipboardCheck },
-    ]
-  },
-  import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
-    title: "Performance",
-    icon: Target,
-    isParent: true,
-    children: [
-      { title: "Reviews", url: createPageUrl("Performance"), icon: Target }
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Compliance",
-    icon: ShieldCheck,
-    isParent: true,
-    children: [
-      { title: "AI Compliance Monitor", url: createPageUrl("ComplianceDashboard"), icon: ShieldCheck },
-      { title: "Knowledge Bank", url: createPageUrl("KnowledgeBank"), icon: BookOpen },
-      { title: "HR Letters", url: createPageUrl("HRLetters"), icon: FileText },
-      { title: "Surveys", url: createPageUrl("Surveys"), icon: MessageSquare },
-      { title: "Templates", url: createPageUrl("Templates"), icon: FileText },
-    ]
-  },
-  import.meta.env.DEV && {
-    title: "Analytics",
-    icon: BarChart3,
-    isParent: true,
-    children: [
-      { title: "Analytics", url: createPageUrl("Analytics"), icon: BarChart3 },
-      { title: "Advanced Analytics", url: createPageUrl("AdvancedAnalytics"), icon: TrendingUp },
-      { title: "Organogram", url: createPageUrl("Organogram"), icon: Users },
-    ]
-  },
+  // {
+  //   title: "Recruitment",
+  //   icon: UserPlus,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Job Postings", url: PAGE_ROUTES.RECRUITMENT, icon: UserPlus },
+  //     { title: "Onboarding", url: PAGE_ROUTES.TEMPLATES, icon: CheckCircle },
+  //     { title: "Offboarding", url: PAGE_ROUTES.OFFBOARDING, icon: CheckCircle },
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Training LMS",
+  //   icon: Video,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Training", url: PAGE_ROUTES.TRAINING, icon: Video },
+  //     { title: "Evaluations", url: PAGE_ROUTES.EVALUATIONS, icon: ClipboardCheck },
+  //   ]
+  // },
+  // import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
+  //   title: "Performance",
+  //   icon: Target,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Reviews", url: PAGE_ROUTES.PERFORMANCE, icon: Target }
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Compliance",
+  //   icon: ShieldCheck,
+  //   isParent: true,
+  //   children: [
+  //     { title: "AI Compliance Monitor", url: PAGE_ROUTES.COMPLIANCE_DASHBOARD, icon: ShieldCheck },
+  //     { title: "Knowledge Bank", url: PAGE_ROUTES.KNOWLEDGE_BANK, icon: BookOpen },
+  //     { title: "HR Letters", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
+  //     { title: "Surveys", url: PAGE_ROUTES.SURVEYS, icon: MessageSquare },
+  //     { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: FileText },
+  //   ]
+  // },
+  // import.meta.env.DEV && {
+  //   title: "Analytics",
+  //   icon: BarChart3,
+  //   isParent: true,
+  //   children: [
+  //     { title: "Analytics", url: PAGE_ROUTES.ANALYTICS, icon: BarChart3 },
+  //     { title: "Advanced Analytics", url: PAGE_ROUTES.ADVANCED_ANALYTICS, icon: TrendingUp },
+  //     { title: "Organogram", url: PAGE_ROUTES.ORGANOGRAM, icon: Users },
+  //   ]
+  // },
+
 ].filter(Boolean);
 
 const employeeNavigation = [
@@ -122,9 +130,9 @@ const employeeNavigation = [
     icon: Home,
     isParent: true,
     children: [
-      { title: "My Portal", url: createPageUrl("EmployeeSelfService"), icon: Briefcase },
-      { title: "My Tasks", url: createPageUrl("TaskManager"), icon: CheckSquare },
-      import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: createPageUrl("Chat"), icon: MessageCircle },
+      { title: "My Portal", url: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, icon: Briefcase },
+      { title: "My Tasks", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
+      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -132,34 +140,33 @@ const employeeNavigation = [
     icon: FileText,
     isParent: true,
     children: [
-      { title: "Leave Management", url: createPageUrl("LeaveManagement"), icon: Plane },
-      { title: "My Loans", url: createPageUrl("Loans"), icon: DollarSign },
-      { title: "Expense Claims", url: createPageUrl("Expenses"), icon: Receipt },
-      { title: "Request HR Letter", url: createPageUrl("HRLetters"), icon: FileText },
+      { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
+      { title: "My Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
+      { title: "Expense Claims", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
+      { title: "Request HR Letter", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
     ]
   },
-  import.meta.env.DEV && {
-    title: "Training",
-    icon: Video,
-    isParent: true,
-    children: [
-      { title: "My Training", url: createPageUrl("Training"), icon: Video },
-    ]
-  }
+  // import.meta.env.DEV && {
+  //   title: "Training",
+  //   icon: Video,
+  //   isParent: true,
+  //   children: [
+  //     { title: "My Training", url: PAGE_ROUTES.TRAINING, icon: Video },
+  //   ]
+  // }
 ].filter(Boolean);
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, viewMode, changeViewMode } = useAuth();
-  const [organization, setOrganization] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("sidebarTheme") || "dark");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate(PAGE_ROUTES.LOGIN);
     } catch (error) {
       console.error("Error during logout:", error);
     }
@@ -174,125 +181,52 @@ export default function Layout({ children }) {
   
   const isEmployee = !!user?.employeeId;
 
-  useEffect(() => {
-    if (user?.organizationId) {
-      const loadOrg = async () => {
-        try {
-          const ORG_QUERY = gql`
-            query GetOrg($id: ID!) {
-               organization(id: $id) {
-                 id
-                 name
-               }
-            }
-          `;
-          const data = await gqlClient.request(ORG_QUERY, { id: user.organizationId });
-          setOrganization(data.organization);
-        } catch (error) {
-          console.error("Error loading organization:", error);
-        }
-      };
-      loadOrg();
-    }
-  }, [user]);
-
-  const [manualActivePrimary, setManualActivePrimary] = useState(null);
-
-  const GET_PENDING_COUNTS = gql`
-    query GetPendingCounts {
-      employees { 
-        id 
-        employmentStatus 
-        onboardingStatus
-        probationEndDate
-        onboardingTasks {
-          isCompleted
-          status
-        }
-      }
-      documents { id status employeeId }
-      leaveRequests { id status employeeId employee { email } }
-      profileUpdateRequests { id status employeeId }
-      allProbationRequests { id status employeeId }
-      allOffboardings { id status employeeId }
-    }
-  `;
-
-  const { data: pendingData } = useQuery({
-    queryKey: ['pendingApprovalsCount'],
-    queryFn: () => gqlClient.request(GET_PENDING_COUNTS),
-    enabled: !!user?.organizationId && (user?.role?.includes('ADMIN') || user?.role === 'admin' || user?.is_organization_owner || user?.role === 'MANAGER'),
-    refetchInterval: 10000,
+  const { data: organization } = useQuery({
+    queryKey: ['myOrganization', user?.organizationId],
+    queryFn: () => organizationsApi.getMyOrganization(),
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const isAdmin = ['HR_ADMIN', 'SUPER_ADMIN', 'admin'].includes(user?.role) || user?.isOrgOwner;
-  
-  const allEmployees = pendingData?.employees || [];
+  // Section picked by clicking a rail icon, tagged with the pathname it was picked on so it
+  // expires on its own once the user navigates (no reset effect / extra render needed).
+  const [manualPrimary, setManualPrimary] = useState(null); // { title, pathname }
+  // Last section the URL matched, so routes that aren't in the nav (e.g. /employeedetail)
+  // keep showing the section the user came from instead of jumping back to navItems[0].
+  const [lastMatchedTitle, setLastMatchedTitle] = useState(null);
 
-  const pendingProfileReviews = allEmployees.filter(e => 
-    e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'not_started' || !e.onboardingStatus)
-  ).length;
+  const userIsAdmin = isAdmin(user);
+  const userIsSuperAdmin = isSuperAdmin(user);
+  const userIsHrAdmin = isHrAdmin(user);
+  const userHasPrivileges = hasAdminPrivileges(user);
 
-  const pendingTasksReviews = allEmployees.filter(e => {
-    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
-      return e.onboardingTasks?.some(t => t.isCompleted && t.status !== 'approved');
-    }
-    return e.employmentStatus === 'PENDING_APPROVAL' && (e.onboardingStatus === 'in_progress' || e.onboardingStatus === 'tasks_completed');
-  }).length;
+  const pendingCountsStreamEnabled = !!user?.organizationId && userHasPrivileges;
+  const { data: pendingData } = useQuery({
+    queryKey: ['pendingApprovalsCount'],
+    queryFn: () => approvalsApi.getPendingCounts(),
+    enabled: pendingCountsStreamEnabled,
+    // Live updates arrive via usePendingApprovalsStream (SSE) below; this interval is just a
+    // safety net for dropped connections or an emit site that was missed, not the primary path.
+    refetchInterval: 60000,
+  });
+  usePendingApprovalsStream(pendingCountsStreamEnabled);
 
-  const pendingProbationSetups = allEmployees.filter(e => {
-    if (e.employmentStatus === 'PENDING_APPROVAL' && e.onboardingStatus === 'probation_pending') return true;
-    
-    if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
-      if (e.onboardingTasks && e.onboardingTasks.length > 0) {
-        return e.onboardingTasks.every(t => t.status === 'approved');
-      }
-    }
-    return false;
-  }).length;
+  const totalApprovalsCount = pendingData?.totalApprovalsCount || 0;
+  const pendingOffboardingCount = pendingData?.pendingOffboardingCount || 0;
+  const pendingLeaveCount = pendingData?.pendingLeaveCount || 0;
+  const pendingProfilesCount = pendingData?.pendingProfilesCount || 0;
 
-  const safeDate = (val) => {
-    if (!val) return '';
-    const asNum = Number(val);
-    const parsed = new Date(isNaN(asNum) ? val : asNum);
-    return isNaN(parsed.getTime()) ? '' : parsed.toISOString().split('T')[0];
-  };
+  // The SUPER_ADMIN should only have an adminView and they should not have the choice to select the employee view.
+  // ONLY the HR_ADMIN can have the option to switch between views.
+  const canSwitchViews = userIsHrAdmin && !userIsSuperAdmin;
+  const userIsManager = isManager(user);
 
-  const pendingProbationEnds = allEmployees.filter(e => 
-    e.employmentStatus === 'PROBATION' && e.probationEndDate && new Date(safeDate(e.probationEndDate)) <= new Date()
-  ).length;
+  // Determine if the user is allowed to see admin views (SUPER_ADMIN always sees admin views)
+  const canSeeAdminViews = userIsSuperAdmin || (userIsAdmin && (viewMode === 'ADMIN' || !viewMode));
 
-  const pendingEmployeesCount = pendingProfileReviews + pendingTasksReviews + pendingProbationSetups + pendingProbationEnds;
-  const pendingDocumentCount = pendingData?.documents?.filter(d => {
-    if (d.status !== 'PENDING') return false;
-    const emp = pendingData.employees?.find(e => e.id === d.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
-  }).length || 0;
-  const pendingLeaveCount = pendingData?.leaveRequests?.filter(l => {
-    if (l.employee?.email === user?.email || l.employeeId === user?.employeeId) return false;
-    if (isAdmin) return l.status === 'PENDING_HR' || l.status === 'PENDING_SUPER_ADMIN';
-    return l.status === 'PENDING';
-  }).length || 0;
-  const pendingProfilesCount = pendingData?.profileUpdateRequests?.filter(p => {
-    if (p.status !== 'PENDING') return false;
-    const emp = pendingData.employees?.find(e => e.id === p.employeeId);
-    return emp?.employmentStatus !== 'DRAFT';
-  }).length || 0;
-  const pendingProbationCount = pendingData?.allProbationRequests?.filter(p => p.status === 'PENDING').length || 0;
-  const pendingOffboardingCount = pendingData?.allOffboardings?.filter(o => o.status === 'PENDING').length || 0;
-
-  const totalApprovalsCount = pendingEmployeesCount + pendingDocumentCount + pendingLeaveCount + pendingProfilesCount + pendingProbationCount + pendingOffboardingCount;
-
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.isOrgOwner;
-  const isEmployeeActive = user?.employee?.employmentStatus === 'ACTIVE';
-  
-  // Determine if the user has dual roles
-  const hasDualRoles = isSuperAdmin || (isAdmin && isEmployeeActive);
-  
-  // Determine if the user is allowed to see admin views
-  const canSeeAdminViews = hasDualRoles && viewMode === 'ADMIN';
-
-  let baseNavItems = canSeeAdminViews ? [...navigationStructure] : employeeNavigation;
+  let baseNavItems = canSeeAdminViews
+    ? [...navigationStructure]
+    : [...employeeNavigation];
 
   // Append settings if admin and allowed to see admin views
   if (canSeeAdminViews) {
@@ -301,26 +235,28 @@ export default function Layout({ children }) {
       icon: Settings,
       isParent: true,
       children: [
-        { title: "General Settings", url: createPageUrl("Settings"), icon: Settings },
-        { title: "Approval Workflows", url: createPageUrl("SettingsApprovalWorkflows"), icon: CheckCircle },
-        { title: "Work Shifts", url: createPageUrl("SettingsShifts"), icon: Clock },
-        { title: "Departments", url: createPageUrl("SettingsDepartments"), icon: Users },
-        { title: "Employee Classes", url: createPageUrl("SettingsClasses"), icon: Settings },
-        { title: "Leave Types", url: createPageUrl("SettingsLeaveTypes"), icon: CalendarRange },
-        { title: "Public Holidays", url: createPageUrl("SettingsPublicHolidays"), icon: Calendar },
-        { title: "Audit Logs", url: createPageUrl("AuditLogs"), icon: ShieldCheck }
+        { title: "General Settings", url: PAGE_ROUTES.SETTINGS, icon: Settings },
+        { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
+        { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
+        { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
+        { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
+        { title: "Employee Classes", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
+        { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
+        { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
+        { title: "Audit Logs", url: PAGE_ROUTES.AUDIT_LOGS, icon: ShieldCheck }
       ]
     });
   }
 
   const navItems = baseNavItems.map(item => {
-    if (item.title === "Dashboard") {
+    if (item.title === "Dashboard" || item.title === "Home") {
+      const pendingCount = canSeeAdminViews ? totalApprovalsCount : 0;
       return {
         ...item,
-        badge: totalApprovalsCount > 0 ? totalApprovalsCount : undefined,
+        badge: pendingCount > 0 ? pendingCount : undefined,
         children: item.children.map(child => {
           if (child.title === "Approvals") {
-            return { ...child, badge: totalApprovalsCount > 0 ? totalApprovalsCount : undefined };
+            return { ...child, badge: pendingCount > 0 ? pendingCount : undefined };
           }
           return child;
         })
@@ -351,44 +287,57 @@ export default function Layout({ children }) {
         })
       };
     }
+    if (item.title === "HR & Finance") {
+      const hrBadgeCount = userIsManager ? pendingLeaveCount : 0;
+      return {
+        ...item,
+        badge: hrBadgeCount > 0 ? hrBadgeCount : undefined,
+        children: item.children.map(child => {
+          if (child.title === "Leave Management" && hrBadgeCount > 0) {
+            return { ...child, badge: hrBadgeCount };
+          }
+          return child;
+        })
+      };
+    }
     return item;
   });
 
-  // Sync active primary based on URL or manual selection
-  const getActivePrimaryNav = () => {
-    if (manualActivePrimary) return manualActivePrimary;
-    for (const item of navItems) {
-      if (item.children && item.children.some(child => location.pathname.toLowerCase() === child.url.toLowerCase())) {
-        return item;
-      }
-    }
-    return navItems[0];
-  };
+  // Resolve by title against the *current* navItems (not a stored object) so badges stay live
+  // and a section that no longer exists after a view-mode switch can't be selected.
+  const findNavItem = (title) => (title ? navItems.find(item => item.title === title) : undefined);
+  const pathname = location.pathname.toLowerCase();
+  const urlMatchedItem = navItems.find(item =>
+    item.children?.some(child => child.url.toLowerCase() === pathname)
+  );
 
-  const activePrimary = getActivePrimaryNav();
+  const activePrimary =
+    (manualPrimary?.pathname === location.pathname && findNavItem(manualPrimary.title)) ||
+    urlMatchedItem ||
+    findNavItem(lastMatchedTitle) ||
+    navItems[0];
+
+  useEffect(() => {
+    if (urlMatchedItem) setLastMatchedTitle(urlMatchedItem.title);
+  }, [urlMatchedItem?.title]);
 
   const handlePrimaryClick = (item) => {
-    setManualActivePrimary(item);
+    setManualPrimary({ title: item.title, pathname: location.pathname });
   };
 
-  // Reset manual state when a sub-menu link is actually clicked and the URL changes
-  useEffect(() => {
-    setManualActivePrimary(null);
-  }, [location.pathname]);
-
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-slate-50 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden font-sans md:flex-row bg-slate-50">
       
       {/* Mobile Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 md:hidden shrink-0 z-30 flex items-center gap-4">
+      <header className="z-30 flex items-center gap-4 px-6 py-4 bg-white border-b border-slate-200 md:hidden shrink-0">
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -ml-2 rounded-lg hover:bg-slate-100">
           <Menu className="w-6 h-6 text-slate-700" />
         </button>
         <div className="flex items-center gap-2">
           <img src="/logo-icon.png" alt="Logo" className="w-6 h-6" />
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">Tradevu</h1>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900">Tradevu</h1>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
 
         </div>
       </header>
@@ -399,12 +348,12 @@ export default function Layout({ children }) {
       } ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         
         {/* Logo */}
-        <div className="mb-8 w-10 h-10 flex items-center justify-center">
-          <img src={isDark ? "/logo-icon-white.png" : "/logo-icon.png"} alt="Tradevu" className="w-8 h-8 object-contain" />
+        <div className="flex items-center justify-center w-10 h-10 mb-8">
+          <img src={isDark ? "/logo-icon-white.png" : "/logo-icon.png"} alt="Tradevu" className="object-contain w-8 h-8" />
         </div>
 
         {/* Icons */}
-        <nav className="flex-1 flex flex-col gap-2 w-full px-2 overflow-y-auto hide-scrollbar">
+        <nav className="flex flex-col flex-1 w-full gap-2 px-2 overflow-y-auto hide-scrollbar">
           <TooltipProvider delayDuration={200}>
             {navItems.map((item, i) => {
               const isActive = activePrimary?.title === item.title;
@@ -448,7 +397,7 @@ export default function Layout({ children }) {
         </nav>
 
         {/* Theme Toggle & Avatar */}
-        <div className="mt-auto flex flex-col gap-3 items-center w-full px-2 pt-4 pb-2">
+        <div className="flex flex-col items-center w-full gap-3 px-2 pt-4 pb-2 mt-auto">
 
 
           <button onClick={toggleTheme} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900'}`}>
@@ -457,33 +406,45 @@ export default function Layout({ children }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-10 h-10 rounded-full overflow-hidden border-2 border-transparent hover:border-indigo-500 transition-all outline-none">
+              <button className="w-10 h-10 overflow-hidden transition-all border-2 border-transparent rounded-full outline-none hover:border-indigo-500">
                 {user?.avatar_url ? (
-                  <img src={user.avatar_url} className="w-full h-full object-cover" />
+                  <img src={user.avatar_url} className="object-cover w-full h-full" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
+                  <div className="flex items-center justify-center w-full h-full text-white bg-gradient-to-br from-indigo-500 to-purple-600">
                     <UserCircle className="w-5 h-5" />
                   </div>
                 )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="right" className="w-48 ml-4">
-              <div className="px-2 py-2 border-b border-slate-100 mb-1">
-                <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</p>
-                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+              <div className="px-2 py-2 mb-1 border-b border-slate-100">
+                <p className="text-sm font-medium truncate text-slate-900">{user?.full_name || 'User'}</p>
+                <p className="text-xs truncate text-slate-500">{user?.email}</p>
+                <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-slate-50 text-slate-600 border-slate-200">
+                  {userIsSuperAdmin ? 'Super Admin' : userIsHrAdmin ? 'HR Admin' : user?.role || 'User'}
+                </Badge>
               </div>
-              <DropdownMenuItem onClick={() => {
-                changeViewMode('EMPLOYEE');
-                navigate('/employeeselfservice');
-              }}>
-                <UserCircle className="w-4 h-4 mr-2" />
-                My Profile
-              </DropdownMenuItem>
-              {hasDualRoles && (
+              {userIsSuperAdmin ? (
+                <DropdownMenuItem onClick={() => navigate(PAGE_ROUTES.SETTINGS)}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+              ) : (
+                  <DropdownMenuItem onClick={() => {
+                    if (canSwitchViews) {
+                      changeViewMode('EMPLOYEE');
+                    }
+                    navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
+                  }}>
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    My Profile
+                  </DropdownMenuItem>
+              )}
+              {canSwitchViews && (
                 <DropdownMenuItem onClick={() => {
                   const newMode = viewMode === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
                   changeViewMode(newMode);
-                  navigate(newMode === 'ADMIN' ? '/' : '/employeeselfservice');
+                  navigate(newMode === 'ADMIN' ? PAGE_ROUTES.HOME : PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
                 }}>
                   {viewMode === 'ADMIN' ? <Briefcase className="w-4 h-4 mr-2" /> : <Users className="w-4 h-4 mr-2" />}
                   Switch to {viewMode === 'ADMIN' ? 'Employee Portal' : 'Admin Panel'}
@@ -499,24 +460,25 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Secondary Sidebar (Sub-navigation) */}
-      <aside className="hidden md:flex h-screen w-64 bg-white border-r border-slate-200 flex-col flex-shrink-0 sticky top-0 z-10 shadow-sm">
+      <aside className="sticky top-0 z-10 flex-col flex-shrink-0 hidden w-64 h-screen bg-white border-r shadow-sm md:flex border-slate-200">
         <div className="px-5 py-6">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{activePrimary?.title}</h2>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">{activePrimary?.title}</h2>
         </div>
         
 
-        <div className="flex-1 overflow-y-auto px-3 pb-6 relative">
-          <AnimatePresence mode="wait">
+        <div className="relative flex-1 px-3 pb-6 overflow-y-auto">
+          {/* Enter-only animation, deliberately without AnimatePresence mode="wait": when the key
+              changed again mid-exit (fast rail clicks, or a navigation re-render), framer-motion could
+              drop the exiting list without mounting the new one, leaving this panel empty until reload. */}
             <motion.div
               key={activePrimary?.title}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15 }}
               className="space-y-1"
             >
               {activePrimary?.children?.map(child => {
-                const isActive = location.pathname === child.url;
+                const isActive = location.pathname.toLowerCase() === child.url.toLowerCase();
                 return (
                   <Link 
                     key={child.title}
@@ -544,14 +506,13 @@ export default function Layout({ children }) {
                 );
               })}
             </motion.div>
-          </AnimatePresence>
         </div>
 
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-auto bg-slate-50 relative">
-        <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
+      <main className="relative flex flex-col flex-1 min-w-0 overflow-auto bg-slate-50">
+        <div className="flex-1 w-full p-4 mx-auto max-w-7xl md:p-8">
           {children}
         </div>
       </main>
@@ -559,7 +520,7 @@ export default function Layout({ children }) {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-slate-900/50 md:hidden backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { leaveApi, approvalsApi } from "@/api";
+import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
+import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
+import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
+import { isPendingLeaveStatus, formatLeaveStatus, getLeaveStatusBadgeClass, normalizeLeaveStatus, LEAVE_STATUS } from "@/lib/leaveStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +18,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit, Clock, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
 import { motion } from "framer-motion";
+import { calculateWorkingDays } from "@/lib/leaveDays";
+import LeaveActionDialog from "@/components/Leave/LeaveActionDialog";
 
 const StatsSkeleton = () => (
-  <div className="grid md:grid-cols-3 gap-6">
+  <div className="grid gap-6 md:grid-cols-3">
     {Array(3).fill(0).map((_, i) => (
-      <div key={i} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm animate-pulse">
-        <div className="w-12 h-12 bg-slate-100 rounded-xl mb-4"></div>
-        <div className="h-8 bg-slate-100 rounded w-16 mb-2"></div>
-        <div className="h-4 bg-slate-100 rounded w-24"></div>
+      <div key={i} className="p-6 bg-white border shadow-sm border-slate-100 rounded-2xl animate-pulse">
+        <div className="w-12 h-12 mb-4 bg-slate-100 rounded-xl"></div>
+        <div className="w-16 h-8 mb-2 rounded bg-slate-100"></div>
+        <div className="w-24 h-4 rounded bg-slate-100"></div>
       </div>
     ))}
   </div>
@@ -31,20 +38,20 @@ const StatsSkeleton = () => (
 const RequestsSkeleton = () => (
   <div className="space-y-4">
     {Array(4).fill(0).map((_, i) => (
-      <div key={i} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm animate-pulse flex items-start justify-between">
+      <div key={i} className="flex items-start justify-between p-5 bg-white border shadow-sm border-slate-100 rounded-2xl animate-pulse">
         <div className="flex gap-4">
-          <div className="w-10 h-10 bg-slate-100 rounded-full"></div>
+          <div className="w-10 h-10 rounded-full bg-slate-100"></div>
           <div className="space-y-2">
-            <div className="h-4 bg-slate-100 rounded w-32"></div>
-            <div className="h-3 bg-slate-100 rounded w-24"></div>
-            <div className="h-3 bg-slate-100 rounded w-48 mt-2"></div>
+            <div className="w-32 h-4 rounded bg-slate-100"></div>
+            <div className="w-24 h-3 rounded bg-slate-100"></div>
+            <div className="w-48 h-3 mt-2 rounded bg-slate-100"></div>
           </div>
         </div>
-        <div className="space-y-2 flex flex-col items-end">
-          <div className="h-6 bg-slate-100 rounded-full w-20"></div>
+        <div className="flex flex-col items-end space-y-2">
+          <div className="w-20 h-6 rounded-full bg-slate-100"></div>
           <div className="flex gap-2 mt-2">
-            <div className="h-8 w-20 bg-slate-100 rounded-md"></div>
-            <div className="h-8 w-20 bg-slate-100 rounded-md"></div>
+            <div className="w-20 h-8 rounded-md bg-slate-100"></div>
+            <div className="w-20 h-8 rounded-md bg-slate-100"></div>
           </div>
         </div>
       </div>
@@ -55,12 +62,14 @@ const RequestsSkeleton = () => (
 export default function AllLeaveRequests() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isSuperOrHrAdmin = isSuperAdmin(user) || isHrAdmin(user);
+  const isManagerOnly = checkIsManager(user) && !isSuperOrHrAdmin;
   const [showForm, setShowForm] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
-    leave_type: 'annual',
+    leave_type: '',
     start_date: '',
     end_date: '',
     reason: '',
@@ -76,57 +85,43 @@ export default function AllLeaveRequests() {
   const { data: leaveRequestsData, isLoading: loadingRequests } = useQuery({
     queryKey: ['leave-requests', page, limit],
     queryFn: async () => {
-      const LEAVE_QUERY = gql`
-        query GetPaginatedLeaveRequests($page: Int!, $limit: Int!) { 
-          paginatedLeaveRequests(page: $page, limit: $limit) {
-            leaveRequests { id employeeId startDate endDate totalDays status reason createdAt }
-            totalCount
-            totalPages
-            currentPage
-          }
-        }
-      `;
-      const data = await gqlClient.request(LEAVE_QUERY, { page, limit });
+      const payload = await leaveApi.getAllRequests({ page, limit });
+      const list = Array.isArray(payload) ? payload : payload?.data || [];
       return {
-        ...data.paginatedLeaveRequests,
-        leaveRequests: data.paginatedLeaveRequests.leaveRequests.map(l => ({
+        data: list,
+        total: payload?.pagination?.total ?? list.length,
+        totalPages: Math.max(1, payload?.pagination?.totalPages ?? Math.ceil(list.length / limit)),
+        currentPage: page,
+        leaveRequests: list.map(l => ({
           ...l,
-          employee_name: l.employeeId,
-          employee_email: l.employeeId,
-          leave_type: 'annual',
-          start_date: l.startDate,
-          end_date: l.endDate,
-          total_days: l.totalDays,
-          isHalfDay: l.isHalfDay,
-          selectedDates: l.selectedDates,
-          approvers: []
+          id: l._id || l.id,
+          employee_name: l.employeeId?.fullName || l.employeeId || 'Employee',
+          employee_email: l.employeeId?.email || l.employee_email || '',
+          leave_type: l.leaveTypeId?.name || 'Annual Leave',
+          start_date: l.startDate || l.start_date,
+          end_date: l.endDate || l.end_date,
+          total_days: l.totalDays || l.total_days || 0,
+          isHalfDay: !!l.isHalfDay,
+          selectedDates: l.selectedDates || [],
+          approvers: l.approvers || [],
+          isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
         }))
       };
     },
   });
 
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['leaveTypes'],
-    queryFn: async () => {
-      const GET_LEAVE_TYPES = gql`
-        query GetLeaveTypes {
-          leaveTypes { id name daysPerYear isPaid }
-        }
-      `;
-      const data = await gqlClient.request(GET_LEAVE_TYPES);
-      return data.leaveTypes || [];
-    }
-  });
+  const { data: leaveTypes = [] } = useLeaveTypes();
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees'],
-    queryFn: async () => {
-      const EMP_QUERY = gql`query { employees { id fullName email jobTitle } }`;
-      const data = await gqlClient.request(EMP_QUERY);
-      return (data.employees || []).map(e => ({ ...e, full_name: e.fullName }));
-    },
-    initialData: [],
-  });
+  // Default the picker to a real leave type id (it used to default to the string 'annual',
+  // which isn't an id, so a request submitted without touching the picker failed).
+  useEffect(() => {
+    if (leaveTypes.length > 0 && !formData.leave_type) {
+      setFormData(prev => ({ ...prev, leave_type: leaveTypes[0].id }));
+    }
+  }, [leaveTypes, formData.leave_type]);
+
+  // Only onboarded, still-employed staff can have leave filed for them.
+  const { data: employees = [] } = useLeaveEligibleEmployees();
 
   const createAuditLog = async (action, entityId, entityName, changes = {}) => {
     // Mocked for now
@@ -134,45 +129,33 @@ export default function AllLeaveRequests() {
 
   const createLeaveMutation = useMutation({
     mutationFn: async (data) => {
-      const CREATE_LEAVE = gql`
-        mutation CreateLeave($leaveTypeId: String!, $startDate: String!, $endDate: String!, $totalDays: Float!, $reason: String, $attachmentUrl: String, $isHalfDay: Boolean, $selectedDates: [String!]) {
-          submitLeaveRequest(input: {
-            leaveTypeId: $leaveTypeId,
-            startDate: $startDate,
-            endDate: $endDate,
-            totalDays: $totalDays,
-            reason: $reason,
-            attachmentUrl: $attachmentUrl,
-            isHalfDay: $isHalfDay,
-            selectedDates: $selectedDates
-          }) { id status }
-        }
-      `;
-      
       const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
       const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
 
-      const leave = await gqlClient.request(CREATE_LEAVE, {
-        leaveTypeId: data.leave_type, // Using leaveType ID now
+      const leave = await leaveApi.createRequest({
+        employeeId: data.employee_id,
+        leaveTypeId: data.leave_type,
         startDate: new Date(start || new Date()).toISOString(),
         endDate: new Date(end || new Date()).toISOString(),
-        totalDays: data.isHalfDay ? 0.5 : parseFloat(data.total_days),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
-        isHalfDay: data.isHalfDay,
-        selectedDates: data.useMultipleDates ? data.selectedDates : []
+        isHalfDay: !!data.isHalfDay,
       });
 
-      await createAuditLog('create', leave.submitLeaveRequest.id, data.employee_id, { after: leave.submitLeaveRequest });
+      await createAuditLog('create', leave?._id || leave?.id, data.employee_id, { after: leave });
       return leave;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setShowForm(false);
       setEditingLeave(null);
       setFormData({
         employee_id: '',
-        leave_type: 'annual',
+        leave_type: '',
         start_date: '',
         end_date: '',
         total_days: 0,
@@ -183,17 +166,17 @@ export default function AllLeaveRequests() {
         selectedDates: [],
       });
     },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error, "Failed to create leave request."));
+    },
   });
 
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, data, oldData }) => {
-      let mutationStr;
-      if (data.status === 'approved') {
-        mutationStr = gql`mutation ApproveLeave($id: ID!) { approveLeaveRequest(id: $id) { id status } }`;
-      } else {
-        mutationStr = gql`mutation RejectLeave($id: ID!) { rejectLeaveRequest(id: $id, reason: "Rejected by HR", attachmentUrl: "none") { id status } }`;
-      }
-      const updated = await gqlClient.request(mutationStr, { id });
+      const updated = data.status === 'approved'
+        ? await approvalsApi.approveLeave(id)
+        : await approvalsApi.rejectLeave(id, data.reason || 'Rejected by HR');
+
       await createAuditLog('update', id, oldData?.employee_name, {
         before: oldData,
         after: updated,
@@ -205,6 +188,7 @@ export default function AllLeaveRequests() {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setEditingLeave(null);
       setShowForm(false);
@@ -244,27 +228,35 @@ export default function AllLeaveRequests() {
     }
     setUploadingDoc(false);
   };
+  const { data: publicHolidays = [] } = useQuery({
+    queryKey: ['publicHolidays'],
+    queryFn: async () => {
+      const res = await leaveApi.getPublicHolidays();
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+  });
+
   useEffect(() => {
     if (formData.useMultipleDates) return;
     if (formData.start_date && formData.end_date) {
-      const start = new Date(formData.start_date);
-      const end = new Date(formData.end_date);
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const days = calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays);
       setFormData(prev => ({ ...prev, total_days: prev.isHalfDay ? (days > 0 ? days * 0.5 : 0) : (days > 0 ? days : 0) }));
     } else {
       setFormData(prev => ({ ...prev, total_days: 0 }));
     }
-  }, [formData.start_date, formData.end_date, formData.isHalfDay, formData.useMultipleDates]);
+  }, [formData.start_date, formData.end_date, formData.isHalfDay, formData.useMultipleDates, publicHolidays]);
 
   const addSelectedDate = (date) => {
     if (!date) return;
     const newDates = [...formData.selectedDates, date].sort();
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? newDates.length * 0.5 : newDates.length });
+    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
+    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
   };
 
   const removeSelectedDate = (date) => {
     const newDates = formData.selectedDates.filter(d => d !== date);
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? newDates.length * 0.5 : newDates.length });
+    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
+    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
   };
 
   const handleApprove = async (leave) => {
@@ -275,23 +267,23 @@ export default function AllLeaveRequests() {
     });
   };
 
-  const handleReject = async (leave) => {
+  const handleReject = async (leave, reason) => {
     updateLeaveMutation.mutate({
       id: leave.id,
-      data: { status: 'rejected' },
+      data: { status: 'rejected', reason },
       oldData: leave
     });
   };
 
-  const statusStyles = {
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    rejected: 'bg-rose-50 text-rose-700 border-rose-200',
-    cancelled: 'bg-slate-50 text-slate-700 border-slate-200',
+  const [confirmState, setConfirmState] = useState(null); // { leave, action }
+  const handleConfirmLeaveAction = (reason) => {
+    if (!confirmState) return;
+    if (confirmState.action === 'approve') handleApprove(confirmState.leave);
+    else handleReject(confirmState.leave, reason);
   };
 
   const displayRequests = leaveRequestsData?.leaveRequests || [];
-  const totalRequests = leaveRequestsData?.totalCount || 0;
+  const totalRequests = leaveRequestsData?.total || 0;
   const totalPages = leaveRequestsData?.totalPages || 1;
 
   const containerVariants = {
@@ -312,14 +304,14 @@ export default function AllLeaveRequests() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4 md:p-8"
+      className="min-h-screen p-4 bg-gradient-to-br from-slate-50 to-indigo-50/30 md:p-8"
     >
-      <div className="max-w-7xl mx-auto space-y-8">
-        <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mx-auto space-y-8 max-w-7xl">
+        <motion.div variants={itemVariants} className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
               <Plane className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Leave Management</span>
+              <span className="text-xs font-semibold tracking-wider text-indigo-700 uppercase">Leave Management</span>
             </div>
             
             <p className="text-slate-500">Manage and approve employee time off</p>
@@ -330,7 +322,7 @@ export default function AllLeaveRequests() {
               setEditingLeave(null);
               setFormData({
                 employee_id: '',
-                leave_type: 'annual',
+                leave_type: '',
                 start_date: '',
                 end_date: '',
                 total_days: 0,
@@ -343,12 +335,12 @@ export default function AllLeaveRequests() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+              <Button className="text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700">
                 <Plus className="w-4 h-4 mr-2" />
                 New Request
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl rounded-2xl border-slate-100 shadow-xl">
+            <DialogContent className="max-w-xl shadow-xl rounded-2xl border-slate-100">
               <DialogHeader>
                 <DialogTitle>{editingLeave ? 'Edit' : 'Create'} Leave Request</DialogTitle>
               </DialogHeader>
@@ -357,16 +349,24 @@ export default function AllLeaveRequests() {
                 if (editingLeave) {
                   updateLeaveMutation.mutate({ id: editingLeave.id, data: formData, oldData: editingLeave });
                 } else {
+                  if (!formData.employee_id) {
+                    toast.error('Select the employee this leave request is for.');
+                    return;
+                  }
+                  if (!formData.leave_type) {
+                    toast.error('Select a leave type.');
+                    return;
+                  }
                   createLeaveMutation.mutate(formData);
                 }
-              }} className="space-y-4 pt-4">
+              }} className="pt-4 space-y-4">
                 <div className="space-y-2">
                   <Label>Employee</Label>
                   <Select value={formData.employee_id} onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))} disabled={!!editingLeave}>
                     <SelectTrigger className="rounded-lg">
                       <SelectValue placeholder="Select employee" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                    <SelectContent className="shadow-lg rounded-xl border-slate-100">
                       {employees.map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.full_name} - {emp.job_title}
@@ -381,7 +381,7 @@ export default function AllLeaveRequests() {
                     <Label>Leave Type</Label>
                     <Select value={formData.leave_type} onValueChange={(value) => setFormData(prev => ({ ...prev, leave_type: value }))}>
                       <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                      <SelectContent className="shadow-lg rounded-xl border-slate-100">
                         {leaveTypes.map(type => (
                           <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
                         ))}
@@ -404,9 +404,9 @@ export default function AllLeaveRequests() {
                           newEndDate = formData.start_date;
                         }
                         if (formData.useMultipleDates) {
-                          tDays = formData.selectedDates.length * (isHalf ? 0.5 : 1);
+                          tDays = formData.selectedDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0) * (isHalf ? 0.5 : 1);
                         } else if (formData.start_date && newEndDate) {
-                          tDays = (Math.ceil((new Date(newEndDate).getTime() - new Date(formData.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1) * (isHalf ? 0.5 : 1);
+                          tDays = calculateWorkingDays(formData.start_date, newEndDate, publicHolidays) * (isHalf ? 0.5 : 1);
                         }
                         setFormData({ ...formData, isHalfDay: isHalf, end_date: newEndDate, total_days: tDays });
                       }} 
@@ -423,9 +423,9 @@ export default function AllLeaveRequests() {
                         const useMultiple = e.target.checked;
                         let tDays = 0;
                         if (useMultiple) {
-                          tDays = formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1);
+                          tDays = formData.selectedDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0) * (formData.isHalfDay ? 0.5 : 1);
                         } else if (formData.start_date && formData.end_date) {
-                          tDays = (Math.ceil((new Date(formData.end_date).getTime() - new Date(formData.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1) * (formData.isHalfDay ? 0.5 : 1);
+                          tDays = calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays) * (formData.isHalfDay ? 0.5 : 1);
                         }
                         setFormData({ ...formData, useMultipleDates: useMultiple, total_days: tDays });
                       }} 
@@ -464,7 +464,7 @@ export default function AllLeaveRequests() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {formData.selectedDates.map(date => (
-                        <Badge key={date} variant="secondary" className="px-3 py-1 text-sm flex items-center gap-2">
+                        <Badge key={date} variant="secondary" className="flex items-center gap-2 px-3 py-1 text-sm">
                           {format(new Date(date), 'MMM d, yyyy')}
                           <XCircle className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => removeSelectedDate(date)} />
                         </Badge>
@@ -475,7 +475,7 @@ export default function AllLeaveRequests() {
                 
                 <div className="space-y-2">
                   <Label>Total Days</Label>
-                  <Input type="number" value={formData.total_days} readOnly className="bg-slate-50 rounded-lg text-slate-500" />
+                  <Input type="number" value={formData.total_days} readOnly className="rounded-lg bg-slate-50 text-slate-500" />
                 </div>
 
                 <div className="space-y-2">
@@ -486,7 +486,7 @@ export default function AllLeaveRequests() {
                 <div className="space-y-2">
                   <Label>Supporting Document (Optional)</Label>
                   <input type="file" onChange={handleDocUpload} className="hidden" id="leave-doc" />
-                  <Button type="button" variant="outline" className="w-full rounded-lg border-dashed border-slate-300 hover:border-indigo-300 hover:bg-indigo-50" onClick={() => document.getElementById('leave-doc').click()} disabled={uploadingDoc}>
+                  <Button type="button" variant="outline" className="w-full border-dashed rounded-lg border-slate-300 hover:border-indigo-300 hover:bg-indigo-50" onClick={() => document.getElementById('leave-doc').click()} disabled={uploadingDoc}>
                     <Upload className="w-4 h-4 mr-2" />
                     {uploadingDoc ? 'Uploading...' : formData.attachment_url ? 'Document Uploaded ✓' : 'Upload Document'}
                   </Button>
@@ -494,7 +494,7 @@ export default function AllLeaveRequests() {
 
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" className="rounded-lg" onClick={() => setShowForm(false)}>Cancel</Button>
-                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" isLoading={createLeaveMutation.isPending || updateLeaveMutation.isPending}>
+                  <Button type="submit" className="bg-indigo-600 rounded-lg hover:bg-indigo-700" isLoading={createLeaveMutation.isPending || updateLeaveMutation.isPending}>
                     {(createLeaveMutation.isPending || updateLeaveMutation.isPending) ? 'Saving...' : editingLeave ? 'Update Request' : 'Submit Request'}
                   </Button>
                 </div>
@@ -506,62 +506,62 @@ export default function AllLeaveRequests() {
         {loadingRequests ? (
           <StatsSkeleton />
         ) : (
-          <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-6">
-            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
-              <div className="absolute right-0 top-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 bg-amber-100/50 rounded-xl flex items-center justify-center mb-4">
+          <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-3">
+            <Card className="relative overflow-hidden bg-white shadow-sm border-slate-200/60 rounded-2xl">
+              <div className="absolute top-0 right-0 w-24 h-24 -mt-4 -mr-4 rounded-bl-full opacity-50 pointer-events-none bg-amber-50"></div>
+              <CardContent className="relative z-10 p-6">
+                <div className="flex items-center justify-center w-12 h-12 mb-4 bg-amber-100/50 rounded-xl">
                   <Clock className="w-6 h-6 text-amber-600" />
                 </div>
-                <p className="text-3xl font-bold text-slate-900 tracking-tight">
-                  {displayRequests.filter(l => l.status === 'pending').length}
+                <p className="text-3xl font-bold tracking-tight text-slate-900">
+                  {displayRequests.filter(l => isPendingLeaveStatus(l.status)).length}
                 </p>
-                <p className="text-sm font-medium text-slate-500 mt-1">Pending Approvals</p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Pending Approvals</p>
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
-              <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 bg-emerald-100/50 rounded-xl flex items-center justify-center mb-4">
+            <Card className="relative overflow-hidden bg-white shadow-sm border-slate-200/60 rounded-2xl">
+              <div className="absolute top-0 right-0 w-24 h-24 -mt-4 -mr-4 rounded-bl-full opacity-50 pointer-events-none bg-emerald-50"></div>
+              <CardContent className="relative z-10 p-6">
+                <div className="flex items-center justify-center w-12 h-12 mb-4 bg-emerald-100/50 rounded-xl">
                   <CheckCircle className="w-6 h-6 text-emerald-600" />
                 </div>
-                <p className="text-3xl font-bold text-slate-900 tracking-tight">
-                  {displayRequests.filter(l => l.status === 'approved').length}
+                <p className="text-3xl font-bold tracking-tight text-slate-900">
+                  {displayRequests.filter(l => normalizeLeaveStatus(l.status) === LEAVE_STATUS.APPROVED).length}
                 </p>
-                <p className="text-sm font-medium text-slate-500 mt-1">Approved This Month</p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Approved This Month</p>
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white overflow-hidden relative">
-              <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 opacity-50 pointer-events-none"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 bg-indigo-100/50 rounded-xl flex items-center justify-center mb-4">
+            <Card className="relative overflow-hidden bg-white shadow-sm border-slate-200/60 rounded-2xl">
+              <div className="absolute top-0 right-0 w-24 h-24 -mt-4 -mr-4 rounded-bl-full opacity-50 pointer-events-none bg-indigo-50"></div>
+              <CardContent className="relative z-10 p-6">
+                <div className="flex items-center justify-center w-12 h-12 mb-4 bg-indigo-100/50 rounded-xl">
                   <Plane className="w-6 h-6 text-indigo-600" />
                 </div>
-                <p className="text-3xl font-bold text-slate-900 tracking-tight">{displayRequests.length}</p>
-                <p className="text-sm font-medium text-slate-500 mt-1">Total Requests</p>
+                <p className="text-3xl font-bold tracking-tight text-slate-900">{displayRequests.length}</p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Total Requests</p>
               </CardContent>
             </Card>
           </motion.div>
         )}
 
         <motion.div variants={itemVariants}>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+          <div className="overflow-hidden bg-white border shadow-sm rounded-2xl border-slate-200/60">
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="text-lg font-bold text-slate-900">All Leave Requests</h2>
+              <h2 className="text-lg font-bold text-slate-900">All leave requests</h2>
             </div>
             
             <div className="p-6">
               {loadingRequests ? (
                 <RequestsSkeleton />
               ) : displayRequests.length === 0 ? (
-                <div className="text-center py-12 flex flex-col items-center">
-                  <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                <div className="flex flex-col items-center py-12 text-center">
+                  <div className="flex items-center justify-center w-16 h-16 mb-4 border bg-slate-50 border-slate-100 rounded-2xl">
                     <Plane className="w-8 h-8 text-slate-300" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">No leave requests</h3>
-                  <p className="text-slate-500 max-w-sm">When employees submit time off requests, they will appear here.</p>
+                  <h3 className="mb-1 text-lg font-bold text-slate-900">No leave requests</h3>
+                  <p className="max-w-sm text-slate-500">When employees submit time off requests, they will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -571,12 +571,12 @@ export default function AllLeaveRequests() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       key={leave.id} 
-                      className="p-5 bg-white border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all rounded-2xl group"
+                      className="p-5 transition-all bg-white border border-slate-100 hover:border-indigo-100 hover:shadow-md rounded-2xl group"
                     >
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="flex items-start gap-4 flex-1">
-                          <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-indigo-700 font-bold text-lg">
+                      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                        <div className="flex items-start flex-1 gap-4">
+                          <div className="flex items-center justify-center w-12 h-12 border border-indigo-100 rounded-full bg-indigo-50 shrink-0">
+                            <span className="text-lg font-bold text-indigo-700">
                               {leave.employee_name?.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -586,8 +586,13 @@ export default function AllLeaveRequests() {
                               <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-slate-200 text-slate-600">
                                 {leave.leave_type.replace('_', ' ')}
                               </Badge>
+                              {leave.isAnnualPlan && (
+                                <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-indigo-200 text-indigo-700 bg-indigo-50">
+                                  Annual Plan
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                            <div className="flex items-center gap-2 mb-3 text-sm text-slate-500">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />
                               {leave.selectedDates && leave.selectedDates.length > 0
                                 ? <span>{leave.selectedDates.map(d => format(new Date(d), 'MMM dd')).join(', ')}</span>
@@ -601,7 +606,7 @@ export default function AllLeaveRequests() {
                                 {leave.total_days} day{leave.total_days !== 1 ? 's' : ''} {leave.isHalfDay && <Badge variant="secondary" className="ml-1 text-[10px]">Half Day</Badge>}
                               </span>
                             </div>
-                            <p className="text-sm text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                            <p className="p-3 text-sm border text-slate-600 bg-slate-50/80 rounded-xl border-slate-100">
                               "{leave.reason}"
                             </p>
                             {leave.attachment_url && (
@@ -610,7 +615,7 @@ export default function AllLeaveRequests() {
                                   href={leave.attachment_url} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
-                                  className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                                  className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
                                 >
                                   <Paperclip className="w-4 h-4" /> View Attachment
                                 </a>
@@ -619,48 +624,66 @@ export default function AllLeaveRequests() {
                           </div>
                         </div>
                         
-                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-3 pl-16 md:pl-0">
-                          <Badge className={`${statusStyles[leave.status]} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
-                            {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                        <div className="flex flex-row items-center justify-between gap-3 pl-16 md:flex-col md:items-end md:justify-start md:pl-0">
+                          <Badge className={`${getLeaveStatusBadgeClass(leave.status)} border font-semibold px-2.5 py-0.5 rounded-full shadow-sm`}>
+                            {formatLeaveStatus(leave.status)}
                           </Badge>
-                          
-                          {leave.status === 'pending' && (
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" 
-                                onClick={() => handleEdit(leave)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700" 
-                                onClick={() => handleApprove(leave)}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1.5" />
-                                Approve
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700" 
-                                onClick={() => handleReject(leave)}
-                              >
-                                <XCircle className="w-4 h-4 mr-1.5" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+
+                          {isPendingLeaveStatus(leave.status) && (() => {
+                            const hasManagerApproved = Boolean(
+                              (leave.approvers || leave.approvalHistory || []).some(
+                                (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
+                              ) ||
+                              ((leave.currentApprovalLevel || 0) > 0 && Array.isArray(leave.approvalLevels) && leave.approvalLevels[0]?.role === 'MANAGER')
+                            );
+
+                            if (hasManagerApproved && isManagerOnly) {
+                              return (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-semibold">
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>Approved by Manager</span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="w-8 h-8 p-0 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" 
+                                  onClick={() => handleEdit(leave)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-lg text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                                  onClick={() => setConfirmState({ leave, action: 'approve' })}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1.5" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                                  onClick={() => setConfirmState({ leave, action: 'reject' })}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1.5" />
+                                  Reject
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </motion.div>
                   ))}
-                  <div className="mt-6 flex items-center justify-between px-2">
-                    <p className="text-sm text-slate-500 font-medium">
-                      Showing <span className="text-slate-900 font-semibold">{((page - 1) * limit) + 1}</span> to <span className="text-slate-900 font-semibold">{Math.min(page * limit, totalRequests)}</span> of <span className="text-slate-900 font-semibold">{totalRequests}</span> requests
+                  <div className="flex items-center justify-between px-2 mt-6">
+                    <p className="text-sm font-medium text-slate-500">
+                      Showing <span className="font-semibold text-slate-900">{((page - 1) * limit) + 1}</span> to <span className="font-semibold text-slate-900">{Math.min(page * limit, totalRequests)}</span> of <span className="font-semibold text-slate-900">{totalRequests}</span> requests
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -689,6 +712,14 @@ export default function AllLeaveRequests() {
           </div>
         </motion.div>
       </div>
+      <LeaveActionDialog
+        open={!!confirmState}
+        onOpenChange={(open) => !open && setConfirmState(null)}
+        action={confirmState?.action}
+        employeeName={confirmState?.leave?.employee_name}
+        isPending={updateLeaveMutation.isPending}
+        onConfirm={handleConfirmLeaveAction}
+      />
     </motion.div>
   );
 }

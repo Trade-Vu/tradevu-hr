@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, Mail, Briefcase, UserPlus } from "lucide-react";
@@ -64,9 +64,9 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
         </div>
         <h3 className="text-base font-semibold text-slate-900 mb-1">No employees yet</h3>
         <p className="text-sm text-slate-500 mb-6">Start by adding your first new hire</p>
-        <Link to={createPageUrl("Employees?action=add")}>
+        <Link to={`${PAGE_ROUTES.EMPLOYEES}?action=add`}>
           <button className="px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
-            <UserPlus className="w-4 h-4" /> Add New Hire
+            <UserPlus className="w-4 h-4" /> Add employee
           </button>
         </Link>
       </div>
@@ -78,7 +78,7 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
       {employees.map((employee, i) => (
         <div
           key={employee.id}
-          onClick={() => onOpenDetail ? onOpenDetail(employee.id) : null}
+          onClick={() => onOpenDetail ? onOpenDetail(employee) : null}
           className="block p-5 hover:bg-slate-50 transition-colors group relative cursor-pointer"
         >
           <div className="flex items-center gap-4">

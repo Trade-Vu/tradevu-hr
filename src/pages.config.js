@@ -155,3 +155,5 @@ export const pagesConfig = {
     Pages: PAGES,
     Layout: __Layout,
 };
+
+export { PAGE_ROUTES, PAGE_LINKS, PAGE_URLS, ROUTES, getPageUrl } from './constants/pageRoutes';

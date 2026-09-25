@@ -1,32 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { gql } from 'graphql-request';
-import { gqlClient } from '@/api/graphqlClient';
+import { organizationsApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Edit, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const GET_ORGANIZATION = gql`
-  query GetOrganization($id: ID!) {
-    organization(id: $id) {
-      id
-      employeeClasses
-    }
-  }
-`;
-
-const UPDATE_ORGANIZATION = gql`
-  mutation UpdateOrganization($input: UpdateOrganizationInput!) {
-    updateOrganization(input: $input) {
-      id
-      employeeClasses
-    }
-  }
-`;
 
 export default function SettingsClasses() {
   const { user } = useAuth();
@@ -37,39 +18,36 @@ export default function SettingsClasses() {
   const [className, setClassName] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['organization', user?.organizationId],
+    queryKey: ['organization', 'me'],
     queryFn: async () => {
-      if (!user?.organizationId) return null;
-      const res = await gqlClient.request(GET_ORGANIZATION, { id: user.organizationId });
-      return res.organization;
+      const res = await organizationsApi.getMyOrganization();
+      return res?.data || res;
     },
-    enabled: !!user?.organizationId
   });
 
   useEffect(() => {
-    if (data?.employeeClasses) {
-      setClasses(data.employeeClasses);
-    } else if (data && !data.employeeClasses) {
-      // Default classes if null
-      setClasses(["Permanent", "Probationary", "Contract", "Consultant", "Intern", "Managerial"]);
+    if (data?.employeeClasses && Array.isArray(data.employeeClasses) && data.employeeClasses.length > 0) {
+      setClasses(data.employeeClasses.map(c => c.toUpperCase()));
+    } else if (data && (!data.employeeClasses || data.employeeClasses.length === 0)) {
+      // Default classes if null or empty
+      setClasses(["PERMANENT", "PROBATIONARY", "CONTRACT", "CONSULTANT", "INTERN", "MANAGERIAL"]);
     }
   }, [data]);
 
   const updateMutation = useMutation({
     mutationFn: async (newClasses) => {
-      const input = { employeeClasses: newClasses };
-      const res = await gqlClient.request(UPDATE_ORGANIZATION, { input });
-      return res.updateOrganization;
+      const upperClasses = newClasses.map(c => c.toUpperCase());
+      return await organizationsApi.updateMyOrganization({ employeeClasses: upperClasses });
     },
     onSuccess: () => {
       toast.success('Employee classes updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['organization', user?.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['organization', 'me'] });
       setIsAdding(false);
       setEditingIndex(null);
       setClassName('');
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to update employee classes');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employee classes');
     }
   });
 

@@ -268,7 +268,7 @@ https://on.cypress.io/wait
       9) displays Avg. Progress stat card
     Quick Actions
       10) renders quick action buttons
-      11) Add New Hire button navigates to employees page
+      11) Add employee button navigates to employees page
     Employee List Table
       ✓ renders the employee list section (212ms)
       12) renders search input for filtering employees
@@ -350,8 +350,8 @@ https://on.cypress.io/wait
 
   11) Dashboard
        Quick Actions
-         Add New Hire button navigates to employees page:
-     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/add new hire/i' within the selector: 'button, a' but never did.
+         Add employee button navigates to employees page:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: '/Add employee/i' within the selector: 'button, a' but never did.
       at Context.eval (webpack://base44-app/./cypress/e2e/dashboard.cy.js:116:9)
 
   12) Dashboard
@@ -430,7 +430,7 @@ https://on.cypress.io/wait
   -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/dashboard.cy.js/D    (2560x1440)
      ashboard -- Quick Actions -- renders quick action buttons (failed).png                         
   -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/dashboard.cy.js/D    (2560x1440)
-     ashboard -- Quick Actions -- Add New Hire button navigates to employees page (fa               
+     ashboard -- Quick Actions -- Add employee button navigates to employees page (fa               
      iled).png                                                                                      
   -  /Users/chizanumidemili/Projects/tradevu-hr/cypress/screenshots/dashboard.cy.js/D    (2560x1440)
      ashboard -- Employee List Table -- renders search input for filtering employees                

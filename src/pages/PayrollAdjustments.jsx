@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { gqlClient } from "@/api/graphqlClient";
+import { payrollApi, employeesApi } from "@/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,90 +12,61 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Plus, CheckCircle, XCircle } from "lucide-react";
 
+const listFrom = (response) => (Array.isArray(response) ? response : response?.data || []);
+
 export default function PayrollAdjustments() {
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
-  
+
   const [form, setForm] = useState({
     employeeId: '',
-    type: 'BONUS', // BONUS, DEDUCTION, REIMBURSEMENT
+    type: 'bonus', // bonus, deduction, reimbursement
     amount: '',
     reason: ''
   });
 
   const { data: adjustments = [], isLoading: adjustmentsLoading } = useQuery({
     queryKey: ['payroll-adjustments'],
-    queryFn: async () => {
-      const QUERY = `
-        query {
-          payrollAdjustments {
-            id type amount reason status createdAt
-            employee { fullName employeeCode }
-          }
-        }
-      `;
-      const data = await gqlClient.request(QUERY);
-      return data.payrollAdjustments || [];
-    }
+    queryFn: async () => listFrom(await payrollApi.getAdjustments()),
   });
 
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-basic'],
-    queryFn: async () => {
-      const QUERY = `query { employees { id fullName employeeCode } }`;
-      const data = await gqlClient.request(QUERY);
-      return data.employees || [];
-    }
+    queryFn: () => employeesApi.getAllEmployees(),
   });
 
   const createMutation = useMutation({
-    mutationFn: async (input) => {
-      const MUTATION = `
-        mutation CreateAdj($input: PayrollAdjustmentInput!) {
-          createPayrollAdjustment(input: $input) { id }
-        }
-      `;
-      await gqlClient.request(MUTATION, { 
-        input: {
-          employeeId: input.employeeId,
-          type: input.type,
-          amount: Number(input.amount),
-          reason: input.reason
-        }
-      });
-    },
+    mutationFn: (input) => payrollApi.createAdjustment({
+      employeeId: input.employeeId,
+      type: input.type,
+      amount: Number(input.amount),
+      reason: input.reason,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries(['payroll-adjustments']);
       setShowDialog(false);
       toast.success("Adjustment Created");
-      setForm({ employeeId: '', type: 'BONUS', amount: '', reason: '' });
+      setForm({ employeeId: '', type: 'bonus', amount: '', reason: '' });
     },
-    onError: (err) => {
-      console.error(err);
-      toast.error("Failed to create adjustment");
-    }
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to create adjustment"),
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id) => {
-      const MUTATION = `mutation($id: ID!) { approvePayrollAdjustment(id: $id) { id } }`;
-      await gqlClient.request(MUTATION, { id });
-    },
+    mutationFn: (id) => payrollApi.approveAdjustment(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['payroll-adjustments']);
       toast.success("Adjustment Approved");
-    }
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to approve adjustment"),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (id) => {
-      const MUTATION = `mutation($id: ID!) { rejectPayrollAdjustment(id: $id) { id } }`;
-      await gqlClient.request(MUTATION, { id });
-    },
+    mutationFn: (id) => payrollApi.rejectAdjustment(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['payroll-adjustments']);
       toast.success("Adjustment Rejected");
-    }
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to reject adjustment"),
   });
 
   return (
@@ -106,7 +77,7 @@ export default function PayrollAdjustments() {
             <h1 className="text-3xl font-bold text-slate-900">Payroll Adjustments</h1>
             <p className="text-slate-600">Log one-off bonuses, deductions, or reimbursements.</p>
           </div>
-          
+
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
               <Button className="bg-slate-900 text-white">
@@ -120,31 +91,31 @@ export default function PayrollAdjustments() {
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <Label>Employee</Label>
-                  <select 
+                  <select
                     className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                    value={form.employeeId} 
+                    value={form.employeeId}
                     onChange={e => setForm({...form, employeeId: e.target.value})}
                   >
                     <option value="">Select Employee</option>
                     {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.employeeCode})</option>
+                      <option key={emp._id} value={emp._id}>{emp.fullName} ({emp.employeeCode})</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <select 
+                  <select
                     className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                    value={form.type} 
+                    value={form.type}
                     onChange={e => setForm({...form, type: e.target.value})}
                   >
-                    <option value="BONUS">Bonus</option>
-                    <option value="DEDUCTION">Deduction</option>
-                    <option value="REIMBURSEMENT">Reimbursement</option>
+                    <option value="bonus">Bonus</option>
+                    <option value="deduction">Deduction</option>
+                    <option value="reimbursement">Reimbursement</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Amount (NGN)</Label>
+                  <Label>Amount</Label>
                   <Input type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
                 </div>
                 <div className="space-y-2">
@@ -152,7 +123,7 @@ export default function PayrollAdjustments() {
                   <Input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="e.g. Performance Bonus" />
                 </div>
 
-                <Button 
+                <Button
                   onClick={() => createMutation.mutate(form)}
                   disabled={createMutation.isPending || !form.employeeId || !form.amount}
                   className="w-full mt-4 bg-slate-900"
@@ -184,34 +155,34 @@ export default function PayrollAdjustments() {
                 <TableRow><TableCell colSpan={7} className="text-center py-8">No adjustments found.</TableCell></TableRow>
               ) : (
                 adjustments.map(adj => (
-                  <TableRow key={adj.id}>
+                  <TableRow key={adj._id}>
                     <TableCell className="font-medium">
-                      <div>{adj.employee?.fullName}</div>
-                      <div className="text-xs text-slate-500">{adj.employee?.employeeCode}</div>
+                      <div>{adj.employeeId?.fullName}</div>
+                      <div className="text-xs text-slate-500">{adj.employeeId?.employeeCode}</div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
-                        adj.type === 'BONUS' || adj.type === 'REIMBURSEMENT' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        adj.type === 'bonus' || adj.type === 'reimbursement' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                       }>
                         {adj.type}
                       </Badge>
                     </TableCell>
                     <TableCell>{adj.reason}</TableCell>
-                    <TableCell className="font-medium">{Number(adj.amount).toLocaleString()} NGN</TableCell>
-                    <TableCell>{format(new Date(Number(adj.createdAt)), 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="font-medium">{Number(adj.amount).toLocaleString()}</TableCell>
+                    <TableCell>{adj.createdAt ? format(new Date(adj.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
-                        adj.status === 'APPROVED' ? 'bg-green-50 text-green-700' : 
-                        adj.status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'
+                        adj.status === 'approved' || adj.status === 'processed' ? 'bg-green-50 text-green-700' :
+                        adj.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'
                       }>{adj.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {adj.status === 'DRAFT' && (
+                      {adj.status === 'pending' && (
                         <div className="flex justify-end gap-2">
-                          <Button size="icon" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => approveMutation.mutate(adj.id)}>
+                          <Button size="icon" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => approveMutation.mutate(adj._id)}>
                             <CheckCircle className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => rejectMutation.mutate(adj.id)}>
+                          <Button size="icon" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => rejectMutation.mutate(adj._id)}>
                             <XCircle className="w-4 h-4" />
                           </Button>
                         </div>

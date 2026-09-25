@@ -2,8 +2,7 @@ import React, { useState, useRef } from "react";
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import countryList from 'country-list';
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import apiClient from "@/api/client";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,69 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-const UPDATE_EMPLOYEE = gql`
-  mutation UpdateEmployeeSelf($input: UpdateEmployeeInput!) {
-    updateEmployeeSelf(input: $input) {
-      id
-    }
-  }
-`;
-
-const GET_EMPLOYEE = gql`
-  query GetEmployee($id: ID!) {
-    employee(id: $id) {
-      id
-      phone
-      workEmail
-      privateEmail
-      dateOfBirth
-      gender
-      maritalStatus
-      nationality
-      nationalId
-      passportNumber
-    }
-  }
-`;
-
-const UPLOAD_DOCUMENT = gql`
-  mutation UploadDocument($employeeId: ID!, $name: String!, $category: String!, $fileUrl: String!, $fileType: String!, $visibilityLevel: String!) {
-    uploadDocument(employeeId: $employeeId, name: $name, category: $category, fileUrl: $fileUrl, fileType: $fileType, visibilityLevel: $visibilityLevel) {
-      id
-    }
-  }
-`;
-
-const CLEAR_PROFILE_GATE = gql`
-  mutation ClearProfileGate {
-    clearProfileGate {
-      id
-      mustCompleteProfile
-    }
-  }
-`;
-
-const GET_DEPARTMENTS = gql`
-  query GetDepartments {
-    departments {
-      id
-      name
-      code
-    }
-  }
-`;
-
-const BULK_IMPORT_EMPLOYEES = gql`
-  mutation BulkImportEmployees($employees: [BulkImportEmployeeInput!]!) {
-    bulkImportEmployees(employees: $employees) {
-      id
-      fullName
-      email
-    }
-  }
-`;
+import { cn, getRefId } from "@/lib/utils";
+import { useDepartments } from "@/hooks/useDepartmentsQuery";
 
 /**
  * Expected CSV columns: fullName, email, jobTitle, departmentId, employmentType, hireDate, basicSalary
@@ -130,7 +68,7 @@ function parseEmployeeCSV(csvText, departments = []) {
 
 export default function ProfileCompletionWizard() {
   const { user, checkAppState } = useAuth();
-  const employeeId = user?.employeeId;
+  const employeeId = getRefId(user?.employeeId) || getRefId(user?.employee);
   const isHRAdmin = user?.role === 'HR_ADMIN';
   // HR admins get an extra Step 3 for CSV import (if feature is enabled)
   const hasCSVStep = isHRAdmin && isFeatureEnabled('CSV_IMPORT');
@@ -163,16 +101,14 @@ export default function ProfileCompletionWizard() {
 
   const { data: employeeDataObj } = useQuery({
     queryKey: ['employee', employeeId],
-    queryFn: () => gqlClient.request(GET_EMPLOYEE, { id: employeeId }),
+    queryFn: async () => {
+      const res = await apiClient.get(`/employees/${employeeId}`);
+      return { employee: res?.data || res };
+    },
     enabled: !!employeeId
   });
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: () => gqlClient.request(GET_DEPARTMENTS),
-    enabled: hasCSVStep
-  });
-  const departments = departmentsData?.departments || [];
+  const { data: departments = [] } = useDepartments({ enabled: hasCSVStep });
 
   React.useEffect(() => {
     if (employeeDataObj?.employee) {
@@ -195,12 +131,20 @@ export default function ProfileCompletionWizard() {
         phone: emp.phone || prev.phone,
         privateEmail: emp.privateEmail || prev.privateEmail,
         dateOfBirth: formattedDob || prev.dateOfBirth,
-        gender: emp.gender || prev.gender,
-        maritalStatus: emp.maritalStatus || prev.maritalStatus,
+        gender: emp.gender ? (emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1).toLowerCase()) : prev.gender,
+        maritalStatus: emp.maritalStatus ? (emp.maritalStatus.charAt(0).toUpperCase() + emp.maritalStatus.slice(1).toLowerCase()) : prev.maritalStatus,
         nationality: emp.nationality || prev.nationality,
         nationalId: emp.nationalId || prev.nationalId,
         passportNumber: emp.passportNumber || prev.passportNumber,
       }));
+
+      if (emp.nationalId) {
+        setIdentityType('nationalId');
+        setIdentityNumber(emp.nationalId);
+      } else if (emp.passportNumber) {
+        setIdentityType('passport');
+        setIdentityNumber(emp.passportNumber);
+      }
     }
   }, [employeeDataObj]);
 
@@ -252,9 +196,10 @@ export default function ProfileCompletionWizard() {
       setIsImporting(true);
       const text = await csvFile.text();
       const employees = parseEmployeeCSV(text, departments);
-      const result = await gqlClient.request(BULK_IMPORT_EMPLOYEES, { employees });
-      setImportResults(result.bulkImportEmployees);
-      toast.success(`Successfully imported ${result.bulkImportEmployees.length} employees!`);
+      const res = await apiClient.post('/employees/bulk-import', { employees });
+      const createdCount = res?.data?.created ?? res?.created ?? employees.length;
+      setImportResults(employees);
+      toast.success(`Successfully imported ${createdCount} employees!`);
     } catch (err) {
       console.error('CSV import error:', err);
       toast.error(err.message || 'Failed to import employees. Please check your CSV format.');
@@ -277,13 +222,18 @@ export default function ProfileCompletionWizard() {
       setIsSubmitting(true);
       
       const finalFormData = { 
-        ...formData, 
-        nationalId: identityType === 'nationalId' ? identityNumber : '', 
-        passportNumber: identityType === 'passport' ? identityNumber : '' 
+        phone: formData.phone,
+        privateEmail: formData.privateEmail,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender?.toUpperCase(),
+        maritalStatus: formData.maritalStatus?.toUpperCase(),
+        nationality: formData.nationality,
+        nationalId: identityType === 'nationalId' ? identityNumber : undefined,
+        passportNumber: identityType === 'passport' ? identityNumber : undefined,
       };
 
-      // 1. Update Employee Profile
-      await gqlClient.request(UPDATE_EMPLOYEE, { input: finalFormData });
+      // 1. Update Employee Profile via HTTP PATCH /employees/:id
+      await apiClient.patch(`/employees/${employeeId}`, finalFormData);
       
       // 2. Upload Document to Cloudinary
       const uploadResult = await uploadToCloudinary(documentData.file);
@@ -292,14 +242,14 @@ export default function ProfileCompletionWizard() {
         throw new Error("Failed to upload document to cloud storage: missing secure_url");
       }
       
-      // 3. Save Document Record
-      await gqlClient.request(UPLOAD_DOCUMENT, {
+      // 3. Save Document Record via HTTP POST /documents
+      await apiClient.post('/documents', {
         employeeId,
         name: documentData.name,
-        category: documentData.category,
+        category: 'id',
         fileUrl: uploadResult.secure_url,
         fileType: documentData.file.name.split('.').pop() || 'pdf',
-        visibilityLevel: 'employee'
+        fileSize: documentData.file.size,
       });
       
       // 4. Clear the gate — or if HR with CSV step, advance to step 3 instead
@@ -307,14 +257,14 @@ export default function ProfileCompletionWizard() {
         toast.success("Identity verified! Now let's import your employees.");
         setStep(3);
       } else {
-        await gqlClient.request(CLEAR_PROFILE_GATE);
+        await apiClient.post('/users/clear-profile-gate');
         toast.success("Profile completed successfully!");
         // Re-fetch user data so App.jsx redirects to Dashboard
         await checkAppState();
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to complete profile. Please try again.");
+      toast.error(error.message || "Failed to complete profile. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -324,26 +274,26 @@ export default function ProfileCompletionWizard() {
   const handleFinishAfterCSV = async () => {
     try {
       setIsSubmitting(true);
-      await gqlClient.request(CLEAR_PROFILE_GATE);
+      await apiClient.post('/users/clear-profile-gate');
       toast.success("Setup complete! Taking you to your dashboard...");
       await checkAppState();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to finalize setup. Please try again.");
+      toast.error(error.message || "Failed to finalize setup. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-8">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50">
+      <div className="w-full max-w-2xl">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900">Welcome to Tradevu!</h1>
-          <p className="text-slate-600 mt-2">Please complete your employee profile to get started.</p>
+          <p className="mt-2 text-slate-600">Please complete your employee profile to get started.</p>
         </div>
 
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-slate-500">Step {step} of {totalSteps}</span>
@@ -365,7 +315,7 @@ export default function ProfileCompletionWizard() {
           <CardContent className="space-y-6">
             
             {step === 1 && (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-1">
                 <div className="space-y-2">
                   <Label>Private Email <span className="text-red-500">*</span></Label>
                   <Input 
@@ -428,10 +378,10 @@ export default function ProfileCompletionWizard() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={nationalityOpen}
-                        className="w-full justify-between font-normal"
+                        className="justify-between w-full font-normal"
                       >
                         {formData.nationality || "Select Nationality"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronsUpDown className="w-4 h-4 ml-2 opacity-50 shrink-0" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0" align="start">
@@ -469,7 +419,7 @@ export default function ProfileCompletionWizard() {
 
             {step === 2 && (
               <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-4 md:grid-cols-1">
                   <div className="space-y-2">
                     <Label>Document Type <span className="text-red-500">*</span></Label>
                     <Select value={identityType} onValueChange={setIdentityType}>
@@ -494,7 +444,7 @@ export default function ProfileCompletionWizard() {
 
                 <div className="space-y-2">
                   <Label>Upload Document <span className="text-red-500">*</span></Label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors">
+                  <div className="p-6 text-center transition-colors border-2 border-dashed rounded-lg border-slate-300 hover:bg-slate-50">
                     <input
                       type="file"
                       id="document-upload"
@@ -507,14 +457,14 @@ export default function ProfileCompletionWizard() {
                         }
                       }}
                     />
-                    <Label htmlFor="document-upload" className="cursor-pointer flex flex-col items-center">
-                      <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-3">
+                    <Label htmlFor="document-upload" className="flex flex-col items-center cursor-pointer">
+                      <div className="flex items-center justify-center w-12 h-12 mb-3 text-indigo-600 bg-indigo-100 rounded-full">
                         <Upload className="w-6 h-6" />
                       </div>
                       <span className="text-sm font-medium text-slate-700">
                         {documentData.file ? documentData.file.name : "Click to select a file"}
                       </span>
-                      <span className="text-xs text-slate-500 mt-1">PDF, JPG, or PNG up to 10MB</span>
+                      <span className="mt-1 text-xs text-slate-500">PDF, JPG, or PNG up to 10MB</span>
                     </Label>
                   </div>
                 </div>
@@ -525,33 +475,33 @@ export default function ProfileCompletionWizard() {
             {step === 3 && hasCSVStep && (
               <div className="space-y-6">
                 {importResults ? (
-                  <div className="text-center py-6 space-y-4">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <div className="py-6 space-y-4 text-center">
+                    <div className="flex items-center justify-center w-16 h-16 mx-auto bg-green-100 rounded-full">
                       <CheckCircle2 className="w-8 h-8 text-green-600" />
                     </div>
                     <h3 className="font-semibold text-slate-900">Import successful!</h3>
-                    <p className="text-slate-600 text-sm">{importResults.length} employees imported into the system.</p>
+                    <p className="text-sm text-slate-600">{importResults.length} employees imported into the system.</p>
                   </div>
                 ) : (
                   <>
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
+                    <div className="p-4 text-sm text-indigo-800 border border-indigo-100 bg-indigo-50 rounded-xl">
                       <p><strong>Required columns:</strong> fullName, email, jobTitle, hireDate</p>
                       <p><strong>Optional columns:</strong> department, employmentType, basicSalary</p>
                     </div>
 
                     {/* CSV Format Table */}
-                    <div className="border rounded-lg overflow-hidden bg-white">
+                    <div className="overflow-hidden bg-white border rounded-lg">
                       <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">fullName</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">email</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">jobTitle</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">department</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">hireDate</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">fullName</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">email</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">jobTitle</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">department</th>
+                            <th className="px-4 py-3 text-xs font-medium tracking-wider text-left uppercase text-slate-500">hireDate</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200 font-mono text-xs text-slate-600">
+                        <tbody className="font-mono text-xs divide-y divide-slate-200 text-slate-600">
                           <tr>
                             <td className="px-4 py-2">Jane Smith</td>
                             <td className="px-4 py-2">jane@example.com</td>
@@ -571,7 +521,7 @@ export default function ProfileCompletionWizard() {
                     </div>
 
                     <div
-                      className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+                      className="p-8 text-center transition-colors border-2 border-dashed cursor-pointer border-slate-300 rounded-xl hover:bg-slate-50"
                       onClick={() => csvInputRef.current?.click()}
                     >
                       <input
@@ -582,15 +532,15 @@ export default function ProfileCompletionWizard() {
                         onChange={handleCSVFileChange}
                         data-testid="csv-file-input"
                       />
-                      <FileSpreadsheet className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+                      <FileSpreadsheet className="w-10 h-10 mx-auto mb-3 text-indigo-400" />
                       <p className="text-sm font-medium text-slate-700">
                         {csvFile ? csvFile.name : 'Click to select a CSV file'}
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">CSV format only</p>
+                      <p className="mt-1 text-xs text-slate-500">CSV format only</p>
                     </div>
 
                     {csvError && (
-                      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-sm">
+                      <div className="flex items-start gap-2 p-3 text-sm text-red-700 border border-red-100 rounded-lg bg-red-50">
                         <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                         {csvError}
                       </div>
@@ -599,12 +549,12 @@ export default function ProfileCompletionWizard() {
                     {csvPreview.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-slate-700">Preview (first {csvPreview.length} rows):</p>
-                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                        <div className="overflow-x-auto border rounded-lg border-slate-200">
                           <table className="w-full text-xs">
                             <thead className="bg-slate-50">
                               <tr>
                                 {Object.keys(csvPreview[0]).map(col => (
-                                  <th key={col} className="px-3 py-2 text-left font-medium text-slate-600">{col}</th>
+                                  <th key={col} className="px-3 py-2 font-medium text-left text-slate-600">{col}</th>
                                 ))}
                               </tr>
                             </thead>

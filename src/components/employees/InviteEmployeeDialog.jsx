@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,30 +7,31 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
-
-const INVITE_USER_MUTATION = gql`
-  mutation InviteUser($input: InviteUserInput!) {
-    inviteUser(input: $input)
-  }
-`;
+import { employeesApi } from '@/api';
 
 export default function InviteEmployeeDialog({ open, onClose }) {
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('EMPLOYEE');
 
   const inviteMutation = useMutation({
-    mutationFn: async (input) => {
-      await gqlClient.request(INVITE_USER_MUTATION, { input });
+    mutationFn: async (payload) => {
+      return await employeesApi.inviteEmployee({
+        ...payload,
+        frontendUrl: window.location.origin,
+      });
     },
-    onSuccess: () => {
-      toast.success('Invitation sent successfully!');
+    onSuccess: (res) => {
+      toast.success(res?.message || 'Invitation sent successfully!');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       setEmail('');
       setRole('EMPLOYEE');
       onClose();
     },
     onError: (err) => {
       console.error('Invite error:', err);
-      const errorMessage = err.response?.errors?.[0]?.message || 'Failed to send invitation.';
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to send invitation.';
       toast.error(errorMessage);
     }
   });
@@ -78,6 +77,7 @@ export default function InviteEmployeeDialog({ open, onClose }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="EMPLOYEE">Employee</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
                   <SelectItem value="HR_ADMIN">HR Manager</SelectItem>
                 </SelectContent>
               </Select>

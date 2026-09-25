@@ -42,7 +42,7 @@ Learn more: https://on.cypress.io/cypress-env-migration
       ✓ displays Avg. Progress stat card (412ms)
     Quick Actions
       ✓ renders quick action buttons (331ms)
-      ✓ Add New Hire button navigates to employees page (536ms)
+      ✓ Add employee button navigates to employees page (536ms)
     Employee List Table
       ✓ renders the employee list section (443ms)
       ✓ renders search input for filtering employees (771ms)

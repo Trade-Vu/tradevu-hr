@@ -1,34 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
+import { usersApi } from '@/api/users.api';
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { appParams } from '@/lib/app-params';
+import { isSuperAdmin } from '@/lib/roleUtils';
 
 const AuthContext = createContext();
-
-const ME_QUERY = gql`
-  query Me {
-    me {
-      id
-      email
-      role
-      organizationId
-      employeeId
-      avatarUrl
-      mustCompleteProfile
-      preferences
-      isOrgOwner
-      employee {
-        employmentStatus
-      }
-    }
-  }
-`;
-
-const LOGOUT_MUTATION = gql`
-  mutation Logout {
-    logout
-  }
-`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -46,40 +23,49 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
       // Check if we have a token (from local storage or appParams)
-      const token = localStorage.getItem('token') || appParams.token;
-      
+      const token = localStorage.getItem('token') || appParams?.token;
+
       if (!token) {
         setIsLoadingAuth(false);
         setIsAuthenticated(false);
         setAuthError({
           type: 'auth_required',
-          message: 'Authentication required'
+          message: 'Authentication required',
         });
         return;
       }
 
       // DEV-ONLY: mock token bypass for local development.
-      // This code path is completely dead in production builds.
-      if (import.meta.env.DEV && token === 'mock_ceo_token') {
-        setUser({
-          id: 'mock_ceo',
-          email: 'ceo@tradevu.com',
-          role: 'super_admin',
-          organizationId: 'org_1',
-          full_name: 'CEO',
-          mustCompleteProfile: false
-        });
-        setIsAuthenticated(true);
-        setIsLoadingAuth(false);
-        return;
-      }
+      // if (import.meta.env.DEV && token === 'mock_ceo_token') {
+      //   setUser({
+      //     id: 'mock_ceo',
+      //     _id: 'mock_ceo',
+      //     email: 'ceo@tradevu.com',
+      //     role: 'SUPER_ADMIN',
+      //     organizationId: 'org_1',
+      //     full_name: 'CEO',
+      //     fullName: 'CEO',
+      //     mustCompleteProfile: false,
+      //   });
+      //   setIsAuthenticated(true);
+      //   setIsLoadingAuth(false);
+      //   return;
+      // }
 
-      // Fetch current user from GraphQL backend
-      const data = await gqlClient.request(ME_QUERY);
-      
-      if (data.me) {
-        setUser(data.me);
+      // Fetch current user from REST backend
+      const userData = await authApi.getMe();
+
+      if (userData) {
+        const normalizedUser = {
+          ...userData,
+          id: userData._id || userData.id,
+        };
+        setUser(normalizedUser);
         setIsAuthenticated(true);
+        if (isSuperAdmin(normalizedUser)) {
+          localStorage.setItem('tradevu_view_mode', 'ADMIN');
+          setViewMode('ADMIN');
+        }
       } else {
         setIsAuthenticated(false);
       }
@@ -88,42 +74,51 @@ export const AuthProvider = ({ children }) => {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
-      
+
       setAuthError({
         type: 'auth_required',
-        message: 'Authentication required or token expired'
+        message: error.message || 'Authentication required or token expired',
       });
     }
   };
 
-  const logout = async (shouldRedirect = true) => {
+  // Re-fetch the current user in place, without the app-wide loading state checkUserAuth() sets.
+  // For pages that depend on fields that can change mid-session (e.g. employeeId.employmentStatus).
+  const refreshUser = async () => {
     try {
-      if (isAuthenticated) {
-        await gqlClient.request(LOGOUT_MUTATION);
-      }
-    } catch (e) {
-      console.error('Failed to log out on server:', e);
+      const userData = await authApi.getMe();
+      if (userData) setUser({ ...userData, id: userData._id || userData.id });
+    } catch (error) {
+      console.error('Refreshing user failed:', error);
     }
+  };
 
+  const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('token');
     localStorage.removeItem('tradevu_view_mode');
-    
+
     if (shouldRedirect) {
-      window.location.href = '/login';
+      window.location.href = PAGE_ROUTES.LOGIN;
     }
   };
 
   const navigateToLogin = () => {
-    if (!window.location.pathname.toLowerCase().includes('/login')) {
-      window.location.href = '/Login';
+    if (!window.location.pathname.toLowerCase().includes(PAGE_ROUTES.LOGIN)) {
+      window.location.href = PAGE_ROUTES.LOGIN;
     }
   };
 
   const changeViewMode = (mode) => {
+    if (isSuperAdmin(user)) {
+      localStorage.setItem('tradevu_view_mode', 'ADMIN');
+      setViewMode('ADMIN');
+      return;
+    }
     localStorage.setItem('tradevu_view_mode', mode);
     setViewMode(mode);
+    usersApi.updateViewMode(mode).catch(() => {});
   };
 
   // Mocking the checkAppState function since we don't use base44 app state anymore
@@ -142,6 +137,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       navigateToLogin,
       checkAppState,
+      refreshUser,
       viewMode,
       changeViewMode
     }}>

@@ -1,25 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, FileText, CheckSquare, File } from "lucide-react";
+import { Plus, Trash2, FileText, CheckSquare, File, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
+export default function TemplateForm({ initialData = null, onSubmit, onCancel, isSubmitting }) {
+  const isEditing = Boolean(initialData && (initialData._id || initialData.id));
+
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    role_type: "",
-    tasks: [],
-    required_documents: [],
+    name: initialData?.name || "",
+    description: initialData?.description || "",
+    department: initialData?.department || initialData?.role_type || "",
+    role_type: initialData?.department || initialData?.role_type || "",
+    tasks: (initialData?.tasks || []).map(t => ({
+      title: t.title || "",
+      description: t.description || "",
+      deadline_days: t.dueOffset ?? t.deadline_days ?? 7,
+      category: t.category || "General",
+    })),
+    required_documents: initialData?.requiredDocuments || initialData?.required_documents || [],
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || "",
+        description: initialData.description || "",
+        department: initialData.department || initialData.role_type || "",
+        role_type: initialData.department || initialData.role_type || "",
+        tasks: (initialData.tasks || []).map(t => ({
+          title: t.title || "",
+          description: t.description || "",
+          deadline_days: t.dueOffset ?? t.deadline_days ?? 7,
+          category: t.category || "General",
+        })),
+        required_documents: initialData.requiredDocuments || initialData.required_documents || [],
+      });
+    }
+  }, [initialData]);
 
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
-    department: "",
     deadline_days: 7,
   });
 
@@ -27,16 +52,20 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      department: (formData.department || '').trim() || 'All Departments',
+      role_type: (formData.department || '').trim() || 'All Departments',
+    });
   };
 
   const addTask = () => {
-    if (newTask.title) {
+    if (newTask.title.trim()) {
       setFormData(prev => ({
         ...prev,
-        tasks: [...prev.tasks, newTask],
+        tasks: [...prev.tasks, { ...newTask, title: newTask.title.trim(), deadline_days: Number(newTask.deadline_days) || 7 }],
       }));
-      setNewTask({ title: "", description: "", department: "", deadline_days: 7 });
+      setNewTask({ title: "", description: "", deadline_days: 7 });
     }
   };
 
@@ -67,13 +96,38 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
   return (
     <Card className="max-w-4xl mx-auto border-slate-200 shadow-lg">
       <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          <FileText className="w-6 h-6 text-indigo-600" />
-          Create Onboarding Template
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-2xl">
+            {isEditing ? (
+              <Edit className="w-6 h-6 text-indigo-600" />
+            ) : (
+              <FileText className="w-6 h-6 text-indigo-600" />
+            )}
+            {isEditing ? "Edit Onboarding Template" : "Create Onboarding Template"}
+            {isEditing && (
+              <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                Editing
+              </Badge>
+            )}
+          </CardTitle>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            onClick={onCancel}
+            className="text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-8">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {isEditing && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
+              <strong>Notice:</strong> Updates will automatically reflect on tasks for all employees who are still actively going through onboarding. Tasks that employees have already completed will remain preserved.
+            </div>
+          )}
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">Template Details</h3>
@@ -89,14 +143,17 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role_type">Role Type *</Label>
+                <Label htmlFor="department">Target Department *</Label>
                 <Input
-                  id="role_type"
-                  value={formData.role_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role_type: e.target.value }))}
-                  placeholder="e.g., Engineer, Designer, Sales"
+                  id="department"
+                  value={formData.department}
+                  onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value, role_type: e.target.value }))}
+                  placeholder="e.g., All Departments, Engineering, Sales, Marketing"
                   required
                 />
+                <p className="text-xs text-slate-500">
+                  Specifies which department or team this template is suited for (or "All Departments" for company-wide use).
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
@@ -114,7 +171,7 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
           {/* Tasks Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <CheckSquare className="w-5 h-5" />
+              <CheckSquare className="w-5 h-5 text-indigo-600" />
               Onboarding Tasks
             </h3>
             
@@ -126,10 +183,13 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
                     <CheckSquare className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-medium text-slate-900">{task.title}</p>
-                      <p className="text-sm text-slate-600">{task.description}</p>
+                      {task.description && (
+                        <p className="text-sm text-slate-600 mt-0.5">{task.description}</p>
+                      )}
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="outline" className="text-xs">{task.department}</Badge>
-                        <Badge variant="outline" className="text-xs">Due in {task.deadline_days} days</Badge>
+                        <Badge variant="outline" className="text-xs bg-white text-indigo-700 border-indigo-200">
+                          Due in {task.deadline_days} days
+                        </Badge>
                       </div>
                     </div>
                     <Button
@@ -146,33 +206,52 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
             )}
 
             {/* Add Task Form */}
-            <div className="p-4 border-2 border-dashed border-slate-300 rounded-lg space-y-3">
-              <div className="grid md:grid-cols-2 gap-3">
+            <div className="p-5 border-2 border-dashed border-slate-300 rounded-lg space-y-4 bg-slate-50/50">
+              <div className="space-y-2">
+                <Label htmlFor="task-title" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Task Title *
+                </Label>
                 <Input
-                  placeholder="Task title"
+                  id="task-title"
+                  placeholder="e.g., Complete IT workstation setup and security training"
                   value={newTask.title}
                   onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-description" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Task Description
+                </Label>
                 <Input
-                  placeholder="Department (e.g., HR, IT)"
-                  value={newTask.department}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, department: e.target.value }))}
+                  id="task-description"
+                  placeholder="Provide instructions or links for completing this task..."
+                  value={newTask.description}
+                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
-              <Input
-                placeholder="Task description"
-                value={newTask.description}
-                onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
-              />
-              <div className="flex gap-3">
-                <Input
-                  type="number"
-                  placeholder="Days until deadline"
-                  value={newTask.deadline_days}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, deadline_days: parseInt(e.target.value) }))}
-                  className="w-48"
-                />
-                <Button type="button" onClick={addTask} variant="outline">
+
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-1">
+                <div className="space-y-2 w-full sm:w-64">
+                  <Label htmlFor="task-deadline" className="text-xs font-bold text-indigo-700 flex items-center gap-1.5 uppercase tracking-wider">
+                    <span>Days Until Deadline *</span>
+                  </Label>
+                  <Input
+                    id="task-deadline"
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 7"
+                    value={newTask.deadline_days}
+                    onChange={(e) => setNewTask(prev => ({ ...prev, deadline_days: parseInt(e.target.value) || 0 }))}
+                    className="bg-white border-slate-300 focus:border-indigo-500 font-medium"
+                  />
+                </div>
+                <Button 
+                  type="button" 
+                  onClick={addTask} 
+                  variant="outline"
+                  className="bg-white border-slate-300 hover:bg-slate-100 self-end shadow-sm"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Task
                 </Button>
@@ -230,7 +309,10 @@ export default function TemplateForm({ onSubmit, onCancel, isSubmitting }) {
               isLoading={isSubmitting}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
             >
-              {isSubmitting ? "Creating..." : "Create Template"}
+              {isSubmitting 
+                ? (isEditing ? "Saving Changes..." : "Creating...") 
+                : (isEditing ? "Save Changes" : "Create Template")
+              }
             </Button>
           </div>
         </form>

@@ -1,6 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, Briefcase, Calendar } from "lucide-react";
@@ -26,7 +24,7 @@ const getStatusColors = (status) => {
 export default function EmployeeCard({ employee, onOpenDetail }) {
   return (
     <motion.div whileHover={{ y: -2 }} className="h-full">
-      <div onClick={() => onOpenDetail ? onOpenDetail(employee.id) : null} className="block h-full cursor-pointer flex flex-col">
+      <div onClick={() => onOpenDetail ? onOpenDetail(employee) : null} className="block h-full cursor-pointer flex flex-col">
         <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-shadow group bg-white rounded-2xl overflow-hidden flex flex-col">
           <CardContent className="p-6 flex flex-col flex-1">
             <div className="flex items-start gap-4 mb-5">

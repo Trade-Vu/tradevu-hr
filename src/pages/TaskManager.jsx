@@ -1,7 +1,8 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from 'graphql-request';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { projectsApi, onboardingApi, employeesApi } from "@/api";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,43 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Kanban, FolderKanban, Calendar } from "lucide-react";
+import { Plus, Kanban, FolderKanban, Calendar, Clock, User, CheckCircle } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { motion } from "framer-motion";
-
-const GET_TASKS = gql`
-  query GetTasks {
-    onboardingTasks {
-      id
-      title
-      description
-      isCompleted
-      status
-      category
-      assignedTo
-      employeeId
-    }
-  }
-`;
-
-const EMPLOYEES_QUERY = gql`
-  query GetTaskManagerEmployees {
-    employees {
-      id
-      fullName
-    }
-  }
-`;
-
-const UPDATE_TASK = gql`
-  mutation UpdateOnboardingTask($id: ID!, $status: String!) {
-    updateOnboardingTask(id: $id, status: $status) {
-      id
-      isCompleted
-      status
-    }
-  }
-`;
+import { toast } from "sonner";
 
 const TaskSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -105,106 +73,205 @@ const ProjectSkeleton = () => (
 
 export default function TaskManager() {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'projects'
   const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+
   const [projectForm, setProjectForm] = useState({
     project_name: '',
     description: '',
     project_manager: '',
   });
+
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
     assigned_to: '',
     priority: 'medium',
     due_date: '',
+    project_id: '',
   });
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = {
-          email: "mock_user@example.com",
-          role: "admin",
-          organization_id: "org_1",
-          full_name: "Mock User"
-        };
-        setUser(currentUser);
-        setProjectForm(prev => ({ ...prev, project_manager: currentUser.email }));
-        setTaskForm(prev => ({ ...prev, assigned_to: currentUser.email }));
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
-    };
-    loadUser();
-  }, []);
+    if (user?.email) {
+      setProjectForm(prev => ({ ...prev, project_manager: prev.project_manager || user.email }));
+      setTaskForm(prev => ({ ...prev, assigned_to: prev.assigned_to || user.email }));
+    }
+  }, [user]);
 
-  const { data: employeesData = {} } = useQuery({
+  // Query: Employees
+  const { data: employeesData } = useQuery({
     queryKey: ['task-manager-employees'],
-    queryFn: async () => await gqlClient.request(EMPLOYEES_QUERY),
+    queryFn: async () => {
+      return employeesApi.getAllEmployees();
+    },
   });
-  const employees = employeesData.employees || [];
+  const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);
 
-  const { data: allTasksData = {}, isLoading: tasksLoading } = useQuery({
+  // Query: Projects
+  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const res = await projectsApi.getProjects({ limit: 100 });
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
+    },
+  });
+  const rawProjects = Array.isArray(projectsData) ? projectsData : (projectsData?.data || []);
+
+  // Query: Project Tasks
+  const { data: projectTasksData, isLoading: projectTasksLoading } = useQuery({
+    queryKey: ['project-tasks'],
+    queryFn: async () => {
+      const res = await projectsApi.getAllTasks();
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
+    },
+  });
+  const rawProjectTasks = Array.isArray(projectTasksData) ? projectTasksData : (projectTasksData?.data || []);
+
+  // Query: Onboarding Tasks
+  const { data: onboardingTasksData, isLoading: onboardingTasksLoading } = useQuery({
     queryKey: ['onboarding-tasks'],
-    queryFn: async () => await gqlClient.request(GET_TASKS),
+    queryFn: async () => {
+      const res = await onboardingApi.getAllTasks();
+      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
+    },
   });
+  const rawOnboardingTasks = Array.isArray(onboardingTasksData) ? onboardingTasksData : (onboardingTasksData?.data || []);
 
-  const uniqueEmployeeIds = Array.from(new Set((allTasksData.onboardingTasks || []).map(t => t.employeeId).filter(Boolean)));
-  const projects = uniqueEmployeeIds.map(empId => {
-    const emp = employees.find(e => e.id === empId);
+  const tasksLoading = projectsLoading || projectTasksLoading || onboardingTasksLoading;
+
+  // Normalized Custom Project Tasks
+  const normalizedProjectTasks = rawProjectTasks.map(t => {
+    const rawProjectId = t.projectId?._id || t.projectId;
+    const proj = rawProjects.find(p => (p._id || p.id) === rawProjectId);
+    
+    let status = t.status || 'todo';
+    if (status === 'not_started') status = 'todo';
+    if (status === 'completed') status = 'done';
+
+    let assignedToDisplay = 'Unassigned';
+    if (typeof t.assignedTo === 'string') {
+      assignedToDisplay = t.assignedTo;
+    } else if (t.assignedTo && typeof t.assignedTo === 'object') {
+      assignedToDisplay = t.assignedTo.fullName || t.assignedTo.name || t.assignedTo.email || (t.assignedTo[0]?.fullName || t.assignedTo[0]?.email) || 'Unassigned';
+    }
+
     return {
-      id: empId,
-      project_name: emp ? `Onboarding: ${emp.fullName}` : 'Onboarding: Unknown',
-      description: 'Employee onboarding process',
-      status: 'in_progress'
+      id: t._id || t.id,
+      title: t.title,
+      description: t.description || '',
+      status,
+      priority: t.priority || 'medium',
+      assigned_to: assignedToDisplay,
+      project_id: rawProjectId ? String(rawProjectId) : null,
+      projectName: proj?.name || proj?.project_name || 'General Tasks',
+      category: t.category,
+      due_date: t.dueDate || t.due_date,
+      is_onboarding: false,
     };
   });
 
-  const allTasks = (allTasksData.onboardingTasks || []).map(t => ({
-    id: t.id,
-    title: t.title,
-    description: t.description || `Category: ${t.category}`,
-    status: t.status || (t.isCompleted ? 'done' : 'todo'),
-    priority: 'medium',
-    assigned_to: t.assignedTo || 'Unassigned',
-    project_id: t.employeeId,
-    is_onboarding: true
+  // Normalized Onboarding Tasks
+  const normalizedOnboardingTasks = rawOnboardingTasks.map(t => {
+    const rawEmpId = t.employeeId?._id || t.employeeId;
+    const emp = t.employeeId && typeof t.employeeId === 'object' && t.employeeId.fullName
+      ? t.employeeId 
+      : employees.find(e => (e._id || e.id) === rawEmpId);
+    
+    const empName = emp?.fullName || emp?.email || 'Employee';
+    const projId = rawEmpId ? `onboarding_${rawEmpId}` : 'onboarding';
+
+    let status = t.status || (t.isCompleted ? 'done' : 'todo');
+    if (status === 'not_started') status = 'todo';
+    if (status === 'completed') status = 'done';
+
+    return {
+      id: t._id || t.id,
+      title: t.title,
+      description: t.description || (t.category ? `Category: ${t.category}` : ''),
+      status,
+      priority: t.priority || 'medium',
+      assigned_to: empName,
+      project_id: projId,
+      projectName: `Onboarding: ${empName}`,
+      category: t.category,
+      due_date: t.dueDate || t.due_date,
+      is_onboarding: true,
+    };
+  });
+
+  const allTasks = [...normalizedProjectTasks, ...normalizedOnboardingTasks];
+
+  // Dynamic Projects List (Custom Projects + Onboarding Groups)
+  const mappedProjects = rawProjects.map(p => ({
+    id: String(p._id || p.id),
+    project_name: p.name || p.project_name || 'Untitled Project',
+    description: p.description || '',
+    status: p.status || 'active',
+    end_date: p.endDate || p.end_date,
+    is_onboarding: false,
   }));
 
+  const onboardingProjectsMap = new Map();
+  normalizedOnboardingTasks.forEach(t => {
+    if (t.project_id && !onboardingProjectsMap.has(t.project_id)) {
+      onboardingProjectsMap.set(t.project_id, {
+        id: t.project_id,
+        project_name: t.projectName,
+        description: 'Employee onboarding process and milestones',
+        status: 'in_progress',
+        is_onboarding: true,
+      });
+    }
+  });
+
+  const projects = [
+    ...mappedProjects,
+    ...Array.from(onboardingProjectsMap.values()),
+  ];
+
+  // Mutations
   const createProjectMutation = useMutation({
     mutationFn: async (data) => {
-      return {
-        ...data,
-        id: `project_${Date.now()}`,
-        organization_id: user.organization_id,
-        status: 'planning',
+      const payload = {
+        name: data.project_name,
+        description: data.description,
+        projectManager: data.project_manager,
       };
+      return await projectsApi.createProject(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setShowProjectDialog(false);
       setProjectForm({ project_name: '', description: '', project_manager: user?.email || '' });
+      toast.success("Project created successfully");
     },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || error?.message || "Failed to create project");
+    }
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data) => {
-      return {
-        ...data,
-        id: `task_${Date.now()}`,
-        organization_id: user.organization_id,
-        assigned_by: user.email,
-        project_id: selectedProject?.id,
-        status: 'todo',
+      const targetProjectId = selectedProject && !selectedProject.is_onboarding 
+        ? selectedProject.id 
+        : (data.project_id && !data.project_id.startsWith('onboarding_') ? data.project_id : undefined);
+
+      const payload = {
+        title: data.title,
+        description: data.description,
+        assignedTo: data.assigned_to,
+        priority: data.priority,
+        dueDate: data.due_date || undefined,
+        projectId: targetProjectId,
       };
+      return await projectsApi.createTask(payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task-items'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       setShowTaskDialog(false);
       setTaskForm({
         title: '',
@@ -212,40 +279,61 @@ export default function TaskManager() {
         assigned_to: user?.email || '',
         priority: 'medium',
         due_date: '',
+        project_id: '',
       });
+      toast.success("Task created successfully");
     },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || error?.message || "Failed to create task");
+    }
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      return await gqlClient.request(UPDATE_TASK, { id, status: data.status });
-    },
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: ['onboarding-tasks'] });
-      const previousData = queryClient.getQueryData(['onboarding-tasks']);
-      
-      queryClient.setQueryData(['onboarding-tasks'], (old) => {
-        if (!old || !old.onboardingTasks) return old;
-        return {
-          ...old,
-          onboardingTasks: old.onboardingTasks.map(task => 
-            task.id === id ? { ...task, status: data.status, isCompleted: data.status === 'done' } : task
-          )
-        };
-      });
-      
-      return { previousData };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
-    },
-    onError: (error, variables, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData(['onboarding-tasks'], context.previousData);
+    mutationFn: async ({ task, newStatus }) => {
+      if (task.is_onboarding) {
+        const backendStatus = newStatus === 'done' ? 'completed' : newStatus;
+        return await onboardingApi.updateTask(task.id, { status: backendStatus });
+      } else {
+        return await projectsApi.updateTask(task.id, { status: newStatus });
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+    onMutate: async ({ task, newStatus }) => {
+      const queryKey = task.is_onboarding ? ['onboarding-tasks'] : ['project-tasks'];
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old) return old;
+        const list = Array.isArray(old) ? old : (old?.data || []);
+        const updatedList = list.map(item => {
+          const itemId = item._id || item.id;
+          if (itemId === task.id) {
+            return {
+              ...item,
+              status: newStatus,
+              isCompleted: newStatus === 'done',
+              completedAt: newStatus === 'done' ? new Date().toISOString() : item.completedAt,
+            };
+          }
+          return item;
+        });
+        return Array.isArray(old) ? updatedList : { ...old, data: updatedList };
+      });
+
+      return { previousData, queryKey };
+    },
+    onError: (error, variables, context) => {
+      if (context?.queryKey && context?.previousData) {
+        queryClient.setQueryData(context.queryKey, context.previousData);
+      }
+      toast.error("Failed to update task status");
+    },
+    onSettled: (data, error, variables) => {
+      if (variables?.task?.is_onboarding) {
+        queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      }
     }
   });
 
@@ -270,11 +358,8 @@ export default function TaskManager() {
     
     if (task && task.status !== newStatus) {
       updateTaskMutation.mutate({
-        id: taskId,
-        data: { 
-          status: newStatus,
-          completed_date: newStatus === 'done' ? new Date().toISOString().split('T')[0] : undefined
-        }
+        task,
+        newStatus,
       });
     }
   };
@@ -341,28 +426,49 @@ export default function TaskManager() {
               <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(projectForm); }} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="project_name">Project Name</Label>
-                  <Input id="project_name" value={projectForm.project_name} onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} className="rounded-lg" required />
+                  <Input 
+                    id="project_name" 
+                    value={projectForm.project_name} 
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} 
+                    className="rounded-lg" 
+                    placeholder="e.g. Q3 Hiring Initiative"
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="project_description">Description</Label>
-                  <Textarea id="project_description" value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} className="rounded-lg" rows={3} />
+                  <Textarea 
+                    id="project_description" 
+                    value={projectForm.description} 
+                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} 
+                    className="rounded-lg" 
+                    rows={3} 
+                    placeholder="Brief description of the project..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="project_manager">Project Manager</Label>
                   <Select value={projectForm.project_manager} onValueChange={(value) => setProjectForm(prev => ({ ...prev, project_manager: value }))} required>
                     <SelectTrigger id="project_manager" className="rounded-lg"><SelectValue placeholder="Select a manager" /></SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                      {employees.map(emp => (
-                        <SelectItem key={emp.id} value={emp.email}>
-                          {emp.full_name || emp.email}
-                        </SelectItem>
-                      ))}
+                      {employees.map(emp => {
+                        const val = emp.email || emp._id || emp.id;
+                        const label = emp.fullName || emp.full_name || emp.email;
+                        return (
+                          <SelectItem key={emp._id || emp.id} value={val}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                      {user?.email && !employees.some(e => e.email === user.email) && (
+                        <SelectItem value={user.email}>{user.email}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={() => setShowProjectDialog(false)} className="rounded-lg">Cancel</Button>
-                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" isLoading={createProjectMutation.isPending}>
+                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white" disabled={createProjectMutation.isPending}>
                     {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
                   </Button>
                 </div>
@@ -384,23 +490,62 @@ export default function TaskManager() {
               <form onSubmit={(e) => { e.preventDefault(); createTaskMutation.mutate(taskForm); }} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="task_title">Task Title</Label>
-                  <Input id="task_title" value={taskForm.title} onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} className="rounded-lg" required />
+                  <Input 
+                    id="task_title" 
+                    value={taskForm.title} 
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} 
+                    className="rounded-lg" 
+                    placeholder="e.g. Prepare offer letter"
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="task_description">Description</Label>
-                  <Textarea id="task_description" value={taskForm.description} onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} className="rounded-lg" rows={3} />
+                  <Textarea 
+                    id="task_description" 
+                    value={taskForm.description} 
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} 
+                    className="rounded-lg" 
+                    rows={3} 
+                    placeholder="Task details and instructions..."
+                  />
                 </div>
+
+                {/* Project selection if not already filtering by a project */}
+                {mappedProjects.length > 0 && !selectedProject && (
+                  <div className="space-y-2">
+                    <Label htmlFor="task_project">Project (Optional)</Label>
+                    <Select value={taskForm.project_id} onValueChange={(value) => setTaskForm(prev => ({ ...prev, project_id: value }))}>
+                      <SelectTrigger id="task_project" className="rounded-lg"><SelectValue placeholder="Assign to project (Optional)" /></SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
+                        <SelectItem value="general">No Project (General Task)</SelectItem>
+                        {mappedProjects.map(proj => (
+                          <SelectItem key={proj.id} value={proj.id}>
+                            {proj.project_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="assigned_to">Assign To</Label>
                     <Select value={taskForm.assigned_to} onValueChange={(value) => setTaskForm(prev => ({ ...prev, assigned_to: value }))} required>
                       <SelectTrigger id="assigned_to" className="rounded-lg"><SelectValue placeholder="Assignee" /></SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                        {employees.map(emp => (
-                          <SelectItem key={emp.id} value={emp.email}>
-                            {emp.full_name || emp.email}
-                          </SelectItem>
-                        ))}
+                        {employees.map(emp => {
+                          const val = emp.fullName || emp.email || emp.full_name;
+                          return (
+                            <SelectItem key={emp._id || emp.id} value={val}>
+                              {emp.fullName || emp.full_name || emp.email}
+                            </SelectItem>
+                          );
+                        })}
+                        {user?.email && !employees.some(e => e.email === user.email) && (
+                          <SelectItem value={user.email}>{user.email}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -423,7 +568,7 @@ export default function TaskManager() {
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)} className="rounded-lg">Cancel</Button>
-                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700" isLoading={createTaskMutation.isPending}>
+                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white" disabled={createTaskMutation.isPending}>
                     {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
                   </Button>
                 </div>
@@ -465,7 +610,7 @@ export default function TaskManager() {
               className={`rounded-lg whitespace-nowrap ${!selectedProject ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
               onClick={() => setSelectedProject(null)}
             >
-              My Tasks
+              All Tasks
             </Button>
             {projects.map(project => (
               <Button
@@ -521,9 +666,11 @@ export default function TaskManager() {
                                 <div className="flex justify-between items-center">
                                   {task.category ? (
                                     <span className="text-[11px] font-medium text-slate-400 uppercase tracking-widest">{task.category.replace('_', ' ')}</span>
+                                  ) : task.is_onboarding ? (
+                                    <span className="text-[11px] font-medium text-indigo-500 uppercase tracking-widest">ONBOARDING</span>
                                   ) : <span />}
                                   <div className="flex items-center justify-center w-5 h-5 rounded-md hover:bg-slate-50 transition-colors" title={`Priority: ${task.priority}`}>
-                                    <div className={`w-2 h-2 rounded-full ${priorityColors[task.priority]}`} />
+                                    <div className={`w-2 h-2 rounded-full ${priorityColors[task.priority] || priorityColors.medium}`} />
                                   </div>
                                 </div>
                                 <h4 className="font-medium text-slate-900 text-base leading-snug tracking-tight">
@@ -540,7 +687,7 @@ export default function TaskManager() {
                                     {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No date'}
                                   </div>
                                   {task.assigned_to && (
-                                    <div className="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-xs text-slate-600 font-medium" title={task.assigned_to}>
+                                    <div className="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-xs text-slate-600 font-medium truncate max-w-[120px] px-1" title={task.assigned_to}>
                                       {task.assigned_to.charAt(0).toUpperCase()}
                                     </div>
                                   )}
@@ -671,7 +818,7 @@ export default function TaskManager() {
                 <div className="flex items-center gap-4 text-white/90 text-sm font-medium">
                   <div className="flex items-center gap-1.5">
                     <FolderKanban className="w-4 h-4" />
-                    Project: {projects.find(p => p.id === selectedTask.project_id)?.project_name || 'My Tasks'}
+                    Project: {projects.find(p => p.id === selectedTask.project_id)?.project_name || selectedTask.projectName || 'General Tasks'}
                   </div>
                   {selectedTask.category && (
                     <div className="flex items-center gap-1.5">
@@ -687,9 +834,9 @@ export default function TaskManager() {
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Assignee</span>
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-200">
-                        {selectedTask.assigned_to.charAt(0).toUpperCase()}
+                        {selectedTask.assigned_to ? selectedTask.assigned_to.charAt(0).toUpperCase() : 'U'}
                       </div>
-                      <span className="font-semibold text-sm text-slate-700">{selectedTask.assigned_to}</span>
+                      <span className="font-semibold text-sm text-slate-700 truncate">{selectedTask.assigned_to || 'Unassigned'}</span>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">

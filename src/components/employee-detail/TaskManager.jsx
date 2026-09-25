@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { onboardingApi } from "@/api/onboarding.api";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,37 +22,65 @@ const priorityColors = {
   high: "bg-red-100 text-red-800",
 };
 
-export default function TaskManager({ tasks, employeeId }) {
+export default function TaskManager({ tasks = [], employeeId }) {
   const queryClient = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
 
+  const { data: fetchedTasks = [] } = useQuery({
+    queryKey: ['onboarding-tasks', employeeId],
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const res = await onboardingApi.getEmployeeTasks(employeeId);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      return list.map(t => ({
+        ...t,
+        id: t._id || t.id,
+      }));
+    },
+    enabled: !!employeeId,
+  });
+
+  const effectiveTasks = (fetchedTasks.length > 0 ? fetchedTasks : tasks).map(t => ({
+    ...t,
+    id: t._id || t.id,
+  }));
+
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }) => {
-      console.log("Mock update task", taskId, data);
-      return data;
+      return await onboardingApi.updateTask(taskId, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+      toast.success("Task updated successfully");
     },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update task");
+    }
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData) => {
-      console.log("Mock create task", taskData);
       return { ...taskData, employee_id: employeeId, id: `task_${Date.now()}` };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
       setShowAddDialog(false);
     },
   });
 
   const toggleTaskComplete = (task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    const completed_date = newStatus === 'completed' ? new Date().toISOString().split('T')[0] : undefined;
+    const isCurrentlyDone = ['completed', 'done', 'DONE', 'approved'].includes(task.status) || Boolean(task.isCompleted);
+    const newStatus = isCurrentlyDone ? 'not_started' : 'completed';
     updateTaskMutation.mutate({ 
       taskId: task.id, 
-      data: { status: newStatus, completed_date } 
+      data: { status: newStatus } 
     });
   };
 
@@ -60,9 +89,9 @@ export default function TaskManager({ tasks, employeeId }) {
   };
 
   const groupedTasks = {
-    pending: tasks.filter(t => t.status === 'pending'),
-    in_progress: tasks.filter(t => t.status === 'in_progress'),
-    completed: tasks.filter(t => t.status === 'completed'),
+    pending: effectiveTasks.filter(t => ['pending', 'not_started', 'todo'].includes(t.status) || (!t.status && !t.isCompleted)),
+    in_progress: effectiveTasks.filter(t => t.status === 'in_progress'),
+    completed: effectiveTasks.filter(t => ['completed', 'done', 'DONE', 'approved'].includes(t.status) || Boolean(t.isCompleted)),
   };
 
   return (

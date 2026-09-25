@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { approvalsApi } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,42 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle, Plus, Edit, Trash2, ArrowRight, GitBranch } from "lucide-react";
+import ApprovalStepsEditor from "@/components/approvals/ApprovalStepsEditor";
+import { getApprovalRoleLabel, normalizeApprovalSteps } from "@/lib/approvalSteps";
 
-const GET_WORKFLOWS = gql`
-  query GetWorkflows {
-    approvalWorkflows {
-      id
-      name
-      entityType
-      steps
-      isActive
-    }
-  }
-`;
+// What an empty chain actually does server-side (it is not auto-approval).
+const EMPTY_CHAIN_MESSAGE = "No steps: a single approval from an HR Admin, Super Admin or the employee's manager completes the request.";
 
-const CREATE_WORKFLOW = gql`
-  mutation CreateApprovalWorkflow($name: String!, $entityType: String!, $steps: String!) {
-    createApprovalWorkflow(name: $name, entityType: $entityType, steps: $steps) {
-      id
-    }
-  }
-`;
-
-const UPDATE_WORKFLOW = gql`
-  mutation UpdateApprovalWorkflow($id: ID!, $name: String, $entityType: String, $steps: String, $isActive: Boolean) {
-    updateApprovalWorkflow(id: $id, name: $name, entityType: $entityType, steps: $steps, isActive: $isActive) {
-      id
-    }
-  }
-`;
-
-const DELETE_WORKFLOW = gql`
-  mutation DeleteApprovalWorkflow($id: ID!) {
-    deleteApprovalWorkflow(id: $id)
-  }
-`;
+const WORKFLOW_TYPES = [
+  { value: 'leave', label: 'Leave Request' },
+  { value: 'expense', label: 'Expense' },
+  { value: 'loan', label: 'Loan' },
+  { value: 'payroll', label: 'Payroll' },
+  { value: 'recruitment', label: 'Recruitment' },
+  { value: 'document', label: 'Document' },
+  { value: 'profile_update', label: 'Profile Update' },
+  { value: 'probation', label: 'Probation' },
+  { value: 'offboarding', label: 'Offboarding' },
+];
 
 export default function SettingsApprovalWorkflows() {
   const queryClient = useQueryClient();
@@ -53,42 +34,24 @@ export default function SettingsApprovalWorkflows() {
 
   const { data: workflowData = {}, isLoading } = useQuery({
     queryKey: ['workflows'],
-    queryFn: async () => await gqlClient.request(GET_WORKFLOWS),
+    queryFn: approvalsApi.getWorkflows,
   });
 
-  const workflows = (workflowData.approvalWorkflows || []).map(w => {
-    let parsed = [];
-    try {
-      if (w.steps) {
-        parsed = JSON.parse(w.steps);
-        // Handle double-encoded JSON just in case
-        if (typeof parsed === 'string') {
-          parsed = JSON.parse(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse workflow steps", e);
-    }
-    if (!Array.isArray(parsed)) parsed = [];
-    
-    return {
-      ...w,
-      parsedSteps: parsed
-    };
-  });
+  const workflows = (Array.isArray(workflowData) ? workflowData : workflowData?.data || []).map((workflow) => ({
+    ...workflow,
+    id: workflow.id || workflow._id,
+    levels: Array.isArray(workflow.levels) ? workflow.levels : [],
+  }));
 
   const [workflowForm, setWorkflowForm] = useState({
     name: '',
-    entityType: 'LeaveRequest',
-    steps: [],
+    type: 'leave',
+    levels: [],
     isActive: true,
   });
 
   const updateWorkflowMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      const payload = { ...data, steps: JSON.stringify(data.steps) };
-      return await gqlClient.request(UPDATE_WORKFLOW, { id, ...payload });
-    },
+    mutationFn: ({ id, data }) => approvalsApi.updateWorkflow(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       setShowWorkflowDialog(false);
@@ -97,24 +60,21 @@ export default function SettingsApprovalWorkflows() {
   });
 
   const createWorkflowMutation = useMutation({
-    mutationFn: async (data) => {
-      const payload = { name: data.name, entityType: data.entityType, steps: JSON.stringify(data.steps) };
-      return await gqlClient.request(CREATE_WORKFLOW, payload);
-    },
+    mutationFn: approvalsApi.createWorkflow,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       setShowWorkflowDialog(false);
       setWorkflowForm({
         name: '',
-        entityType: 'LeaveRequest',
-        steps: [],
+        type: 'leave',
+        levels: [],
         isActive: true,
       });
     },
   });
   
   const deleteWorkflowMutation = useMutation({
-    mutationFn: async (id) => await gqlClient.request(DELETE_WORKFLOW, { id }),
+    mutationFn: approvalsApi.deleteWorkflow,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflows'] })
   });
 
@@ -122,36 +82,24 @@ export default function SettingsApprovalWorkflows() {
     setEditingWorkflow(workflow);
     setWorkflowForm({
       name: workflow.name,
-      entityType: workflow.entityType,
-      steps: workflow.parsedSteps,
+      type: workflow.type,
+      // Normalized so legacy 'FINANCE' steps show as Finance Admin instead of a blank select.
+      levels: normalizeApprovalSteps(workflow.levels),
       isActive: workflow.isActive,
     });
     setShowWorkflowDialog(true);
   };
 
-  const addApprovalLevel = () => {
-    setWorkflowForm(prev => ({
-      ...prev,
-      steps: [
-        ...prev.steps,
-        {
-          order: prev.steps.length + 1,
-          role: 'MANAGER',
-        }
-      ]
-    }));
-  };
-
   return (
-    <Card className="border-slate-200 shadow-sm">
+    <Card className="shadow-sm border-slate-200">
       <CardHeader className="border-b border-slate-100 bg-slate-50/50">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-xl">
               <GitBranch className="w-5 h-5 text-indigo-500" />
               Approval Workflows
             </CardTitle>
-            <p className="text-sm text-slate-500 mt-1">Define the sequence of approvals required for different operations.</p>
+            <p className="mt-1 text-sm text-slate-500">Define the sequence of approvals required for different operations.</p>
           </div>
           <Dialog open={showWorkflowDialog} onOpenChange={(open) => {
             setShowWorkflowDialog(open);
@@ -159,8 +107,8 @@ export default function SettingsApprovalWorkflows() {
               setEditingWorkflow(null);
               setWorkflowForm({
                 name: '',
-                entityType: 'LeaveRequest',
-                steps: [],
+                type: 'leave',
+                levels: [],
                 isActive: true,
               });
             }
@@ -189,14 +137,13 @@ export default function SettingsApprovalWorkflows() {
                     <Input value={workflowForm.name} onChange={(e) => setWorkflowForm(prev => ({ ...prev, name: e.target.value }))} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>Entity Type</Label>
-                    <Select value={workflowForm.entityType} onValueChange={(value) => setWorkflowForm(prev => ({ ...prev, entityType: value }))}>
+                    <Label>Workflow Type</Label>
+                    <Select value={workflowForm.type} onValueChange={(value) => setWorkflowForm(prev => ({ ...prev, type: value }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="LeaveRequest">Leave Request</SelectItem>
-                        <SelectItem value="PayrollRun">Payroll Run</SelectItem>
-                        <SelectItem value="Employee">Employee Onboarding</SelectItem>
-                        <SelectItem value="Document">Document Approval</SelectItem>
+                        {WORKFLOW_TYPES.map((workflowType) => (
+                          <SelectItem key={workflowType.value} value={workflowType.value}>{workflowType.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -215,51 +162,12 @@ export default function SettingsApprovalWorkflows() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label>Approval Steps</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={addApprovalLevel}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Step
-                    </Button>
-                  </div>
-                  
-                  {workflowForm.steps.map((step, index) => (
-                    <Card key={index} className="p-4 border-slate-200">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                          <span className="font-semibold text-sm">Step {index + 1}</span>
-                          <Select 
-                            value={step.role}
-                            onValueChange={(value) => {
-                              const updated = [...workflowForm.steps];
-                              updated[index].role = value;
-                              setWorkflowForm(prev => ({ ...prev, steps: updated }));
-                            }}
-                          >
-                            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Role" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MANAGER">Manager</SelectItem>
-                              <SelectItem value="HR_ADMIN">HR Admin</SelectItem>
-                              <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-                              <SelectItem value="FINANCE">Finance</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button 
-                          type="button" 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => setWorkflowForm(prev => ({
-                            ...prev,
-                            steps: prev.steps.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i + 1 }))
-                          }))}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                  {workflowForm.steps.length === 0 && <p className="text-sm text-slate-500">No steps defined. Approvals will be auto-approved if active.</p>}
+                  <Label>Approval Steps</Label>
+                  <ApprovalStepsEditor
+                    steps={workflowForm.levels}
+                    onChange={(levels) => setWorkflowForm(prev => ({ ...prev, levels }))}
+                    emptyMessage={EMPTY_CHAIN_MESSAGE}
+                  />
                 </div>
 
                 <div className="flex justify-end gap-3">
@@ -276,66 +184,66 @@ export default function SettingsApprovalWorkflows() {
       <CardContent className="p-6">
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
           </div>
         ) : workflows.length === 0 ? (
-          <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
-            <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto mb-4">
+          <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-white rounded-full shadow-sm">
               <GitBranch className="w-8 h-8 text-slate-300" />
             </div>
             <h3 className="text-lg font-bold text-slate-800">No workflows configured</h3>
-            <p className="text-slate-500 mt-2 max-w-sm mx-auto">Create approval workflows to enforce sign-offs before requests like Leave or Payroll are processed.</p>
+            <p className="max-w-sm mx-auto mt-2 text-slate-500">Create approval workflows to enforce sign-offs before requests like Leave or Payroll are processed.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
             {workflows.map(workflow => (
-              <div key={workflow.id} className="group p-6 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all duration-200 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+              <div key={workflow.id} className="relative p-6 overflow-hidden transition-all duration-200 bg-white border group border-slate-200 rounded-2xl hover:shadow-md">
+                <div className="absolute top-0 left-0 w-1 h-full transition-opacity bg-indigo-500 opacity-0 group-hover:opacity-100" />
+                <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-bold text-xl text-slate-900">{workflow.name}</h4>
-                      <Badge variant="outline" className="bg-slate-50 text-slate-600 font-medium border-slate-200">{workflow.entityType}</Badge>
+                      <h4 className="text-xl font-bold text-slate-900">{workflow.name}</h4>
+                      <Badge variant="outline" className="font-medium bg-slate-50 text-slate-600 border-slate-200">{WORKFLOW_TYPES.find((type) => type.value === workflow.type)?.label || workflow.type}</Badge>
                       <Badge className={workflow.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200 shadow-none border-none px-2 py-0.5 text-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 shadow-none border-none px-2 py-0.5 text-xs'}>
                         {workflow.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </div>
-                    <p className="text-sm text-slate-500 font-medium">{workflow.parsedSteps?.length || 0} Approval Level(s)</p>
+                    <p className="text-sm font-medium text-slate-500">{workflow.levels.length} Approval Level(s)</p>
 
                     {/* Visual Flow Representation */}
-                    <div className="mt-6 pt-5 border-t border-slate-100">
-                      {workflow.parsedSteps && workflow.parsedSteps.length > 0 ? (
-                        <div className="flex items-center flex-wrap gap-3">
+                    <div className="pt-5 mt-6 border-t border-slate-100">
+                      {workflow.levels.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-3">
                           <div className="flex flex-col items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shadow-sm">
+                            <div className="flex items-center justify-center w-10 h-10 text-xs font-bold border rounded-full shadow-sm bg-slate-100 border-slate-200 text-slate-600">
                               REQ
                             </div>
                             <span className="text-[10px] mt-1.5 text-slate-500 font-bold uppercase tracking-wider">Requester</span>
                           </div>
                           
-                          {Array.isArray(workflow.parsedSteps) && [...workflow.parsedSteps].sort((a, b) => a.order - b.order).map((step, idx) => (
+                          {[...workflow.levels].sort((a, b) => a.order - b.order).map((step, idx) => (
                             <div className="contents" key={idx}>
-                              <div className="text-slate-300 px-1">
+                              <div className="px-1 text-slate-300">
                                  <ArrowRight className="w-5 h-5" />
                               </div>
-                              <div className="flex flex-col items-center justify-center relative">
+                              <div className="relative flex flex-col items-center justify-center">
                                 <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[9px] font-bold shadow-sm">
                                   {step.order}
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-sm font-bold shadow-sm border border-indigo-200">
-                                  {step.role.substring(0, 2).toUpperCase()}
+                                <div className="flex items-center justify-center w-10 h-10 text-sm font-bold text-indigo-700 border border-indigo-200 rounded-full shadow-sm bg-indigo-50">
+                                  {getApprovalRoleLabel(step.role).substring(0, 2).toUpperCase()}
                                 </div>
-                                <span className="text-[10px] mt-1.5 text-indigo-700 font-bold uppercase tracking-wider">{step.role.replace('_', ' ')}</span>
+                                <span className="text-[10px] mt-1.5 text-indigo-700 font-bold uppercase tracking-wider">{getApprovalRoleLabel(step.role)}</span>
                               </div>
                             </div>
                           ))}
 
                           <div className="contents">
-                            <div className="text-slate-300 px-1">
+                            <div className="px-1 text-slate-300">
                                <ArrowRight className="w-5 h-5" />
                             </div>
                             <div className="flex flex-col items-center justify-center">
-                              <div className="w-10 h-10 rounded-full bg-green-50 text-green-600 border border-green-200 flex items-center justify-center shadow-sm">
+                              <div className="flex items-center justify-center w-10 h-10 text-green-600 border border-green-200 rounded-full shadow-sm bg-green-50">
                                 <CheckCircle className="w-5 h-5" />
                               </div>
                               <span className="text-[10px] mt-1.5 text-green-700 font-bold uppercase tracking-wider">Approved</span>
@@ -343,9 +251,9 @@ export default function SettingsApprovalWorkflows() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-lg border border-amber-200/50">
+                        <div className="flex items-center gap-2 p-3 border rounded-lg bg-amber-50 text-amber-700 border-amber-200/50">
                           <CheckCircle className="w-4 h-4" />
-                          <p className="text-sm font-medium">No approval steps defined. Requests are auto-approved.</p>
+                          <p className="text-sm font-medium">{EMPTY_CHAIN_MESSAGE}</p>
                         </div>
                       )}
                     </div>
@@ -355,7 +263,7 @@ export default function SettingsApprovalWorkflows() {
                     <Button size="sm" variant="ghost" className="h-8 px-3 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700" onClick={() => handleEditWorkflow(workflow)}>
                       <Edit className="w-4 h-4 mr-1.5" /> Edit
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600 hover:bg-red-100 hover:text-red-700" onClick={() => deleteWorkflowMutation.mutate(workflow.id)}>
+                    <Button size="sm" variant="ghost" className="w-8 h-8 p-0 text-red-600 hover:bg-red-100 hover:text-red-700" onClick={() => deleteWorkflowMutation.mutate(workflow.id)} disabled={deleteWorkflowMutation.isPending}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

@@ -1,42 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
 import { Lock, Loader2, ArrowRight, UserCircle, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
-
-const VALIDATE_INVITE_MUTATION = gql`
-  mutation ValidateInviteToken($token: String!) {
-    validateInviteToken(token: $token) {
-      valid
-      email
-      role
-      organizationName
-    }
-  }
-`;
-
-const ACCEPT_INVITE_MUTATION = gql`
-  mutation AcceptInvite($token: String!, $password: String!, $firstName: String!, $lastName: String!) {
-    acceptInvite(token: $token, password: $password, firstName: $firstName, lastName: $lastName) {
-      token
-      user {
-        id
-        email
-        role
-        organizationId
-      }
-    }
-  }
-`;
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
+import { ellipsifyMiddle } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
-  const { checkAppState } = useAuth();
 
   const [inviteDetails, setInviteDetails] = useState(null);
   const [firstName, setFirstName] = useState('');
@@ -45,7 +20,7 @@ export default function AcceptInvite() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -54,27 +29,49 @@ export default function AcceptInvite() {
   useEffect(() => {
     if (!token) {
       setError('Invalid or missing invite token. Please request a new invite link.');
-      setIsLoading(false);
       return;
     }
 
-    const validateToken = async () => {
-      try {
-        const data = await gqlClient.request(VALIDATE_INVITE_MUTATION, { token });
-        if (data.validateInviteToken && data.validateInviteToken.valid) {
-          setInviteDetails(data.validateInviteToken);
-        } else {
-          setError('This invite link is invalid or has expired.');
-        }
-      } catch (err) {
-        console.error('Validation error:', err);
-        setError('Failed to validate invite link. It may have expired.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    let cancelled = false;
+    setIsLoading(true);
+    authApi.getInviteDetails(token)
+      .then((details) => {
+        if (cancelled) return;
+        setInviteDetails(details);
 
-    validateToken();
+        // Prefill from the name collected when the invite was sent (e.g. the "Add
+        // Employee" form). Skip generic placeholders the backend falls back to for
+        // ad hoc email-only invites (InviteHRModal, the optional HR email at
+        // registration) that never collected a real name - leave those blank for
+        // the invitee to fill in themselves.
+        const placeholderNames = ['hr manager', 'employee'];
+        const fullName = details?.fullName?.trim();
+        if (fullName && !placeholderNames.includes(fullName.toLowerCase())) {
+          const [first, ...rest] = fullName.split(' ');
+          setFirstName(first || '');
+          setLastName(rest.join(' '));
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // The lookup only exists to prefill the form, so only a definitive answer about the
+        // token blocks the page: the backend's 400 "Invalid or expired invite token".
+        // Anything else (404 because the deployed API predates GET /auth/invite/:token,
+        // network errors, 5xx) falls back to the plain form — POST /auth/accept-invite
+        // validates the token itself on submit, which is how this page worked before the
+        // prefill was added. Blocking on those errors turned a missing prefill into
+        // "every invite is broken" when the frontend was deployed ahead of the backend.
+        if (err.status === 400) {
+          setError(ellipsifyMiddle(err.message || 'This invite link is invalid or has expired. Please request a new one.', 160));
+        } else {
+          console.warn('Invite details lookup failed; continuing without prefill:', err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [token]);
 
   const handleSubmit = async (e) => {
@@ -86,17 +83,17 @@ export default function AcceptInvite() {
     }
 
     if (!firstName || !lastName) {
-      setError('Please enter your first and last name.');
+      toast.error('Please enter your first and last name.');
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      toast.error('Password must be at least 8 characters long');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -104,30 +101,36 @@ export default function AcceptInvite() {
       setIsSubmitting(true);
       setError('');
       
-      const data = await gqlClient.request(ACCEPT_INVITE_MUTATION, { 
+      const fullName = `${firstName} ${lastName}`.trim();
+      const data = await authApi.acceptInvite({
         token,
-        firstName,
-        lastName,
-        password
+        fullName,
+        password,
       });
 
-      if (data.acceptInvite && data.acceptInvite.token) {
-        localStorage.setItem('token', data.acceptInvite.token);
-        await checkAppState();
+      if (data && data.token) {
+        localStorage.setItem('token', data.token);
+        // No need to refresh AuthContext's user here: window.location.href below
+        // is a full page navigation, which re-initializes the whole app (and
+        // AuthProvider's own auth check) from scratch anyway. Calling
+        // checkAppState() here used to flip the global isLoadingAuth flag mid-flight,
+        // which made App.jsx swap to its full-screen spinner and unmount this
+        // component, then remount it fresh once loading finished — the fresh
+        // mount re-ran the invite-lookup effect against an already-consumed
+        // token, flashing an "invite invalid" error just before the original,
+        // still-pending setTimeout below fired the real redirect anyway.
         setIsSuccess(true);
         setTimeout(() => {
-          if (data.acceptInvite.user.role === 'EMPLOYEE') {
-            window.location.href = '/employeeselfservice';
+          if (data.user?.role === 'EMPLOYEE') {
+            window.location.href = PAGE_ROUTES.EMPLOYEE_SELF_SERVICE;
           } else {
-            // HR_ADMIN and other admin roles go to the dashboard, not the public home page
-            window.location.href = '/dashboard';
+            window.location.href = PAGE_ROUTES.DASHBOARD;
           }
         }, 1500);
       }
     } catch (err) {
       console.error('Accept invite error:', err);
-      const errorMessage = err.response?.errors?.[0]?.message || 'Failed to accept invite. The link may have expired.';
-      setError(errorMessage);
+      setError(ellipsifyMiddle(err.message || 'Failed to complete account setup. The link may be invalid or expired.', 160));
     } finally {
       setIsSubmitting(false);
     }
@@ -135,34 +138,34 @@ export default function AcceptInvite() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-slate-800" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
-      <div className="w-full flex flex-col items-center justify-center p-8 sm:p-12 relative z-10">
-        <div className="w-full max-w-md space-y-8 bg-white p-8 sm:p-10 rounded-2xl shadow-xl border border-slate-100">
+    <div className="flex min-h-screen font-sans bg-slate-50">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full p-8 sm:p-12">
+        <div className="w-full max-w-md p-8 space-y-8 bg-white border shadow-xl sm:p-10 rounded-2xl border-slate-100">
           
           {error ? (
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <div className="space-y-6 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 rounded-full bg-red-50">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Invite Invalid</h3>
+              <h3 className="text-xl font-medium font-heading text-slate-900">Invite Invalid</h3>
               <p className="text-slate-600">{error}</p>
-              <Button onClick={() => navigate('/login')} className="w-full mt-4">
+              <Button onClick={() => navigate(PAGE_ROUTES.LOGIN)} className="w-full mt-4">
                 Return to Login
               </Button>
             </div>
           ) : isSuccess ? (
-            <div className="text-center space-y-6">
-              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+            <div className="space-y-6 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-xl font-medium text-slate-900">Welcome to Tradevu HR</h3>
+              <h3 className="text-xl font-medium font-heading text-slate-900">Welcome to Tradevu HR</h3>
               <p className="text-slate-600">
                 Your account has been created successfully. Redirecting you to your dashboard...
               </p>
@@ -171,21 +174,30 @@ export default function AcceptInvite() {
             <>
               <div className="text-center">
                 <img src="/logo-icon.png" alt="Tradevu Logo" className="w-12 h-auto mx-auto mb-6" />
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Join {inviteDetails?.organizationName}</h1>
-                <p className="text-slate-500 mt-2 text-base">
-                  You've been invited as {inviteDetails?.role === 'HR_ADMIN' ? 'an HR Manager' : 'an Employee'}.<br/>
-                  <span className="font-medium text-slate-700">{inviteDetails?.email}</span>
+                <h1 className="text-3xl font-bold tracking-tight font-heading text-slate-900">
+                  {inviteDetails?.organizationName ? `Join ${inviteDetails.organizationName}` : 'Accept your invitation'}
+                </h1>
+                {/* Details are absent when the prefill lookup failed; don't guess the role or show a blank email. */}
+                <p className="mt-2 text-base text-slate-500">
+                  {inviteDetails ? (
+                    <>
+                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'an HR Manager' : (inviteDetails.role === 'MANAGER' ? 'a Manager' : 'an Employee')}.<br/>
+                      <span className="font-medium text-slate-700">{inviteDetails.email}</span>
+                    </>
+                  ) : (
+                    'Set up your account to get started.'
+                  )}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">First Name</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">First Name</label>
                     <Input
                       type="text"
                       placeholder="Jane"
-                      className="py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                      className="py-6 text-base bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       disabled={isSubmitting}
@@ -193,11 +205,11 @@ export default function AcceptInvite() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Last Name</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Last Name</label>
                     <Input
                       type="text"
                       placeholder="Doe"
-                      className="py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                      className="py-6 text-base bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       disabled={isSubmitting}
@@ -208,15 +220,15 @@ export default function AcceptInvite() {
 
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Create Password</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Create Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
+                        <Lock className="w-5 h-5 text-slate-400" />
                       </div>
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                        className="py-6 text-base pl-11 pr-11 bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isSubmitting}
@@ -227,21 +239,21 @@ export default function AcceptInvite() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Confirm Password</label>
+                    <label className="block mb-2 text-sm font-medium text-slate-700">Confirm Password</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
+                        <Lock className="w-5 h-5 text-slate-400" />
                       </div>
                       <Input
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className="pl-11 pr-11 py-6 bg-slate-50/50 border-slate-200 text-base rounded-xl focus:ring-slate-900 focus:border-slate-900"
+                        className="py-6 text-base pl-11 pr-11 bg-slate-50/50 border-slate-200 rounded-xl focus:ring-slate-900 focus:border-slate-900"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         disabled={isSubmitting}
@@ -252,7 +264,7 @@ export default function AcceptInvite() {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                       >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
@@ -261,10 +273,10 @@ export default function AcceptInvite() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-6 text-base font-medium bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-all rounded-xl"
+                  className="w-full py-6 text-base font-medium text-white transition-all shadow-md bg-slate-900 hover:bg-slate-800 rounded-xl"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   ) : (
                     <>
                       Create Account

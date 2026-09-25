@@ -1,25 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { gqlClient } from '@/api/graphqlClient';
-import { gql } from 'graphql-request';
+import { authApi } from '@/api/auth.api';
 import { Mail, Lock, Loader2, ArrowRight, UserCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
-
-const LOGIN_MUTATION = gql`
-  mutation Login($email: String!, $password: String!) {
-    login(email: $email, password: $password) {
-      token
-      user {
-        id
-        email
-        role
-        organizationId
-      }
-    }
-  }
-`;
+import { PAGE_ROUTES } from '@/constants/pageRoutes';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -39,28 +25,28 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError('');
-      
+
       // DEV-ONLY: bypass real auth with a mock token for local testing.
       if (import.meta.env.DEV && email.toLowerCase() === 'ceo@tradevu.com') {
         localStorage.setItem('token', 'mock_ceo_token');
         await checkAppState();
-        window.location.href = '/';
+        window.location.href = PAGE_ROUTES.HOME;
         return;
       }
-      
-      const data = await gqlClient.request(LOGIN_MUTATION, {
+
+      const data = await authApi.login({
         email,
-        password
+        password,
       });
 
-      if (data.login && data.login.token) {
-        localStorage.setItem('token', data.login.token);
+      if (data && data.token) {
+        localStorage.setItem('token', data.token);
         await checkAppState();
-        window.location.href = '/';
+        window.location.href = PAGE_ROUTES.HOME;
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid credentials. Please check your email and password.');
+      setError(err.message || 'Invalid credentials. Please check your email and password.');
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +59,7 @@ export default function Login() {
         <div className="w-full max-w-md space-y-10">
           <div className="text-left">
             <img src="/logo-icon.png" alt="Tradevu Logo" className="w-16 h-auto mb-8" />
-            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 tracking-tight">Welcome back</h1>
             <p className="text-slate-500 mt-3 text-lg">Sign in to your Tradevu HR workspace.</p>
           </div>
 
@@ -142,7 +128,7 @@ export default function Login() {
                 </label>
               </div>
               <div className="text-sm">
-                <Link to="/forgot-password" className="font-medium text-slate-900 hover:text-slate-700 hover:underline">
+                <Link to={PAGE_ROUTES.FORGOT_PASSWORD} className="font-medium text-slate-900 hover:text-slate-700 hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -188,7 +174,7 @@ export default function Login() {
         {/* Content overlay */}
         <div className="absolute inset-0 z-20 flex flex-col justify-end p-16 pb-24 text-white bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent">
           <div className="max-w-xl">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
+            <h2 className="font-heading text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight text-white drop-shadow-sm">
               Empower your workforce.
             </h2>
             <p className="text-lg lg:text-xl text-slate-200 leading-relaxed font-light drop-shadow">

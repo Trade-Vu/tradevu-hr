@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { gqlClient } from "@/api/graphqlClient";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,14 +9,57 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2 } from "lucide-react";
+import { uploadToCloudinary } from "@/utils/cloudinary";
+import { toast } from "sonner";
+
+export const DOCUMENT_CATEGORIES = [
+  "Employment Contract",
+  "Offer Letter",
+  "Government ID",
+  "Passport Photograph",
+  "Tax Forms",
+  "Bank Details",
+  "Educational Certificates",
+  "Certificates & Qualifications",
+  "Compliance Forms",
+  "Guarantor Documents",
+  "Promotion Letters",
+  "Performance Reviews",
+  "Policy Acknowledgments",
+  "Payroll Support Documents",
+  "Exit Documents",
+  "Miscellaneous HR Documents",
+  "Other",
+];
 
 export default function UploadDocumentDialog({ open, onClose, onSubmit, document, isSubmitting }) {
   const [docData, setDocData] = useState({
-    document_name: document?.document_name || "",
-    notes: document?.notes || "",
+    document_name: "",
+    category: "Employment Contract",
+    visibility_level: "employee",
+    notes: "",
   });
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (document) {
+      setDocData({
+        document_name: document.name || document.document_name || "",
+        category: document.category || "Employment Contract",
+        visibility_level: document.visibilityLevel || "employee",
+        notes: document.notes || "",
+      });
+    } else {
+      setDocData({
+        document_name: "",
+        category: "Employment Contract",
+        visibility_level: "employee",
+        notes: "",
+      });
+    }
+    setFile(null);
+  }, [document, open]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -28,17 +70,20 @@ export default function UploadDocumentDialog({ open, onClose, onSubmit, document
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    let file_url = document?.file_url;
-    let file_name = document?.file_name;
+    let fileUrl = document?.fileUrl || document?.file_url || "";
+    let fileType = document?.fileType || document?.file_type || "";
+    let fileSize = document?.fileSize || document?.file_size || 0;
 
     if (file) {
       setUploading(true);
       try {
-        const uploadResult = { file_url: URL.createObjectURL(file) };
-        file_url = uploadResult.file_url;
-        file_name = file.name;
+        const uploadResult = await uploadToCloudinary(file);
+        fileUrl = uploadResult.secure_url;
+        fileType = uploadResult.format || file.name.split('.').pop() || 'PDF';
+        fileSize = uploadResult.bytes || file.size || 0;
       } catch (error) {
         console.error("Error uploading file:", error);
+        toast.error(error.message || "Failed to upload file to Cloudinary");
         setUploading(false);
         return;
       }
@@ -46,13 +91,21 @@ export default function UploadDocumentDialog({ open, onClose, onSubmit, document
     }
 
     onSubmit({
-      ...docData,
-      file_url,
-      file_name,
-      status: file_url ? 'uploaded' : 'pending',
+      name: docData.document_name,
+      document_name: docData.document_name,
+      category: docData.category,
+      visibilityLevel: docData.visibility_level,
+      notes: docData.notes,
+      fileUrl,
+      file_url: fileUrl,
+      fileType,
+      file_name: file ? file.name : (docData.document_name + (fileType ? '.' + fileType : '')),
+      fileSize,
+      file_size: fileSize,
+      status: fileUrl ? 'approved' : 'pending_upload',
     });
 
-    setDocData({ document_name: "", notes: "" });
+    setDocData({ document_name: "", category: "Employment Contract", visibility_level: "employee", notes: "" });
     setFile(null);
   };
 
@@ -66,16 +119,46 @@ export default function UploadDocumentDialog({ open, onClose, onSubmit, document
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {!document && (
-            <div className="space-y-2">
-              <Label htmlFor="document_name">Document Name *</Label>
-              <Input
-                id="document_name"
-                value={docData.document_name}
-                onChange={(e) => setDocData(prev => ({ ...prev, document_name: e.target.value }))}
-                placeholder="e.g., ID Copy, Resume"
-                required
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="document_name">Document Name *</Label>
+                <Input
+                  id="document_name"
+                  value={docData.document_name}
+                  onChange={(e) => setDocData(prev => ({ ...prev, document_name: e.target.value }))}
+                  placeholder="e.g., ID Copy, Resume, Offer Letter"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category *</Label>
+                <select
+                  id="category"
+                  value={docData.category}
+                  onChange={(e) => setDocData(prev => ({ ...prev, category: e.target.value }))}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+                >
+                  {DOCUMENT_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="visibility_level">Visibility Level</Label>
+                <select
+                  id="visibility_level"
+                  value={docData.visibility_level}
+                  onChange={(e) => setDocData(prev => ({ ...prev, visibility_level: e.target.value }))}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+                >
+                  <option value="employee">Employee & HR</option>
+                  <option value="hr_only">HR Admin / Super Admin (Private)</option>
+                  <option value="manager">Manager, Employee & HR</option>
+                </select>
+              </div>
+            </>
           )}
           
           <div className="space-y-2">

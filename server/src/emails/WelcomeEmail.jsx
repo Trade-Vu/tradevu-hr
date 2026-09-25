@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseTemplate } from './BaseTemplate.jsx';
+import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section } from '@react-email/components';
 
 export const WelcomeEmail = ({ fullName, onboardingLink }) => {
@@ -31,7 +31,7 @@ export const WelcomeEmail = ({ fullName, onboardingLink }) => {
 
 WelcomeEmail.PreviewProps = {
   fullName: 'Jane Doe',
-  onboardingLink: 'http://localhost:5173/onboarding'
+  onboardingLink: `${getPreviewBaseUrl()}/onboarding`
 };
 
 export default WelcomeEmail;

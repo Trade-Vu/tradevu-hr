@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { gqlClient } from "@/api/graphqlClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { organizationsApi } from "@/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,22 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building2, Users, Rocket, CheckCircle } from "lucide-react";
 import { Country, State } from 'country-state-city';
 import { useNavigate } from "react-router-dom";
+import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-
-const UPDATE_ORGANIZATION_MUTATION = `
-  mutation UpdateOrganization($input: UpdateOrganizationInput!) {
-    updateOrganization(input: $input) {
-      id
-      industry
-      size
-      country
-      state
-      phone
-      email
-    }
-  }
-`;
 
 export default function OrganizationSetup({ asModal = false, onComplete }) {
   const navigate = useNavigate();
@@ -42,22 +29,49 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
     subscription_plan: 'trial',
   });
 
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: async () => {
+      try {
+        return await organizationsApi.getMyOrganization();
+      } catch (err) {
+        console.warn("Could not fetch organization data:", err);
+        return null;
+      }
+    },
+    enabled: !!user?.organizationId,
+  });
+
+  useEffect(() => {
+    if (orgData) {
+      setFormData(prev => ({
+        ...prev,
+        industry: orgData.industry || prev.industry,
+        size: orgData.companySize || orgData.size || prev.size,
+        country: orgData.country || prev.country,
+        state: orgData.state || prev.state,
+        phone: orgData.phone || prev.phone,
+        email: orgData.email || user?.email || prev.email,
+      }));
+    } else if (user?.email) {
+      setFormData(prev => ({ ...prev, email: prev.email || user.email }));
+    }
+  }, [orgData, user]);
+
   const updateOrganizationMutation = useMutation({
     mutationFn: async (data) => {
-      const input = {
+      return organizationsApi.updateMyOrganization({
         industry: data.industry,
-        size: data.size,
+        companySize: data.size,
         country: data.country,
         state: data.state,
         phone: data.phone,
         email: data.email,
-      };
-      
-      const result = await gqlClient.request(UPDATE_ORGANIZATION_MUTATION, { input });
-      return result.updateOrganization;
+        setupCompleted: true,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({ queryKey: ['organization', 'me'] });
       toast({
         title: "Success",
         description: "Organization details updated.",
@@ -67,16 +81,19 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
       } else {
         setStep(3);
         setTimeout(() => {
-          navigate('/Dashboard');
+          navigate(PAGE_ROUTES.DASHBOARD);
         }, 2000);
       }
     },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update organization details.",
+        variant: "destructive",
+      });
+      console.error("Failed to update organization:", error);
+    },
   });
-
-  const handleLoginBypass = () => {
-    localStorage.setItem('token', 'mock_ceo_token');
-    window.location.href = '/dashboard';
-  };
 
   const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
   const selectedCountryCode = countries.find(c => c.name === formData.country)?.isoCode;
@@ -99,7 +116,7 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-[1rem] flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-600/20 transform hover:scale-105 transition-transform">
               <Building2 className="w-7 h-7 text-white" />
             </div>
-            <CardTitle className="text-2xl sm:text-3xl font-extrabold mb-1.5 tracking-tight text-slate-900">Welcome to EonHR! 🎉</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl font-extrabold mb-1.5 tracking-tight text-slate-900">Welcome to {orgData?.name || 'Tradevu HR'}! 🎉</CardTitle>
             <p className="text-sm sm:text-base text-slate-500 font-medium">Let's set up your organization in just a few steps</p>
           </div>
         </CardHeader>
@@ -118,15 +135,15 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
             <>
               {/* Progress Steps */}
               <div className="flex items-center justify-center mb-6">
-                <div className={`flex items-center ${step >= 1 ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
+                <div className={`flex items-center ${step >= 1 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>
                     1
                   </div>
                   <span className="ml-2 text-sm font-semibold">Company Info</span>
                 </div>
-                <div className={`w-12 h-0.5 mx-3 ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-                <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-slate-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>
+                <div className={`w-12 h-0.5 mx-3 ${step >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                <div className={`flex items-center ${step >= 2 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>
                     2
                   </div>
                   <span className="ml-2 text-sm font-semibold">Details</span>
@@ -231,18 +248,6 @@ export default function OrganizationSetup({ asModal = false, onComplete }) {
                           placeholder="contact@company.com"
                           className="bg-white border-slate-200 h-12 rounded-xl text-slate-900 font-medium shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-0 focus-visible:border-indigo-500 placeholder:text-slate-400"
                         />
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-4 shadow-sm flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm shrink-0">
-                        <Rocket className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-indigo-900 text-sm">14-Day Free Trial</h4>
-                        <p className="text-xs text-indigo-700 font-medium mt-0.5">
-                          Start with a free trial. No credit card required.
-                        </p>
                       </div>
                     </div>
                   </div>

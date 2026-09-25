@@ -1,22 +1,9 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { gqlClient } from "@/api/graphqlClient";
-import { gql } from "graphql-request";
+import { employeesApi } from "@/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Gift, CalendarDays, PartyPopper } from "lucide-react";
 import { format } from "date-fns";
-
-const UPCOMING_CELEBRATIONS = gql`
-  query UpcomingCelebrations($month: Int!) {
-    upcomingCelebrations(month: $month) {
-      employeeId
-      fullName
-      type
-      date
-      years
-    }
-  }
-`;
 
 export default function CelebrationsWidget() {
   const currentMonth = new Date().getMonth() + 1; // 1-12
@@ -24,8 +11,8 @@ export default function CelebrationsWidget() {
   const { data: celebrations = [], isLoading } = useQuery({
     queryKey: ['upcoming-celebrations', currentMonth],
     queryFn: async () => {
-      const data = await gqlClient.request(UPCOMING_CELEBRATIONS, { month: currentMonth });
-      return data.upcomingCelebrations || [];
+      const res = await employeesApi.getCelebrations(currentMonth);
+      return Array.isArray(res) ? res : res?.data || [];
     }
   });
 
