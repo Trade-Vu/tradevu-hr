@@ -34,3 +34,4 @@ cypress.env.json
 
 # Claude Code project context (local-only)
 CLAUDE.md
+package-lock.json
