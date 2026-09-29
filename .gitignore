@@ -34,4 +34,5 @@ cypress.env.json
 
 # Claude Code project context (local-only)
 CLAUDE.md
+# add the package-lock.json file
 package-lock.json

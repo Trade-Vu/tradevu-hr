@@ -9,8 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Trash2, ExternalLink, Building, Briefcase, Loader2 } from "lucide-react";
+import { Users, Plus, Trash2, ExternalLink, Building, Briefcase, Loader2, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { toast } from "sonner";
@@ -24,6 +34,7 @@ export default function SettingsDepartments() {
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [deptForm, setDeptForm] = useState({ name: '', code: '', headEmployeeId: 'none' });
   const [selectedDeptId, setSelectedDeptId] = useState(null);
+  const [deptToDelete, setDeptToDelete] = useState(null);
   const [capacityDraft, setCapacityDraft] = useState('');
 
   const { data: rawDepartments = [], isLoading: deptLoading } = useDepartments();
@@ -105,8 +116,9 @@ export default function SettingsDepartments() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
-      if (selectedDeptId) setSelectedDeptId(null);
-      toast.success("Department deleted");
+      if (selectedDeptId === deptToDelete?.id) setSelectedDeptId(null);
+      setDeptToDelete(null);
+      toast.success("Department deleted successfully");
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to delete department");
@@ -229,7 +241,13 @@ export default function SettingsDepartments() {
                           <Button size="sm" onClick={() => approveDeptMutation.mutate(dept.id)} disabled={approveDeptMutation.isPending}>Approve</Button>
                         )}
                             {!isDefaultDept && (
-                              <Button size="sm" variant="destructive" onClick={() => deleteDeptMutation.mutate(dept.id)} disabled={deleteDeptMutation.isPending} title="Delete department">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setDeptToDelete(dept)}
+                                disabled={deleteDeptMutation.isPending}
+                                title="Delete department"
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
@@ -394,6 +412,22 @@ export default function SettingsDepartments() {
                       </div>
                     )}
                   </div>
+
+                  {/* Danger Zone: Delete Department (only for custom departments) */}
+                  {selectedDept && !['human resources', 'hr'].includes(selectedDept.name?.trim().toLowerCase()) && (currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') && (
+                    <div className="pt-6 mt-6 border-t border-slate-200/60">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full font-medium text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors"
+                        onClick={() => setDeptToDelete(selectedDept)}
+                        disabled={deleteDeptMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Department
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Right Main Content (Employees) */}
@@ -450,6 +484,81 @@ export default function SettingsDepartments() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Department Confirmation Dialog */}
+      <AlertDialog
+        open={Boolean(deptToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteDeptMutation.isPending) {
+            setDeptToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[440px]">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg font-bold text-slate-900">
+                  Delete Department
+                </AlertDialogTitle>
+                <p className="text-xs text-slate-500 font-medium">This action deactivates the department</p>
+              </div>
+            </div>
+            <AlertDialogDescription asChild>
+              <div className="pt-2 text-sm text-slate-600 space-y-3">
+                <p>
+                  Are you sure you want to delete <strong className="text-slate-900 font-semibold">{deptToDelete?.name}</strong>{deptToDelete?.code ? ` (${deptToDelete.code})` : ''}?
+                </p>
+
+                {deptToDelete?.employees?.length > 0 ? (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+                    <Users className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-amber-800">
+                        {deptToDelete.employees.length} Assigned Employee{deptToDelete.employees.length > 1 ? 's' : ''}
+                      </p>
+                      <p className="mt-0.5 text-amber-700 leading-relaxed">
+                        Deactivating this department will remove it from active lists and settings. Employee records will be preserved but won&apos;t belong to an active department.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    This department will be marked as inactive and removed from selection menus.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2 sm:gap-0">
+            <AlertDialogCancel disabled={deleteDeptMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors"
+              disabled={deleteDeptMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deptToDelete?.id) {
+                  deleteDeptMutation.mutate(deptToDelete.id);
+                }
+              }}
+            >
+              {deleteDeptMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Department'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

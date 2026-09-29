@@ -56,7 +56,13 @@ export default function LeaveHeatmapCalendar() {
   });
   const holidayMap = useMemo(() => {
     const map = new Map();
-    (holidays || []).forEach((h) => map.set(format(new Date(h.date), "yyyy-MM-dd"), h.name));
+    (holidays || []).forEach((h) => {
+      if (!h.date) return;
+      const dateStr = typeof h.date === 'string' && h.date.includes('T')
+        ? h.date.split('T')[0]
+        : format(new Date(h.date), "yyyy-MM-dd");
+      map.set(dateStr, h.name);
+    });
     return map;
   }, [holidays]);
 
