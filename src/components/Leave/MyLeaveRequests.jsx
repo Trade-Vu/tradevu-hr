@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Paperclip, Plane } from 'lucide-react';
+import { Calendar, Paperclip, Plane, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatLeaveStatus, getLeaveStatusBadgeClass, isPendingLeaveStatus, normalizeLeaveStatus, LEAVE_STATUS } from '@/lib/leaveStatus';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,11 @@ export default function MyLeaveRequests({ requests, onCancel, safeDate }) {
                             Annual Plan
                           </Badge>
                         )}
+                        {request.isPastLeave && (
+                          <Badge variant="outline" className="text-[10px] uppercase font-semibold border-amber-200 text-amber-700 bg-amber-50">
+                            Past Leave
+                          </Badge>
+                        )}
                         <Badge variant="outline" className={getLeaveStatusBadgeClass(request.status)}>
                           {formatLeaveStatus(request.status)}
                         </Badge>
@@ -69,6 +74,24 @@ export default function MyLeaveRequests({ requests, onCancel, safeDate }) {
                         <p>
                           <strong>Reason:</strong> {request.reason}
                         </p>
+                        {request.handover_note && (
+                          <p>
+                            <strong>Handover Note:</strong> {request.handover_note}
+                          </p>
+                        )}
+                        {request.handover_note_url && (
+                          <p className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-indigo-500" />
+                            <a
+                              href={request.handover_note_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:underline"
+                            >
+                              View Handover Document
+                            </a>
+                          </p>
+                        )}
                         {request.attachment_url && (
                           <p className="flex items-center gap-2">
                             <Paperclip className="w-4 h-4 text-blue-500" />

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { organizationsApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
+import { toTitleCase } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,20 +53,26 @@ export default function SettingsClasses() {
   });
 
   const handleSave = () => {
-    if (!className.trim()) {
+    const trimmed = className.trim();
+    if (!trimmed) {
       toast.error('Class name cannot be empty');
       return;
     }
 
+    const upperTrimmed = trimmed.toUpperCase();
     let newClasses = [...classes];
     if (editingIndex !== null) {
-      newClasses[editingIndex] = className.trim();
-    } else {
-      if (newClasses.includes(className.trim())) {
+      if (newClasses.some((c, i) => i !== editingIndex && c.toUpperCase() === upperTrimmed)) {
         toast.error('Class already exists');
         return;
       }
-      newClasses.push(className.trim());
+      newClasses[editingIndex] = upperTrimmed;
+    } else {
+      if (newClasses.some(c => c.toUpperCase() === upperTrimmed)) {
+        toast.error('Class already exists');
+        return;
+      }
+      newClasses.push(upperTrimmed);
     }
 
     updateMutation.mutate(newClasses);
@@ -77,7 +84,7 @@ export default function SettingsClasses() {
   };
 
   const startEdit = (index) => {
-    setClassName(classes[index]);
+    setClassName(toTitleCase(classes[index]));
     setEditingIndex(index);
     setIsAdding(true);
   };
@@ -146,7 +153,7 @@ export default function SettingsClasses() {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold text-slate-800 text-lg">{cls}</h3>
+                    <h3 className="font-semibold text-slate-800 text-lg">{toTitleCase(cls)}</h3>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={() => startEdit(idx)} className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600">

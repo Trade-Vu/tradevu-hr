@@ -78,7 +78,7 @@ export default function InviteEmployeeDialog({ open, onClose }) {
                 <SelectContent>
                   <SelectItem value="EMPLOYEE">Employee</SelectItem>
                   <SelectItem value="MANAGER">Manager</SelectItem>
-                  <SelectItem value="HR_ADMIN">HR Manager</SelectItem>
+                  <SelectItem value="HR_ADMIN">Head of People</SelectItem>
                 </SelectContent>
               </Select>
             </div>

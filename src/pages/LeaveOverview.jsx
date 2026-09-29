@@ -20,8 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock, Upload, Paperclip } from "lucide-react";
+import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock, Upload, Paperclip, Download, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { downloadHandoverTemplate } from "@/utils/handoverTemplate";
 import { toast } from "sonner";
 import { extractErrorMessage, getRefId } from "@/lib/utils";
 import {
@@ -43,6 +44,7 @@ export default function LeaveOverview() {
   const [showForm, setShowForm] = useState(false);
   const [isPastLeave, setIsPastLeave] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingHandoverFile, setUploadingHandoverFile] = useState(false);
   // Matches the backend's check for filing leave on someone else's behalf (SUPER_ADMIN/HR_ADMIN/org owner).
   const isAdmin = isSuperAdmin(user) || isHrAdmin(user);
   // employeeId is populated with employmentStatus by /auth/me; if it isn't, let the backend decide.
@@ -63,6 +65,8 @@ export default function LeaveOverview() {
     reason: '',
     total_days: 0,
     attachment_url: '',
+    handover_note: '',
+    handover_note_url: '',
     isHalfDay: false,
     useMultipleDates: false,
     selectedDates: [],
@@ -130,8 +134,11 @@ export default function LeaveOverview() {
           isHalfDay: !!l.isHalfDay,
           selectedDates: l.selectedDates || [],
           attachment_url: l.attachmentUrl || l.attachment_url || '',
+          handover_note: l.handoverNote || l.handover_note || '',
+          handover_note_url: l.handoverNoteUrl || l.handover_note_url || '',
           approvers: l.approvers || [],
           isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
+          isPastLeave: Boolean(l.isPastLeave),
         };
       });
     },
@@ -178,7 +185,11 @@ export default function LeaveOverview() {
         endDate: new Date(end).toISOString(),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
+        handoverNote: data.handover_note,
+        handoverNoteUrl: data.handover_note_url,
         isHalfDay: !!data.isHalfDay,
+        isPastLeave: false,
+        selectedDates: data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates : undefined,
       });
     },
     onSuccess: () => {
@@ -189,6 +200,7 @@ export default function LeaveOverview() {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
+      setIsPastLeave(false);
       setFormData({
         employee_email: employee?.email || '',
         leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : '',
@@ -197,6 +209,8 @@ export default function LeaveOverview() {
         reason: '',
         total_days: 0,
         attachment_url: '',
+        handover_note: '',
+        handover_note_url: '',
         isHalfDay: false,
         useMultipleDates: false,
         selectedDates: [],
@@ -222,7 +236,11 @@ export default function LeaveOverview() {
         endDate: new Date(end).toISOString(),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
+        handoverNote: data.handover_note,
+        handoverNoteUrl: data.handover_note_url,
         isHalfDay: !!data.isHalfDay,
+        isPastLeave: true,
+        selectedDates: data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates : undefined,
       });
     },
     onSuccess: () => {
@@ -233,6 +251,7 @@ export default function LeaveOverview() {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       refetchBalances();
       setShowForm(false);
+      setIsPastLeave(false);
       setFormData({
         employee_email: employee?.email || '',
         leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : '',
@@ -241,6 +260,8 @@ export default function LeaveOverview() {
         reason: '',
         total_days: 0,
         attachment_url: '',
+        handover_note: '',
+        handover_note_url: '',
         isHalfDay: false,
         useMultipleDates: false,
         selectedDates: [],
@@ -302,6 +323,26 @@ export default function LeaveOverview() {
       setFormData(prev => ({ ...prev, attachment_url: '' })); // Clear attachment on error
     }
     setUploadingFile(false);
+  };
+
+  const handleHandoverFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingHandoverFile(true);
+    try {
+      const uploadResult = await uploadToCloudinary(file);
+      if (!uploadResult || !uploadResult.secure_url) {
+        throw new Error("Failed to upload document to cloud storage.");
+      }
+      setFormData(prev => ({ ...prev, handover_note_url: uploadResult.secure_url }));
+      toast.success("Handover document uploaded successfully.");
+    } catch (error) {
+      console.error("Error uploading handover document:", error);
+      toast.error("Failed to upload handover document. Please try again.");
+      setFormData(prev => ({ ...prev, handover_note_url: '' }));
+    }
+    setUploadingHandoverFile(false);
   };
 
   const handleApprove = (request) => {
@@ -459,6 +500,14 @@ export default function LeaveOverview() {
                   }
 
                   if (isPastLeave) {
+                    const todayEnd = new Date();
+                    todayEnd.setHours(23, 59, 59, 999);
+                    const startD = new Date(formData.useMultipleDates && formData.selectedDates.length > 0 ? formData.selectedDates[0] : formData.start_date);
+                    const endD = new Date(formData.useMultipleDates && formData.selectedDates.length > 0 ? formData.selectedDates[formData.selectedDates.length - 1] : formData.end_date);
+                    if (startD > todayEnd || endD > todayEnd) {
+                      toast.error("Past leave dates cannot be in the future.");
+                      return;
+                    }
                     logPastLeaveMutation.mutate(formData);
                   } else {
                     createLeaveMutation.mutate(formData);
@@ -564,6 +613,7 @@ export default function LeaveOverview() {
                         <Input 
                           type="date" 
                           value={formData.start_date}
+                          max={isPastLeave ? format(new Date(), 'yyyy-MM-dd') : undefined}
                           onChange={(e) => {
                             handleDateChange('start_date', e.target.value);
                             if (formData.isHalfDay) {
@@ -580,6 +630,7 @@ export default function LeaveOverview() {
                           <Input 
                             type="date" 
                             value={formData.end_date}
+                            max={isPastLeave ? format(new Date(), 'yyyy-MM-dd') : undefined}
                             onChange={(e) => handleDateChange('end_date', e.target.value)}
                             required
                           />
@@ -593,6 +644,7 @@ export default function LeaveOverview() {
                         <Input 
                           type="date" 
                           id="multipleDateInput"
+                          max={isPastLeave ? format(new Date(), 'yyyy-MM-dd') : undefined}
                         />
                         <Button type="button" onClick={() => {
                           const val = document.getElementById('multipleDateInput').value;
@@ -625,6 +677,77 @@ export default function LeaveOverview() {
                     rows={4}
                     required
                   />
+                </div>
+
+                {/* Handover Note & Template Section */}
+                <div className="p-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50/70">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-800">Handover Note</Label>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Provide handover instructions, delegated responsibilities, key contacts, or attach a completed note.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadHandoverTemplate}
+                      className="bg-white hover:bg-slate-100 text-indigo-600 border-indigo-200 hover:border-indigo-300 font-medium text-xs flex items-center gap-1.5 shrink-0 shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download Handover Template
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-slate-700">Handover Summary / Notes</Label>
+                    <Textarea
+                      placeholder="Outline your delegated duties, ongoing tasks, client contacts, and critical coverage notes..."
+                      value={formData.handover_note}
+                      onChange={(e) => setFormData(prev => ({ ...prev, handover_note: e.target.value }))}
+                      rows={3}
+                      className="bg-white text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-slate-700">Attach Completed Handover Document (Optional)</Label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <input
+                        type="file"
+                        id="handover-document"
+                        onChange={handleHandoverFileUpload}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.txt"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('handover-document').click()}
+                        disabled={uploadingHandoverFile}
+                        className="bg-white"
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1.5" />
+                        {uploadingHandoverFile ? 'Uploading...' : 'Upload Completed Note'}
+                      </Button>
+                      {formData.handover_note_url && (
+                        <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-md border border-emerald-200">
+                          <Paperclip className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Handover document attached</span>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, handover_note_url: '' }))}
+                            className="ml-1 text-slate-400 hover:text-red-500 font-bold"
+                            title="Remove attached document"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* File Upload Section */}
@@ -663,11 +786,17 @@ export default function LeaveOverview() {
                 )}
 
                 <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  <Button type="button" variant="outline" onClick={() => { setShowForm(false); setIsPastLeave(false); }}>
                     Cancel
                   </Button>
-                  <Button type="submit" isLoading={createLeaveMutation.isPending} disabled={!hasRequiredRequestData || createLeaveMutation.isPending || logPastLeaveMutation.isPending}>
-                    {createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
+                  <Button 
+                    type="submit" 
+                    isLoading={isPastLeave ? logPastLeaveMutation.isPending : createLeaveMutation.isPending} 
+                    disabled={!hasRequiredRequestData || createLeaveMutation.isPending || logPastLeaveMutation.isPending}
+                  >
+                    {isPastLeave 
+                      ? (logPastLeaveMutation.isPending ? 'Logging Past Leave...' : 'Log Past Leave')
+                      : (createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request')}
                   </Button>
                 </div>
               </form>

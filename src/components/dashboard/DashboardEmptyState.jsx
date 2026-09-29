@@ -134,7 +134,7 @@ export default function DashboardEmptyState({ user }) {
 
   const ceoSteps = [
     { id: 'org', title: 'Complete Organization Profile', description: 'Add your company logo, legal name, and industry details.', icon: Building2, isModal: true },
-    { id: 'hr', title: 'Invite your HR Manager', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, isHRModal: true },
+    { id: 'hr', title: 'Invite your Head of People', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, isHRModal: true },
   ];
 
   const hrSteps = [

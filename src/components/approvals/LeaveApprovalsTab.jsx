@@ -202,18 +202,36 @@ export default function LeaveApprovalsTab({
                   </p>
                 )}
 
-                {leave.attachmentUrl && (
-                  <div className="mt-2">
+                {(leave.handoverNote || leave.handover_note) && (
+                  <div className="mt-2 text-xs text-slate-700 bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">
+                    <span className="font-semibold text-amber-900 block mb-0.5">Handover Note:</span>
+                    {leave.handoverNote || leave.handover_note}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  {(leave.handoverNoteUrl || leave.handover_note_url) && (
+                    <a
+                      href={leave.handoverNoteUrl || leave.handover_note_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:underline text-xs font-medium flex items-center gap-1"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> View Handover Document
+                    </a>
+                  )}
+
+                  {leave.attachmentUrl && (
                     <a
                       href={leave.attachmentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                      className="text-blue-600 hover:underline text-xs flex items-center gap-1"
                     >
-                      <FileText className="w-3 h-3" /> View Attachment
+                      <FileText className="w-3.5 h-3.5" /> View Attachment
                     </a>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">

@@ -15,9 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit, Clock, Paperclip } from "lucide-react";
+import { Plane, Plus, CheckCircle, XCircle, Upload, Calendar, Edit, Clock, Paperclip, Download, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import { downloadHandoverTemplate } from "@/utils/handoverTemplate";
 import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
 import { motion } from "framer-motion";
 import { calculateWorkingDays } from "@/lib/leaveDays";
@@ -67,6 +68,7 @@ export default function AllLeaveRequests() {
   const [showForm, setShowForm] = useState(false);
   const [editingLeave, setEditingLeave] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadingHandoverDoc, setUploadingHandoverDoc] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
     leave_type: '',
@@ -74,6 +76,8 @@ export default function AllLeaveRequests() {
     end_date: '',
     reason: '',
     attachment_url: '',
+    handover_note: '',
+    handover_note_url: '',
     isHalfDay: false,
     useMultipleDates: false,
     selectedDates: [],
@@ -103,8 +107,12 @@ export default function AllLeaveRequests() {
           total_days: l.totalDays || l.total_days || 0,
           isHalfDay: !!l.isHalfDay,
           selectedDates: l.selectedDates || [],
+          attachment_url: l.attachmentUrl || l.attachment_url || '',
+          handover_note: l.handoverNote || l.handover_note || '',
+          handover_note_url: l.handoverNoteUrl || l.handover_note_url || '',
           approvers: l.approvers || [],
           isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
+          isPastLeave: Boolean(l.isPastLeave),
         }))
       };
     },
@@ -139,7 +147,10 @@ export default function AllLeaveRequests() {
         endDate: new Date(end || new Date()).toISOString(),
         reason: data.reason,
         attachmentUrl: data.attachment_url,
+        handoverNote: data.handover_note,
+        handoverNoteUrl: data.handover_note_url,
         isHalfDay: !!data.isHalfDay,
+        selectedDates: data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates : undefined,
       });
 
       await createAuditLog('create', leave?._id || leave?.id, data.employee_id, { after: leave });
@@ -161,6 +172,8 @@ export default function AllLeaveRequests() {
         total_days: 0,
         reason: '',
         attachment_url: '',
+        handover_note: '',
+        handover_note_url: '',
         isHalfDay: false,
         useMultipleDates: false,
         selectedDates: [],
@@ -205,6 +218,8 @@ export default function AllLeaveRequests() {
       total_days: leave.total_days,
       reason: leave.reason,
       attachment_url: leave.attachment_url || '',
+      handover_note: leave.handoverNote || leave.handover_note || '',
+      handover_note_url: leave.handoverNoteUrl || leave.handover_note_url || '',
       isHalfDay: leave.isHalfDay || false,
       useMultipleDates: leave.selectedDates?.length > 0,
       selectedDates: leave.selectedDates || [],
@@ -227,6 +242,25 @@ export default function AllLeaveRequests() {
       console.error("Error uploading:", error);
     }
     setUploadingDoc(false);
+  };
+
+  const handleHandoverDocUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingHandoverDoc(true);
+    try {
+      const uploadResult = await uploadToCloudinary(file);
+      if (!uploadResult || !uploadResult.secure_url) {
+        throw new Error("Failed to upload document to cloud storage.");
+      }
+      setFormData(prev => ({ ...prev, handover_note_url: uploadResult.secure_url }));
+      toast.success("Handover document uploaded successfully.");
+    } catch (error) {
+      console.error("Error uploading handover document:", error);
+      toast.error("Failed to upload handover document.");
+    }
+    setUploadingHandoverDoc(false);
   };
   const { data: publicHolidays = [] } = useQuery({
     queryKey: ['publicHolidays'],
@@ -483,6 +517,76 @@ export default function AllLeaveRequests() {
                   <Textarea value={formData.reason} onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))} className="rounded-lg" rows={3} required />
                 </div>
 
+                {/* Handover Note & Template Section */}
+                <div className="p-3.5 space-y-3 rounded-xl border border-slate-200 bg-slate-50/70">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 border-b border-slate-200">
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-800">Handover Note</Label>
+                      <p className="text-xs text-slate-500">
+                        Document task delegation, contacts, and coverage during leave.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadHandoverTemplate}
+                      className="bg-white hover:bg-slate-100 text-indigo-600 border-indigo-200 hover:border-indigo-300 font-medium text-xs flex items-center gap-1.5 shrink-0 shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download Handover Template
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-700">Handover Summary / Notes</Label>
+                    <Textarea
+                      placeholder="Outline delegated responsibilities, ongoing tasks, and contacts..."
+                      value={formData.handover_note}
+                      onChange={(e) => setFormData(prev => ({ ...prev, handover_note: e.target.value }))}
+                      rows={2}
+                      className="bg-white text-sm rounded-lg"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-700">Attach Completed Handover Document (Optional)</Label>
+                    <input
+                      type="file"
+                      onChange={handleHandoverDocUpload}
+                      className="hidden"
+                      id="handover-doc-dialog"
+                      accept=".pdf,.doc,.docx,.txt"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="bg-white border-slate-300 hover:border-indigo-300 hover:bg-indigo-50"
+                        onClick={() => document.getElementById('handover-doc-dialog').click()}
+                        disabled={uploadingHandoverDoc}
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1.5" />
+                        {uploadingHandoverDoc ? 'Uploading...' : 'Upload Completed Note'}
+                      </Button>
+                      {formData.handover_note_url && (
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                          <Paperclip className="w-3 h-3 text-emerald-600" />
+                          <span>Document attached</span>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, handover_note_url: '' }))}
+                            className="ml-1 text-slate-400 hover:text-red-500 font-bold"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Supporting Document (Optional)</Label>
                   <input type="file" onChange={handleDocUpload} className="hidden" id="leave-doc" />
@@ -591,6 +695,11 @@ export default function AllLeaveRequests() {
                                   Annual Plan
                                 </Badge>
                               )}
+                              {leave.isPastLeave && (
+                                <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-semibold border-amber-200 text-amber-700 bg-amber-50">
+                                  Past Leave
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mb-3 text-sm text-slate-500">
                               <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -609,18 +718,34 @@ export default function AllLeaveRequests() {
                             <p className="p-3 text-sm border text-slate-600 bg-slate-50/80 rounded-xl border-slate-100">
                               "{leave.reason}"
                             </p>
-                            {leave.attachment_url && (
-                              <div className="mt-3">
+                            {leave.handover_note && (
+                              <div className="mt-2.5 p-2.5 text-xs text-slate-700 bg-amber-50/70 border border-amber-200/60 rounded-lg">
+                                <span className="font-semibold text-amber-900 block mb-0.5">Handover Note:</span>
+                                {leave.handover_note}
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-4 mt-2.5">
+                              {leave.attachment_url && (
                                 <a 
                                   href={leave.attachment_url} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
-                                  className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
                                 >
-                                  <Paperclip className="w-4 h-4" /> View Attachment
+                                  <Paperclip className="w-3.5 h-3.5" /> View Attachment
                                 </a>
-                              </div>
-                            )}
+                              )}
+                              {leave.handover_note_url && (
+                                <a 
+                                  href={leave.handover_note_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="flex items-center gap-1 text-xs text-indigo-600 font-medium hover:underline"
+                                >
+                                  <FileText className="w-3.5 h-3.5" /> View Handover Document
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                         

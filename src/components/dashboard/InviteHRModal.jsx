@@ -20,7 +20,7 @@ export default function InviteHRModal({ open, onOpenChange, onSuccess }) {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       toast({
         title: "Invite Sent!",
-        description: "Your HR Manager has been invited successfully. The Human Resources department has also been created.",
+        description: "Your Head of People has been invited successfully. The Human Resources department has also been created.",
       });
       setEmail('');
       onOpenChange(false);
@@ -46,9 +46,9 @@ export default function InviteHRModal({ open, onOpenChange, onSuccess }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite HR Manager</DialogTitle>
+          <DialogTitle>Invite Head of People</DialogTitle>
           <DialogDescription>
-            Send an invitation email to your HR Manager. This will also automatically setup the Human Resources department.
+            Send an invitation email to your Head of People. This will also automatically setup the Human Resources department.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

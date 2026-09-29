@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Clock, Paperclip, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, Paperclip, XCircle, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,11 +41,25 @@ export default function PendingLeaveApprovals({ requests, onApprove, onReject, i
                           Annual Plan
                         </Badge>
                       )}
+                      {request.isPastLeave && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-semibold border-amber-200 text-amber-700 bg-amber-50">
+                          Past Leave
+                        </Badge>
+                      )}
                     </p>
                     <p><strong>Duration:</strong> {request.selectedDates?.length > 0
                       ? request.selectedDates.map((date) => format(safeDate(date), 'MMM d')).join(', ')
                       : `${format(safeDate(request.start_date), 'MMM d')} - ${format(safeDate(request.end_date), 'MMM d')}`} ({request.total_days} days)</p>
                     <p><strong>Reason:</strong> {request.reason}</p>
+                    {request.handover_note && (
+                      <p><strong>Handover Note:</strong> {request.handover_note}</p>
+                    )}
+                    {request.handover_note_url && (
+                      <p className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-500" />
+                        <a href={request.handover_note_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View Handover Document</a>
+                      </p>
+                    )}
                     {request.attachment_url && (
                       <p className="flex items-center gap-2">
                         <Paperclip className="w-4 h-4 text-blue-500" />
