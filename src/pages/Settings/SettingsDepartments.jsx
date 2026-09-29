@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { departmentsApi, employeesApi } from "@/api";
+import { departmentsApi, employeesApi, usersApi } from "@/api";
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,10 +20,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Trash2, ExternalLink, Building, Briefcase, Loader2, AlertTriangle } from "lucide-react";
+import { 
+  Users, 
+  Plus, 
+  Trash2, 
+  ExternalLink, 
+  Building, 
+  Briefcase, 
+  Loader2, 
+  AlertTriangle,
+  UserPlus,
+  Send,
+  Clock,
+  ShieldCheck,
+  Mail,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { toast } from "sonner";
+import InviteHRModal from "@/components/dashboard/InviteHRModal";
 
 export default function SettingsDepartments() {
   const queryClient = useQueryClient();
@@ -37,6 +52,38 @@ export default function SettingsDepartments() {
   const [deptToDelete, setDeptToDelete] = useState(null);
   const [capacityDraft, setCapacityDraft] = useState('');
 
+  const [inviteModalState, setInviteModalState] = useState({
+    open: false,
+    initialEmail: '',
+    isResend: false,
+    defaultFullName: '',
+    defaultJobTitle: '',
+  });
+
+  const handleOpenInviteHR = () => {
+    setInviteModalState({
+      open: true,
+      initialEmail: '',
+      isResend: false,
+      defaultFullName: '',
+      defaultJobTitle: 'Head of People',
+    });
+  };
+
+  const handleResendHRInvite = (admin) => {
+    if (admin.isActive) {
+      toast.error('This user is already active on the platform and cannot be reinvited.');
+      return;
+    }
+    setInviteModalState({
+      open: true,
+      initialEmail: admin.email,
+      isResend: true,
+      defaultFullName: admin.fullName && admin.fullName !== admin.email ? admin.fullName : '',
+      defaultJobTitle: admin.jobTitle || 'Head of People',
+    });
+  };
+
   const { data: rawDepartments = [], isLoading: deptLoading } = useDepartments();
 
   const { data: rawEmployees = [], isLoading: empLoading } = useQuery({
@@ -48,11 +95,68 @@ export default function SettingsDepartments() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: rawUsers = [] } = useQuery({
+    queryKey: ['users', 'org', 'includeInactive'],
+    queryFn: async () => {
+      try {
+        const res = await usersApi.getUsers({ includeInactive: true });
+        return Array.isArray(res) ? res : res?.data || [];
+      } catch (err) {
+        return [];
+      }
+    },
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   const employees = (Array.isArray(rawEmployees) ? rawEmployees : rawEmployees?.data || []).map(emp => ({
     ...emp,
     id: emp._id || emp.id,
     fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
   }));
+
+  const hrAdminUsers = (Array.isArray(rawUsers) ? rawUsers : rawUsers?.data || [])
+    .filter(u => u.role === 'HR_ADMIN');
+
+  const hrAdminsList = hrAdminUsers.map(u => {
+    const matchedEmp = employees.find(
+      e => (u.employeeId && (String(e.id) === String(u.employeeId) || String(e._id) === String(u.employeeId))) ||
+           (e.email && u.email && e.email.toLowerCase() === u.email.toLowerCase())
+    );
+    const fullName = matchedEmp?.fullName || u.fullName || u.email;
+    const jobTitle = matchedEmp?.jobTitle || (u.isOrgOwner ? 'Org Owner & HR Admin' : 'HR Administrator');
+    const isActive = Boolean(u.isActive);
+    const isInviteExpired = !isActive && u.inviteTokenExpires && new Date(u.inviteTokenExpires) < new Date();
+    return {
+      userId: u._id || u.id,
+      employeeId: matchedEmp?.id || u.employeeId,
+      email: u.email,
+      fullName,
+      jobTitle,
+      isActive,
+      isInviteExpired,
+      lastLogin: u.lastLogin,
+      employee: matchedEmp,
+    };
+  });
+
+  employees.forEach(emp => {
+    if (emp.role === 'HR_ADMIN' && !hrAdminsList.some(h => h.email?.toLowerCase() === emp.email?.toLowerCase())) {
+      hrAdminsList.push({
+        userId: emp.userId,
+        employeeId: emp.id,
+        email: emp.email,
+        fullName: emp.fullName,
+        jobTitle: emp.jobTitle || 'HR Administrator',
+        isActive: emp.employmentStatus === 'ACTIVE',
+        isInviteExpired: false,
+        employee: emp,
+      });
+    }
+  });
+
+  const activeHrCount = hrAdminsList.filter(h => h.isActive).length;
+  const pendingHrCount = hrAdminsList.filter(h => !h.isActive).length;
 
   const departments = (Array.isArray(rawDepartments) ? rawDepartments : rawDepartments?.data || []).map(dept => {
     const deptId = dept._id || dept.id;
@@ -222,11 +326,16 @@ export default function SettingsDepartments() {
                 <CardHeader className="pb-4 bg-slate-50">
                   <div className="flex items-start justify-between">
                     <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <CardTitle className="text-lg">{dept.name}</CardTitle>
                             {isDefaultDept && (
                               <Badge variant="outline" className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border-indigo-200">
                                 Default
+                              </Badge>
+                            )}
+                            {isDefaultDept && pendingHrCount > 0 && (
+                              <Badge className="text-[10px] font-medium bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">
+                                {pendingHrCount} Pending Invite{pendingHrCount > 1 ? 's' : ''}
                               </Badge>
                             )}
                           </div>
@@ -240,22 +349,73 @@ export default function SettingsDepartments() {
                         {dept.status === 'PENDING' && currentUserRole === 'SUPER_ADMIN' && (
                           <Button size="sm" onClick={() => approveDeptMutation.mutate(dept.id)} disabled={approveDeptMutation.isPending}>Approve</Button>
                         )}
-                            {!isDefaultDept && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setDeptToDelete(dept)}
-                                disabled={deleteDeptMutation.isPending}
-                                title="Delete department"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                        {isDefaultDept && (currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-semibold text-indigo-600 bg-white border-indigo-200 hover:bg-indigo-50 shadow-xs"
+                            onClick={() => handleOpenInviteHR()}
+                          >
+                            <UserPlus className="w-3.5 h-3.5 mr-1" />
+                            Invite HR
+                          </Button>
+                        )}
+                        {!isDefaultDept && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDeptToDelete(dept)}
+                            disabled={deleteDeptMutation.isPending}
+                            title="Delete department"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4">
+                  {isDefaultDept && (
+                    <div className="mb-4 pb-3 border-b border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                          HR Admins ({hrAdminsList.length})
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-500">
+                          {activeHrCount} Active{pendingHrCount > 0 ? ` • ${pendingHrCount} Pending` : ''}
+                        </span>
+                      </div>
+
+                      {pendingHrCount > 0 && (
+                        <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg text-xs space-y-1.5 mb-2">
+                          <p className="text-[11px] font-semibold text-amber-900 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            Pending Invites awaiting acceptance
+                          </p>
+                          {hrAdminsList.filter(h => !h.isActive).slice(0, 2).map(h => (
+                            <div key={h.email} className="flex items-center justify-between bg-white/90 px-2 py-1 rounded border border-amber-200/70 text-[11px]">
+                              <div className="truncate max-w-[150px]">
+                                <p className="font-semibold text-slate-800 truncate">{h.fullName || h.email}</p>
+                                <p className="text-slate-500 text-[10px] truncate">{h.email}</p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-[10px] text-amber-900 border-amber-300 hover:bg-amber-100 font-semibold px-2"
+                                onClick={() => handleResendHRInvite(h)}
+                              >
+                                <Send className="w-2.5 h-2.5 mr-1" />
+                                Resend
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <h4 className="mb-2 text-sm font-semibold text-slate-700">Employees ({dept.employees?.length || 0})</h4>
                   <div className="space-y-2">
                     {dept.employees?.slice(0, 3).map(emp => (
@@ -430,10 +590,119 @@ export default function SettingsDepartments() {
                   )}
                 </div>
                 
-                {/* Right Main Content (Employees) */}
+                {/* Right Main Content (Employees & HR Admins) */}
                 <div className="w-full p-6 bg-white md:w-2/3 md:p-8">
+                  {selectedDept && (selectedDept.name?.trim().toLowerCase() === 'human resources' || selectedDept.name?.trim().toLowerCase() === 'hr') && (
+                    <div className="mb-6 p-4 sm:p-5 bg-gradient-to-br from-indigo-50/50 via-slate-50 to-violet-50/30 rounded-2xl border border-indigo-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                            <h3 className="text-base font-bold text-slate-900">HR Administrators</h3>
+                            <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-xs">
+                              {hrAdminsList.length} Total
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Team members with full HR Administrator and workflow approval access across Tradevu HR.
+                          </p>
+                        </div>
+                        {(currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') && (
+                          <Button
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-8 shadow-xs shrink-0"
+                            onClick={() => handleOpenInviteHR()}
+                          >
+                            <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                            Invite HR Admin
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {hrAdminsList.length === 0 ? (
+                          <p className="text-xs text-slate-500 italic p-3 bg-white rounded-lg border border-slate-100">
+                            No HR Administrators found. Click Invite HR Admin to add one.
+                          </p>
+                        ) : (
+                          hrAdminsList.map(admin => {
+                            const initials = (admin.fullName || admin.email)
+                              .split(' ')
+                              .map(n => n[0])
+                              .join('')
+                              .substring(0, 2)
+                              .toUpperCase();
+                            return (
+                              <div
+                                key={admin.email}
+                                className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="flex items-center justify-center w-10 h-10 text-xs font-bold text-indigo-700 rounded-full bg-indigo-50 border border-indigo-100 shrink-0">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-sm font-bold text-slate-900 truncate">{admin.fullName}</span>
+                                      {admin.isActive ? (
+                                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold px-2 py-0.5">
+                                          Active
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-semibold px-2 py-0.5 flex items-center gap-1">
+                                          <Clock className="w-2.5 h-2.5" />
+                                          Invite Pending
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 flex-wrap">
+                                      <span className="flex items-center gap-1 truncate">
+                                        <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                        {admin.email}
+                                      </span>
+                                      <span>•</span>
+                                      <span className="truncate">{admin.jobTitle || 'Head of People'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                  {(currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'HR_ADMIN') && !admin.isActive && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-amber-800 border-amber-300 hover:bg-amber-100 font-semibold text-xs h-8"
+                                      onClick={() => handleResendHRInvite(admin)}
+                                    >
+                                      <Send className="w-3 h-3 mr-1.5" />
+                                      Resend Invite
+                                    </Button>
+                                  )}
+                                  {admin.employeeId && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-slate-600 hover:text-slate-900 text-xs h-8"
+                                      onClick={() => navigate(`${PAGE_ROUTES.EMPLOYEE_DETAIL}?id=${admin.employeeId}`)}
+                                    >
+                                      Profile
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-slate-800">Team Members</h3>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      {selectedDept && (selectedDept.name?.trim().toLowerCase() === 'human resources' || selectedDept.name?.trim().toLowerCase() === 'hr')
+                        ? 'Department Employees'
+                        : 'Team Members'}
+                    </h3>
                     <Badge variant="outline" className="font-medium text-slate-500 bg-slate-50">{selectedDept.employees?.length || 0} Total</Badge>
                   </div>
                   
@@ -559,6 +828,20 @@ export default function SettingsDepartments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <InviteHRModal
+        open={inviteModalState.open}
+        onOpenChange={(open) => setInviteModalState(prev => ({ ...prev, open }))}
+        initialEmail={inviteModalState.initialEmail}
+        isResend={inviteModalState.isResend}
+        defaultFullName={inviteModalState.defaultFullName}
+        defaultJobTitle={inviteModalState.defaultJobTitle}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['users'] });
+          queryClient.invalidateQueries({ queryKey: ['employees'] });
+          queryClient.invalidateQueries({ queryKey: ['departments'] });
+        }}
+      />
     </Card>
   );
 }

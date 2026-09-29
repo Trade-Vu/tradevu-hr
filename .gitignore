@@ -36,3 +36,7 @@ cypress.env.json
 CLAUDE.md
 # add the package-lock.json file
 package-lock.json
+
+agents.md
+.agents/
+.agents.md

@@ -67,7 +67,7 @@ export default function DashboardEmptyState({ user }) {
     },
   });
 
-  // An HR manager can already have been invited two ways that never show up as an
+  // A Head of People can already have been invited two ways that never show up as an
   // Employee record: (1) the optional "HR Email" field on Register.jsx step 4, which
   // only creates a User (role HR_ADMIN, isActive:false) with no Employee, or (2) an
   // invite sent here that the invitee hasn't accepted yet. Both are inactive users, so

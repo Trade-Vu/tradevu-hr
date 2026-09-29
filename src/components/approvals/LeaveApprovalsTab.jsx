@@ -202,6 +202,29 @@ export default function LeaveApprovalsTab({
                   </p>
                 )}
 
+                {(leave.reliefOfficerId || leave.relief_officer_name) && (
+                  <div className="flex items-center gap-2 flex-wrap mt-2 text-xs">
+                    <span className="font-semibold text-slate-700">
+                      Relief Officer: {leave.reliefOfficerId?.fullName || leave.reliefOfficerId?.name || leave.relief_officer_name || 'Assigned'}
+                    </span>
+                    {(leave.reliefOfficerStatus === 'CONFIRMED' || leave.relief_officer_status === 'CONFIRMED') && (
+                      <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 text-[10px] font-semibold">
+                        Handover Confirmed ✓
+                      </Badge>
+                    )}
+                    {(leave.reliefOfficerStatus === 'REJECTED' || leave.relief_officer_status === 'REJECTED') && (
+                      <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 text-[10px] font-semibold">
+                        Handover Declined ✗
+                      </Badge>
+                    )}
+                    {(!leave.reliefOfficerStatus || leave.reliefOfficerStatus === 'PENDING') && (!leave.relief_officer_status || leave.relief_officer_status === 'PENDING') && (
+                      <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 text-[10px] font-semibold">
+                        Awaiting Relief Confirmation ⏳
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
                 {(leave.handoverNote || leave.handover_note) && (
                   <div className="mt-2 text-xs text-slate-700 bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">
                     <span className="font-semibold text-amber-900 block mb-0.5">Handover Note:</span>

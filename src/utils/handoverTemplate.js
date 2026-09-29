@@ -1,13 +1,14 @@
 /**
- * Utility to generate and download a professional Employee Leave Handover Note template
+ * Utility to generate and download the Tradevu Leave Handover Note template
  * in Word-compatible (.doc) format.
+ * Matches the official Tradevu template layout.
  */
 
 export const generateHandoverTemplateHtml = () => {
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8">
-  <title>Employee Leave Handover Note Template</title>
+  <title>Leave Handover Note</title>
   <!--[if gte mso 9]>
   <xml>
     <w:WordDocument>
@@ -19,335 +20,224 @@ export const generateHandoverTemplateHtml = () => {
   <![endif]-->
   <style>
     body {
-      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+      font-family: Arial, 'Segoe UI', Helvetica, sans-serif;
       font-size: 11pt;
-      line-height: 1.5;
-      color: #1e293b;
-      margin: 24pt;
+      line-height: 1.45;
+      color: #111827;
+      margin: 36pt 42pt;
     }
-    h1 {
-      font-size: 20pt;
-      color: #0f172a;
-      border-bottom: 2pt solid #4f46e5;
-      padding-bottom: 6pt;
-      margin-bottom: 4pt;
-      text-transform: uppercase;
-      letter-spacing: 0.5pt;
-    }
-    h2 {
-      font-size: 13pt;
-      color: #312e81;
-      background-color: #f1f5f9;
-      padding: 6pt 8pt;
-      margin-top: 16pt;
-      margin-bottom: 8pt;
-      border-left: 4pt solid #4f46e5;
-    }
-    .subtitle {
-      font-size: 11pt;
-      color: #64748b;
-      margin-bottom: 18pt;
-    }
-    .instructions {
-      background-color: #f8fafc;
-      border: 1pt solid #cbd5e1;
-      padding: 8pt 12pt;
-      font-size: 9.5pt;
-      color: #475569;
-      margin-bottom: 16pt;
-      border-radius: 4pt;
-    }
-    table {
+    .header-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 12pt;
-      font-size: 10pt;
+      margin-bottom: 24pt;
     }
-    th, td {
-      border: 1pt solid #cbd5e1;
+    .header-table td {
+      border: none;
+      padding: 0;
+      vertical-align: top;
+    }
+    .logo-td {
+      text-align: right;
+    }
+    .brand-logo {
+      font-family: Arial, sans-serif;
+      font-size: 19pt;
+      font-weight: bold;
+      color: #111827;
+      letter-spacing: -0.5px;
+    }
+    .brand-logo span {
+      color: #8b5cf6;
+      font-size: 20pt;
+      margin-right: 2pt;
+    }
+    h1.doc-title {
+      text-align: center;
+      font-size: 13.5pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 0;
+      margin-bottom: 22pt;
+    }
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 18pt;
+    }
+    .meta-table td {
+      border: none;
+      padding: 3pt 0;
+      font-size: 10.5pt;
+      vertical-align: top;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: #000000;
+    }
+    .section-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 14pt;
+      margin-bottom: 4pt;
+    }
+    .section-prompt {
+      font-size: 10pt;
+      color: #1f2937;
+      margin-top: 0;
+      margin-bottom: 8pt;
+    }
+    .bullets {
+      margin-top: 0;
+      margin-bottom: 12pt;
+      padding-left: 18pt;
+      list-style-type: disc;
+      color: #374151;
+      font-size: 10.5pt;
+      line-height: 1.8;
+    }
+    .bullet-placeholder {
+      color: #9ca3af;
+      margin-left: 4pt;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6pt;
+      margin-bottom: 14pt;
+    }
+    table.data-table th, table.data-table td {
+      border: 1pt solid #000000;
       padding: 6pt 8pt;
+      font-size: 10pt;
       text-align: left;
       vertical-align: top;
     }
-    th {
-      background-color: #f1f5f9;
-      color: #1e293b;
+    table.data-table th {
       font-weight: bold;
+      color: #000000;
+      background-color: #ffffff;
     }
-    .meta-table td:first-child {
-      width: 25%;
-      font-weight: bold;
-      background-color: #f8fafc;
-      color: #334155;
+    table.data-table td {
+      height: 22pt;
     }
-    .meta-table td:nth-child(2) {
-      width: 25%;
+    .underline-box {
+      border-bottom: 1pt solid #9ca3af;
+      margin-top: 18pt;
+      margin-bottom: 8pt;
+      height: 1pt;
+      width: 100%;
     }
-    .meta-table td:nth-child(3) {
-      width: 25%;
-      font-weight: bold;
-      background-color: #f8fafc;
-      color: #334155;
-    }
-    .meta-table td:nth-child(4) {
-      width: 25%;
-    }
-    .field-hint {
-      color: #94a3b8;
-      font-style: italic;
-    }
-    .footer {
+    .clarification-note {
       margin-top: 24pt;
-      border-top: 1pt solid #e2e8f0;
+      border-top: 1pt solid #e5e7eb;
       padding-top: 8pt;
-      font-size: 8.5pt;
-      color: #94a3b8;
-      text-align: center;
+      font-size: 9pt;
+      color: #6b7280;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
 
-  <h1>Employee Leave Handover Note</h1>
-  <div class="subtitle">Official handover documentation for tasks, responsibilities, and key contacts during planned leave.</div>
+  <!-- Top Header with Tradevu Logo -->
+  <table class="header-table">
+    <tr>
+      <td></td>
+      <td class="logo-td">
+        <div class="brand-logo">
+          <span>&#x29C9;</span> Tradevu
+        </div>
+      </td>
+    </tr>
+  </table>
 
-  <div class="instructions">
-    <strong>Instructions for the Employee:</strong> Complete this handover form before commencing your leave. Share and review this document with your designated Relief Officer / Delegate and Line Manager. Upload the completed document or summarize key points in the Leave Request form.
-  </div>
+  <!-- Document Title -->
+  <h1 class="doc-title">Leave Handover Note</h1>
 
-  <h2>1. General Information</h2>
+  <!-- Metadata Header Fields -->
   <table class="meta-table">
     <tr>
-      <td>Employee Name:</td>
-      <td><span class="field-hint">[Your Full Name]</span></td>
-      <td>Job Title / Role:</td>
-      <td><span class="field-hint">[Your Job Title]</span></td>
+      <td style="width: 60%;"><span class="meta-label">Team Member’s Name:</span></td>
+      <td style="width: 40%;"><span class="meta-label">Team:</span></td>
     </tr>
     <tr>
-      <td>Department / Team:</td>
-      <td><span class="field-hint">[Department Name]</span></td>
-      <td>Line Manager / Supervisor:</td>
-      <td><span class="field-hint">[Manager Name]</span></td>
+      <td colspan="2"><span class="meta-label">Leave Period:</span></td>
     </tr>
     <tr>
-      <td>Leave Start Date:</td>
-      <td><span class="field-hint">[DD/MM/YYYY]</span></td>
-      <td>Leave End Date:</td>
-      <td><span class="field-hint">[DD/MM/YYYY]</span></td>
+      <td colspan="2"><span class="meta-label">Resumption Date:</span></td>
     </tr>
     <tr>
-      <td>Total Working Days:</td>
-      <td><span class="field-hint">[Number of Days]</span></td>
-      <td>Date of Return to Work:</td>
-      <td><span class="field-hint">[DD/MM/YYYY]</span></td>
-    </tr>
-    <tr>
-      <td>Relief Officer / Delegate:</td>
-      <td><span class="field-hint">[Colleague Name]</span></td>
-      <td>Relief Officer Email & Phone:</td>
-      <td><span class="field-hint">[Email / Phone]</span></td>
+      <td colspan="2"><span class="meta-label">Handover Team Member:</span></td>
     </tr>
   </table>
 
-  <h2>2. Routine & Recurring Responsibilities</h2>
-  <table>
+  <!-- Section 1 -->
+  <div class="section-title">1. Ongoing Tasks</div>
+  <p class="section-prompt">What responsibilities are currently in progress that may need to be followed up on?</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
+
+  <!-- Section 2 -->
+  <div class="section-title">2. Pending Tasks & Deadlines</div>
+  <p class="section-prompt">List any important tasks, deliverables, or deadlines that fall during your leave period.</p>
+  <table class="data-table">
     <thead>
       <tr>
-        <th style="width: 25%;">Task / Responsibility</th>
-        <th style="width: 15%;">Frequency</th>
-        <th style="width: 40%;">Instructions & Operating Notes</th>
-        <th style="width: 20%;">Assigned Delegate</th>
+        <th style="width: 28%;">Tasks</th>
+        <th style="width: 18%;">Status</th>
+        <th style="width: 28%;">Action Required</th>
+        <th style="width: 26%;">Ongoing/Deadline</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>Daily standup / operational check</td>
-        <td>Daily</td>
-        <td>Attend morning check-in and provide updates on ongoing items.</td>
-        <td>[Relief Officer]</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
       </tr>
       <tr>
-        <td>Customer / ticket queue monitoring</td>
-        <td>Daily / Continuous</td>
-        <td>Check incoming ticket queue every morning and assign urgency tags.</td>
-        <td>[Relief Officer]</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
       </tr>
       <tr>
-        <td>Weekly team reporting</td>
-        <td>Weekly (Fridays)</td>
-        <td>Compile status report using the standard template in shared drive.</td>
-        <td>[Delegate Name]</td>
-      </tr>
-      <tr>
-        <td><span class="field-hint">[Add other routine tasks...]</span></td>
-        <td></td>
-        <td></td>
-        <td></td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
       </tr>
     </tbody>
   </table>
 
-  <h2>3. Active Projects & Pending Deliverables</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 25%;">Project / Deliverable</th>
-        <th style="width: 20%;">Current Status</th>
-        <th style="width: 35%;">Action Required During Leave Period</th>
-        <th style="width: 20%;">Key Stakeholders</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>Project Alpha</strong></td>
-        <td>In Progress - 70% complete</td>
-        <td>Follow up with QA on test results; unblock staging deployments.</td>
-        <td>Sarah J., David K.</td>
-      </tr>
-      <tr>
-        <td><strong>Client Proposal Beta</strong></td>
-        <td>Under Review</td>
-        <td>Receive final client feedback and acknowledge via email.</td>
-        <td>Client Relations Team</td>
-      </tr>
-      <tr>
-        <td><span class="field-hint">[Add active project...]</span></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Section 3 -->
+  <div class="section-title">3. Important Information</div>
+  <p class="section-prompt">Include any information, links, documents, or contacts the person covering for you may need.</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
 
-  <h2>4. Critical Deadlines & Milestone Dates</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 20%;">Due Date</th>
-        <th style="width: 30%;">Item / Milestone</th>
-        <th style="width: 25%;">Responsible Person</th>
-        <th style="width: 25%;">Contingency / Escalation</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>[DD/MM/YYYY]</td>
-        <td>Monthly compliance report submission</td>
-        <td>[Relief Officer]</td>
-        <td>Escalate to Line Manager if data is delayed</td>
-      </tr>
-      <tr>
-        <td><span class="field-hint">[Date]</span></td>
-        <td><span class="field-hint">[Milestone description]</span></td>
-        <td></td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Section 4 -->
+  <div class="section-title">4. Items Requiring Attention</div>
+  <p class="section-prompt">Are there any issues, decisions, approvals, or follow-ups that the team should be aware of during your absence?</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
 
-  <h2>5. Key External & Internal Contacts</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 25%;">Stakeholder / Contact Name</th>
-        <th style="width: 25%;">Organization / Role</th>
-        <th style="width: 25%;">Email & Phone</th>
-        <th style="width: 25%;">Subject / Reason to Contact</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Jane Doe</td>
-        <td>Partner / Vendor X</td>
-        <td>jane@vendor.com | +1 555-0123</td>
-        <td>Cloud infrastructure support contracts</td>
-      </tr>
-      <tr>
-        <td><span class="field-hint">[Contact Name]</span></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Section 5 -->
+  <div class="section-title">5. Additional Notes</div>
+  <p class="section-prompt">Any other information relevant to ensuring a smooth handover:</p>
+  <div class="underline-box"></div>
 
-  <h2>6. Systems, Shared Drives & Access Delegations</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 30%;">System / Document / Folder</th>
-        <th style="width: 35%;">Location / Link / Path</th>
-        <th style="width: 35%;">Delegation Status & Notes</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Project Documentation Folder</td>
-        <td>Google Drive / Sharepoint: /Teams/Engineering/Alpha</td>
-        <td>Full edit permissions granted to Relief Officer.</td>
-      </tr>
-      <tr>
-        <td>CRM / Ticketing System</td>
-        <td>Dashboard / Queue: Internal Support</td>
-        <td>Out-of-office autoreply configured; tickets routed to Relief Officer.</td>
-      </tr>
-    </tbody>
-  </table>
-  <p style="font-size: 9pt; color: #dc2626; margin-top: 4pt;">
-    * Note: Never share personal login credentials or passwords. Ensure delegations are set up via official administrative roles and shared accounts.
-  </p>
-
-  <h2>7. Emergency Contact Protocol</h2>
-  <table class="meta-table">
-    <tr>
-      <td>May employee be contacted during leave?</td>
-      <td colspan="3">[ ] Only in critical emergencies &nbsp;&nbsp;&nbsp;&nbsp; [ ] Strictly unavailable</td>
-    </tr>
-    <tr>
-      <td>Emergency Contact Channel:</td>
-      <td colspan="3">[Phone Number / Secondary Email]</td>
-    </tr>
-    <tr>
-      <td>Criteria for Contact:</td>
-      <td colspan="3">Severity 1 production issues or unforeseen regulatory requirements where no delegate has authority.</td>
-    </tr>
-  </table>
-
-  <h2>8. Handover Sign-off & Acknowledgement</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 33%;">Handover Prepared By (Employee)</th>
-        <th style="width: 33%;">Handover Received By (Relief Officer)</th>
-        <th style="width: 34%;">Acknowledged By (Line Manager)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="height: 60pt;">
-        <td>
-          <br><br>
-          Signature: ______________________<br>
-          Name: __________________________<br>
-          Date: __________________________
-        </td>
-        <td>
-          <br><br>
-          Signature: ______________________<br>
-          Name: __________________________<br>
-          Date: __________________________
-        </td>
-        <td>
-          <br><br>
-          Signature: ______________________<br>
-          Name: __________________________<br>
-          Date: __________________________
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="footer">
-    TradeVu HR Management System &bull; Employee Leave Handover Form &bull; Confidential &copy; ${new Date().getFullYear()}
+  <div class="clarification-note">
+    You can use the attached template as is or edit it to fit your specific use case.
   </div>
 
 </body>
@@ -355,19 +245,36 @@ export const generateHandoverTemplateHtml = () => {
 };
 
 /**
- * Triggers a browser download of the Word-compatible (.doc) Handover Note Template.
+ * Triggers a browser download of the official Leave Handover Note template PDF
+ * sourced directly from public/Leave Handover Note.pdf.
  */
-export const downloadHandoverTemplate = () => {
-  const content = generateHandoverTemplateHtml();
-  const blob = new Blob(['\ufeff', content], {
-    type: 'application/msword;charset=utf-8',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'Leave_Handover_Note_Template.doc';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export const downloadHandoverTemplate = async () => {
+  const basePath = import.meta.env.BASE_URL || '/';
+  const filePath = `${basePath.endsWith('/') ? basePath : `${basePath}/`}Leave Handover Note.pdf`;
+  const fileName = 'Leave Handover Note.pdf';
+
+  try {
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch handover template: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    console.error('Error downloading handover template PDF, falling back to direct link:', error);
+    const link = document.createElement('a');
+    link.href = filePath;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };

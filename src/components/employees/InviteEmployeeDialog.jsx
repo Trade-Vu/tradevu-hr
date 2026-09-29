@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
-import { employeesApi } from '@/api';
+import { employeesApi, usersApi } from '@/api';
 
 export default function InviteEmployeeDialog({ open, onClose }) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('EMPLOYEE');
+
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.getUsers(),
+    enabled: open,
+    staleTime: 30000,
+  });
+  const usersList = Array.isArray(usersData) ? usersData : usersData?.data || [];
 
   const inviteMutation = useMutation({
     mutationFn: async (payload) => {
@@ -25,6 +33,7 @@ export default function InviteEmployeeDialog({ open, onClose }) {
       toast.success(res?.message || 'Invitation sent successfully!');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       setEmail('');
       setRole('EMPLOYEE');
       onClose();
@@ -39,7 +48,17 @@ export default function InviteEmployeeDialog({ open, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!email) return;
-    inviteMutation.mutate({ email, role });
+    const cleanEmail = email.trim().toLowerCase();
+
+    const existingActiveUser = usersList.find(
+      (u) => u.email?.toLowerCase() === cleanEmail && u.isActive
+    );
+    if (existingActiveUser) {
+      toast.error('This user is already active on the platform and cannot be invited or reinvited.');
+      return;
+    }
+
+    inviteMutation.mutate({ email: cleanEmail, role });
   };
 
   return (

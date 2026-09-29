@@ -235,14 +235,26 @@ export default function LeavePlanDetailsSheet({
             </h5>
 
             <Tabs defaultValue="blocks" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-3 bg-slate-100 p-1 rounded-xl">
-                <TabsTrigger value="blocks" className="text-xs font-medium rounded-lg">
-                  <Layers className="w-3.5 h-3.5 mr-1.5" />
-                  Leave Periods ({dateBlocks.length})
+              <TabsList className="grid w-full grid-cols-2 mb-3 bg-slate-100 p-1 rounded-xl border border-slate-200/70 h-auto">
+                <TabsTrigger
+                  value="blocks"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Leave Periods</span>
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                    {dateBlocks.length}
+                  </span>
                 </TabsTrigger>
-                <TabsTrigger value="all" className="text-xs font-medium rounded-lg">
-                  <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                  All Days ({plannedDates.length})
+                <TabsTrigger
+                  value="all"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>All Days</span>
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                    {plannedDates.length}
+                  </span>
                 </TabsTrigger>
               </TabsList>
 

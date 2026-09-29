@@ -2,21 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { organizationsApi } from '@/api';
-import { useAuth } from '@/lib/AuthContext';
-import { toTitleCase } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Edit, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Briefcase, Layers } from 'lucide-react';
+import ClassificationListManager from './ClassificationListManager';
+
+const DEFAULT_EMPLOYMENT_TYPES = [
+  'PERMANENT',
+  'PROBATIONARY',
+  'CONTRACT',
+  'CONSULTANT',
+];
+
+const DEFAULT_EMPLOYEE_CLASSES = [
+  'INTERN',
+  'TEAM MEMBER',
+  'MID LEVEL TEAM MEMBER',
+  'MID LEVEL MANAGER',
+  'MANAGER',
+  'SENIOR MANAGER',
+  'EXECUTIVE MANAGER',
+];
+
+const OLD_LEGACY_CLASSES = [
+  'PERMANENT',
+  'PROBATIONARY',
+  'CONTRACT',
+  'CONSULTANT',
+  'INTERN',
+  'MANAGERIAL',
+];
 
 export default function SettingsClasses() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [classes, setClasses] = useState([]);
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [className, setClassName] = useState('');
+  const [activeTab, setActiveTab] = useState('types');
+  const [types, setTypes] = useState(DEFAULT_EMPLOYMENT_TYPES);
+  const [classes, setClasses] = useState(DEFAULT_EMPLOYEE_CLASSES);
 
   const { data, isLoading } = useQuery({
     queryKey: ['organization', 'me'],
@@ -27,159 +47,149 @@ export default function SettingsClasses() {
   });
 
   useEffect(() => {
-    if (data?.employeeClasses && Array.isArray(data.employeeClasses) && data.employeeClasses.length > 0) {
-      setClasses(data.employeeClasses.map(c => c.toUpperCase()));
-    } else if (data && (!data.employeeClasses || data.employeeClasses.length === 0)) {
-      // Default classes if null or empty
-      setClasses(["PERMANENT", "PROBATIONARY", "CONTRACT", "CONSULTANT", "INTERN", "MANAGERIAL"]);
+    if (!data) return;
+
+    // Load Employment Types
+    if (Array.isArray(data.employmentTypes) && data.employmentTypes.length > 0) {
+      setTypes(data.employmentTypes.map((t) => t.toUpperCase()));
+    } else {
+      setTypes(DEFAULT_EMPLOYMENT_TYPES);
+    }
+
+    // Load Employment Classes
+    if (Array.isArray(data.employeeClasses) && data.employeeClasses.length > 0) {
+      const isLegacyDefault =
+        data.employeeClasses.length === OLD_LEGACY_CLASSES.length &&
+        data.employeeClasses.every((c, i) => c.toUpperCase() === OLD_LEGACY_CLASSES[i]);
+
+      if (isLegacyDefault) {
+        setClasses(DEFAULT_EMPLOYEE_CLASSES);
+      } else {
+        setClasses(data.employeeClasses.map((c) => c.toUpperCase()));
+      }
+    } else {
+      setClasses(DEFAULT_EMPLOYEE_CLASSES);
     }
   }, [data]);
 
-  const updateMutation = useMutation({
+  const updateTypesMutation = useMutation({
+    mutationFn: async (newTypes) => {
+      const upperTypes = newTypes.map((t) => t.toUpperCase());
+      return await organizationsApi.updateMyOrganization({ employmentTypes: upperTypes });
+    },
+    onSuccess: () => {
+      toast.success('Employment types updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['organization', 'me'] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employment types');
+    },
+  });
+
+  const updateClassesMutation = useMutation({
     mutationFn: async (newClasses) => {
-      const upperClasses = newClasses.map(c => c.toUpperCase());
+      const upperClasses = newClasses.map((c) => c.toUpperCase());
       return await organizationsApi.updateMyOrganization({ employeeClasses: upperClasses });
     },
     onSuccess: () => {
-      toast.success('Employee classes updated successfully');
+      toast.success('Employment classes updated successfully');
       queryClient.invalidateQueries({ queryKey: ['organization', 'me'] });
-      setIsAdding(false);
-      setEditingIndex(null);
-      setClassName('');
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employee classes');
-    }
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update employment classes');
+    },
   });
 
-  const handleSave = () => {
-    const trimmed = className.trim();
-    if (!trimmed) {
-      toast.error('Class name cannot be empty');
-      return;
-    }
-
-    const upperTrimmed = trimmed.toUpperCase();
-    let newClasses = [...classes];
-    if (editingIndex !== null) {
-      if (newClasses.some((c, i) => i !== editingIndex && c.toUpperCase() === upperTrimmed)) {
-        toast.error('Class already exists');
-        return;
-      }
-      newClasses[editingIndex] = upperTrimmed;
-    } else {
-      if (newClasses.some(c => c.toUpperCase() === upperTrimmed)) {
-        toast.error('Class already exists');
-        return;
-      }
-      newClasses.push(upperTrimmed);
-    }
-
-    updateMutation.mutate(newClasses);
+  const handleSaveTypes = (newTypes, callback) => {
+    setTypes(newTypes);
+    updateTypesMutation.mutate(newTypes, {
+      onSuccess: () => {
+        callback?.();
+      },
+    });
   };
 
-  const handleDelete = (index) => {
-    const newClasses = classes.filter((_, i) => i !== index);
-    updateMutation.mutate(newClasses);
-  };
-
-  const startEdit = (index) => {
-    setClassName(toTitleCase(classes[index]));
-    setEditingIndex(index);
-    setIsAdding(true);
-  };
-
-  const cancelEdit = () => {
-    setIsAdding(false);
-    setEditingIndex(null);
-    setClassName('');
+  const handleSaveClasses = (newClasses, callback) => {
+    setClasses(newClasses);
+    updateClassesMutation.mutate(newClasses, {
+      onSuccess: () => {
+        callback?.();
+      },
+    });
   };
 
   if (isLoading) {
-    return <div className="p-8">Loading classes...</div>;
+    return (
+      <div className="p-12 text-center text-slate-500">
+        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent mb-2" />
+        <p className="text-sm">Loading employee classifications...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800">Employee Classes</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage employee classifications (e.g., Permanent, Contract).</p>
-        </div>
-        <Button onClick={() => { setIsAdding(true); setClassName(''); setEditingIndex(null); }} className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" /> Add Class
-        </Button>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="border-b border-slate-200 pb-5">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+          Employee Classifications
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Manage employment agreements (Employment Type) and organizational hierarchies (Employment Class).
+        </p>
       </div>
 
-      {isAdding && (
-        <Card className="border-blue-100 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-lg">{editingIndex !== null ? 'Edit Class' : 'Add New Class'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 items-end">
-              <div className="space-y-2 flex-1">
-                <label className="text-sm font-medium text-slate-700">Class Name</label>
-                <Input 
-                  placeholder="e.g. Intern" 
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                />
-              </div>
-              <Button 
-                onClick={handleSave} 
-                disabled={updateMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700 w-24"
-              >
-                {updateMutation.isPending ? 'Saving...' : 'Save'}
-              </Button>
-              <Button variant="outline" onClick={cancelEdit}>
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {classes.map((cls, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70">
+          <TabsTrigger
+            value="types"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
           >
-            <Card className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-slate-800 text-lg">{toTitleCase(cls)}</h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => startEdit(idx)} className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600">
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(idx)} className="h-8 w-8 p-0 text-slate-400 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-      
-      {classes.length === 0 && !isAdding && (
-        <div className="text-center p-12 bg-white rounded-xl border border-slate-200 border-dashed">
-          <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Plus className="w-6 h-6 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-1">No classes found</h3>
-          <p className="text-slate-500 mb-4 max-w-sm mx-auto">Create employee classes to categorize your workforce.</p>
-          <Button onClick={() => setIsAdding(true)} variant="outline">Create First Class</Button>
-        </div>
-      )}
+            <Briefcase className="w-4 h-4" />
+            <span>Employment Type</span>
+            <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              {types.length}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="classes"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+          >
+            <Layers className="w-4 h-4" />
+            <span>Employment Class</span>
+            <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              {classes.length}
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="types" className="focus-visible:outline-none">
+          <ClassificationListManager
+            title="Employment Types"
+            itemLabel="Employment Type"
+            description="Categorize how individuals are engaged with the organization (e.g., Permanent, Probationary, Contract, Consultant)."
+            icon={Briefcase}
+            items={types}
+            onSave={handleSaveTypes}
+            isSaving={updateTypesMutation.isPending}
+            defaultItems={DEFAULT_EMPLOYMENT_TYPES}
+            placeholder="e.g. Permanent"
+          />
+        </TabsContent>
+
+        <TabsContent value="classes" className="focus-visible:outline-none">
+          <ClassificationListManager
+            title="Employment Classes"
+            itemLabel="Employment Class"
+            description="Establish seniority ranks and workforce tiers (e.g., Intern, Team Member, Manager, Senior Manager, Executive Manager)."
+            icon={Layers}
+            items={classes}
+            onSave={handleSaveClasses}
+            isSaving={updateClassesMutation.isPending}
+            defaultItems={DEFAULT_EMPLOYEE_CLASSES}
+            placeholder="e.g. Mid Level Manager"
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
