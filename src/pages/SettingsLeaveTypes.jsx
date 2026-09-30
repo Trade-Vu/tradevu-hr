@@ -189,12 +189,12 @@ export default function SettingsLeaveTypes() {
     if (Array.isArray(formData.daysExceptions) && formData.daysExceptions.length > 0) {
       const invalidEx = formData.daysExceptions.find((ex) => {
         const d = Number(ex.days);
-        return isNaN(d) || d >= defaultDaysVal || d < 0;
+        return isNaN(d) || d < 0;
       });
       if (invalidEx) {
         const targetLabel = invalidEx.subjectName || invalidEx.subjectId || invalidEx.category || 'exception';
         return toast.error(
-          `Exception days for "${targetLabel}" (${invalidEx.days ?? 0}) must be less than default days (${defaultDaysVal}) and cannot be negative.`
+          `Exception days for "${targetLabel}" cannot be negative.`
         );
       }
     }
