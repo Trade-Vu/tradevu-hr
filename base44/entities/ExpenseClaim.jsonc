@@ -1,0 +1,89 @@
+{
+  "name": "ExpenseClaim",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee submitting claim"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    },
+    "expense_type": {
+      "type": "string",
+      "enum": [
+        "travel",
+        "meals",
+        "accommodation",
+        "supplies",
+        "equipment",
+        "training",
+        "other"
+      ],
+      "description": "Type of expense"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Claim amount"
+    },
+    "currency": {
+      "type": "string",
+      "default": "SAR",
+      "description": "Currency"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expense date"
+    },
+    "description": {
+      "type": "string",
+      "description": "Expense description"
+    },
+    "receipt_url": {
+      "type": "string",
+      "description": "Receipt/invoice file URL"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "reimbursed"
+      ],
+      "default": "pending",
+      "description": "Claim status"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Who reviewed the claim"
+    },
+    "reviewed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Review date"
+    },
+    "reimbursement_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date reimbursed"
+    },
+    "rejection_reason": {
+      "type": "string",
+      "description": "Reason for rejection"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "employee_id",
+    "expense_type",
+    "amount",
+    "date",
+    "description"
+  ]
+}

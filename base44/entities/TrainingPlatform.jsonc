@@ -1,0 +1,43 @@
+{
+  "name": "TrainingPlatform",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Platform/Application name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Platform description"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "technical",
+        "soft_skills",
+        "compliance",
+        "product",
+        "tools",
+        "leadership"
+      ],
+      "description": "Training category"
+    },
+    "thumbnail_url": {
+      "type": "string",
+      "description": "Platform thumbnail image"
+    },
+    "total_duration_minutes": {
+      "type": "number",
+      "description": "Total training duration in minutes"
+    },
+    "is_mandatory": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this training is mandatory"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ]
+}

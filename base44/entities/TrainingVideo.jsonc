@@ -1,0 +1,39 @@
+{
+  "name": "TrainingVideo",
+  "type": "object",
+  "properties": {
+    "platform_id": {
+      "type": "string",
+      "description": "Training platform ID"
+    },
+    "title": {
+      "type": "string",
+      "description": "Video title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Video description"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "Video URL (YouTube, Vimeo, or direct link)"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "description": "Video duration in minutes"
+    },
+    "order": {
+      "type": "number",
+      "description": "Display order in the platform"
+    },
+    "transcript": {
+      "type": "string",
+      "description": "Video transcript or notes"
+    }
+  },
+  "required": [
+    "platform_id",
+    "title",
+    "video_url"
+  ]
+}

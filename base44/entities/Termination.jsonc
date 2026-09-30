@@ -1,0 +1,139 @@
+{
+  "name": "Termination",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Employee being terminated"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name for reference"
+    },
+    "termination_type": {
+      "type": "string",
+      "enum": [
+        "resignation",
+        "termination",
+        "layoff",
+        "retirement",
+        "contract_end",
+        "mutual_agreement"
+      ],
+      "description": "Type of termination"
+    },
+    "termination_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last working day"
+    },
+    "notice_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date notice was given"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for termination"
+    },
+    "initiated_by": {
+      "type": "string",
+      "enum": [
+        "employee",
+        "employer"
+      ],
+      "description": "Who initiated the termination"
+    },
+    "eligible_for_rehire": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether employee is eligible for rehire"
+    },
+    "final_settlement": {
+      "type": "object",
+      "description": "Final settlement details",
+      "properties": {
+        "final_salary": {
+          "type": "number"
+        },
+        "unused_leave_days": {
+          "type": "number"
+        },
+        "leave_encashment": {
+          "type": "number"
+        },
+        "end_of_service_benefit": {
+          "type": "number"
+        },
+        "other_payments": {
+          "type": "number"
+        },
+        "deductions": {
+          "type": "number"
+        },
+        "total_amount": {
+          "type": "number"
+        }
+      }
+    },
+    "exit_interview_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether exit interview was conducted"
+    },
+    "exit_interview_notes": {
+      "type": "string",
+      "description": "Exit interview feedback"
+    },
+    "assets_returned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether all company assets were returned"
+    },
+    "clearance_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed"
+      ],
+      "default": "pending",
+      "description": "Exit clearance status"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "pending_approval",
+        "approved",
+        "completed"
+      ],
+      "default": "draft",
+      "description": "Termination process status"
+    },
+    "processed_by": {
+      "type": "string",
+      "description": "Email of HR person processing termination"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Email of approver"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date termination was approved"
+    }
+  },
+  "required": [
+    "organization_id",
+    "employee_id",
+    "termination_type",
+    "termination_date",
+    "reason"
+  ]
+}

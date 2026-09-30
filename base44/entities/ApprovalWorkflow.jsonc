@@ -1,0 +1,147 @@
+{
+  "name": "ApprovalWorkflow",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization ID"
+    },
+    "workflow_name": {
+      "type": "string",
+      "description": "Workflow name"
+    },
+    "workflow_type": {
+      "type": "string",
+      "enum": [
+        "leave",
+        "expense",
+        "loan",
+        "payroll",
+        "recruitment",
+        "other"
+      ],
+      "description": "Type of workflow"
+    },
+    "approval_levels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "number"
+          },
+          "level_name": {
+            "type": "string"
+          },
+          "approver_role": {
+            "type": "string"
+          },
+          "approver_emails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_mandatory": {
+            "type": "boolean"
+          },
+          "auto_approve_threshold": {
+            "type": "number"
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "logic": {
+                "type": "string",
+                "enum": [
+                  "AND",
+                  "OR"
+                ]
+              },
+              "rules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "operator": {
+                      "type": "string",
+                      "enum": [
+                        "equals",
+                        "not_equals",
+                        "greater_than",
+                        "less_than",
+                        "contains"
+                      ]
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "delay_hours": {
+            "type": "number",
+            "description": "Delay before this level triggers"
+          },
+          "trigger_workflows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs of workflows to trigger after approval"
+          },
+          "create_tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "assigned_to": {
+                  "type": "string"
+                },
+                "due_days": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Approval levels hierarchy"
+    },
+    "use_hierarchy": {
+      "type": "boolean",
+      "default": true,
+      "description": "Use org chart hierarchy for approvals"
+    },
+    "ai_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable AI workflow optimization"
+    },
+    "ai_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "AI-suggested workflow improvements"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether workflow is active"
+    }
+  },
+  "required": [
+    "organization_id",
+    "workflow_name",
+    "workflow_type"
+  ]
+}

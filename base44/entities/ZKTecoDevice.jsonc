@@ -1,0 +1,65 @@
+{
+  "name": "ZKTecoDevice",
+  "type": "object",
+  "properties": {
+    "device_name": {
+      "type": "string",
+      "description": "Device identifier name"
+    },
+    "device_serial": {
+      "type": "string",
+      "description": "Device serial number"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "Device IP address"
+    },
+    "port": {
+      "type": "number",
+      "default": 4370,
+      "description": "Device port"
+    },
+    "location": {
+      "type": "string",
+      "description": "Physical location (branch/department)"
+    },
+    "department": {
+      "type": "string",
+      "description": "Associated department"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "maintenance"
+      ],
+      "default": "active",
+      "description": "Device status"
+    },
+    "last_sync": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last successful sync timestamp"
+    },
+    "auto_sync_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable automatic syncing"
+    },
+    "sync_interval_minutes": {
+      "type": "number",
+      "default": 60,
+      "description": "Auto sync interval"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "device_name",
+    "ip_address",
+    "location"
+  ]
+}
