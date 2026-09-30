@@ -151,8 +151,14 @@ export default function Login() {
             </Button>
           </form>
           
-          <div className="text-center pt-6">
-            <p className="text-sm text-slate-500">
+          <div className="text-center pt-6 space-y-3">
+            <p className="text-sm text-slate-600">
+              Don't have an account?{' '}
+              <Link to={PAGE_ROUTES.REGISTER} className="font-semibold text-slate-900 hover:underline">
+                Sign up
+              </Link>
+            </p>
+            <p className="text-xs text-slate-500">
               Need help? <a href="#" className="font-medium text-slate-900 hover:underline">Contact IT Support</a>
             </p>
           </div>
