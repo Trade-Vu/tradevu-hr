@@ -6,6 +6,11 @@ import { leaveApi } from "@/api";
 import { extractErrorMessage } from "@/lib/utils";
 import { calculateWorkingDays } from "@/lib/leaveDays";
 import { uploadToCloudinary } from "@/utils/cloudinary";
+import {
+  findApplicantEmployee,
+  filterApplicableLeaveTypes,
+  buildLeaveRequestPayload,
+} from "./leaveEligibilityUtils";
 
 export function useLeaveOverviewForm({
   user,
@@ -21,7 +26,7 @@ export function useLeaveOverviewForm({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [formData, setFormData] = useState({
     employee_email: user?.email || "",
-    leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : "",
+    leave_type: "",
     start_date: "",
     end_date: "",
     reason: "",
@@ -41,18 +46,37 @@ export function useLeaveOverviewForm({
     }
   }, [user]);
 
-  useEffect(() => {
-    if (leaveTypes.length > 0 && !formData.leave_type) {
-      setFormData((prev) => ({ ...prev, leave_type: leaveTypes[0].id }));
-    }
-  }, [leaveTypes]);
+  // Determine current applicant employee object
+  const applicantEmployee = useMemo(() => {
+    const targetEmail = isAdmin && formData.employee_email ? formData.employee_email : user?.email;
+    return findApplicantEmployee(employees, targetEmail, user);
+  }, [isAdmin, formData.employee_email, user, employees]);
 
-  const selectedLeaveTypeObj = leaveTypes.find((t) => t.id === formData.leave_type);
+  // Dynamically filter leave types applicable to applicant's employee class & type
+  const availableLeaveTypes = useMemo(() => {
+    return filterApplicableLeaveTypes(leaveTypes, applicantEmployee);
+  }, [leaveTypes, applicantEmployee]);
+
+  // Select first available leave type if current is empty or not in available list
+  useEffect(() => {
+    if (availableLeaveTypes.length > 0) {
+      const isValidCurrent = availableLeaveTypes.some((t) => (t.id || t._id) === formData.leave_type);
+      if (!formData.leave_type || !isValidCurrent) {
+        setFormData((prev) => ({ ...prev, leave_type: availableLeaveTypes[0].id || availableLeaveTypes[0]._id }));
+      }
+    }
+  }, [availableLeaveTypes]);
+
+  const selectedLeaveTypeObj = useMemo(() => {
+    return leaveTypes.find((t) => (t.id || t._id) === formData.leave_type);
+  }, [leaveTypes, formData.leave_type]);
+
   const hasNoticePeriod = !isPastLeave && Boolean(
     selectedLeaveTypeObj?.hasNoticePeriod ||
     (selectedLeaveTypeObj?.noticePeriodDays > 0) ||
     (selectedLeaveTypeObj?.noticeDaysRequired > 0)
   );
+
   const noticeDays = hasNoticePeriod
     ? (selectedLeaveTypeObj.noticePeriodDays || selectedLeaveTypeObj.noticeDaysRequired || 0)
     : 0;
@@ -66,7 +90,7 @@ export function useLeaveOverviewForm({
 
   const calculateDays = (start, end) => calculateWorkingDays(start, end, publicHolidays);
 
-  // If selected dates are before minAllowedDate when switching leave types, adjust them
+  // If selected dates are before minAllowedDate, adjust them
   useEffect(() => {
     if (!isPastLeave && minAllowedDate) {
       if (formData.start_date && formData.start_date < minAllowedDate) {
@@ -100,6 +124,10 @@ export function useLeaveOverviewForm({
   const handleDateChange = (field, value) => {
     if (field === "start_date" && minAllowedDate && value < minAllowedDate) {
       toast.error(`Start date cannot be earlier than ${minAllowedDate} (${noticeDays} day(s) notice required).`);
+      return;
+    }
+    if (field === "end_date" && minAllowedDate && value < minAllowedDate) {
+      toast.error(`End date cannot be earlier than ${minAllowedDate} (${noticeDays} day(s) notice required).`);
       return;
     }
     setFormData((prev) => {
@@ -168,25 +196,7 @@ export function useLeaveOverviewForm({
   };
 
   const createLeaveMutation = useMutation({
-    mutationFn: async (data) => {
-      const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
-      const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
-
-      return leaveApi.createRequest({
-        employeeId: isAdmin ? employees.find((e) => e.email === data.employee_email)?.id : undefined,
-        leaveTypeId: data.leave_type,
-        startDate: new Date(start).toISOString(),
-        endDate: new Date(end).toISOString(),
-        reason: data.reason,
-        attachmentUrl: data.attachment_url,
-        handoverNote: data.handover_note,
-        handoverNoteUrl: data.handover_note_url,
-        reliefOfficerId: data.relief_officer_id || undefined,
-        isHalfDay: !!data.isHalfDay,
-        isPastLeave: false,
-        selectedDates: data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates : undefined,
-      });
-    },
+    mutationFn: (data) => leaveApi.createRequest(buildLeaveRequestPayload(data, false, isAdmin, employees)),
     onSuccess: () => {
       toast.success("Leave request submitted successfully.");
       if (onSuccess) onSuccess();
@@ -199,25 +209,7 @@ export function useLeaveOverviewForm({
   });
 
   const logPastLeaveMutation = useMutation({
-    mutationFn: async (data) => {
-      const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
-      const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
-
-      return leaveApi.createRequest({
-        employeeId: isAdmin ? employees.find((e) => e.email === data.employee_email)?.id : undefined,
-        leaveTypeId: data.leave_type,
-        startDate: new Date(start).toISOString(),
-        endDate: new Date(end).toISOString(),
-        reason: data.reason,
-        attachmentUrl: data.attachment_url,
-        handoverNote: data.handover_note,
-        handoverNoteUrl: data.handover_note_url,
-        reliefOfficerId: data.relief_officer_id || undefined,
-        isHalfDay: !!data.isHalfDay,
-        isPastLeave: true,
-        selectedDates: data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates : undefined,
-      });
-    },
+    mutationFn: (data) => leaveApi.createRequest(buildLeaveRequestPayload(data, true, isAdmin, employees)),
     onSuccess: () => {
       toast.success("Past leave successfully logged.");
       if (onSuccess) onSuccess();
@@ -248,15 +240,13 @@ export function useLeaveOverviewForm({
     setUploadingFile(false);
   };
 
-  const targetApplicantEmail = isAdmin && formData.employee_email ? formData.employee_email : user?.email;
-  const applicantEmployee = employees.find((e) => e.email === targetApplicantEmail) || user?.employeeId;
   const applicantDeptId = applicantEmployee?.departmentId?._id || applicantEmployee?.departmentId?.id || applicantEmployee?.departmentId;
   const applicantDeptName = applicantEmployee?.departmentId?.name || applicantEmployee?.department?.name || "";
 
   const departmentColleagues = employees.filter((e) => {
     const empId = e.id || e._id;
     const appId = applicantEmployee?.id || applicantEmployee?._id;
-    if (empId === appId || e.email === targetApplicantEmail) return false;
+    if (empId === appId || (e.email || "").toLowerCase() === (applicantEmployee?.email || "").toLowerCase()) return false;
     const empDeptId = e.departmentId?._id || e.departmentId?.id || e.departmentId;
     if (!applicantDeptId || !empDeptId) return false;
     return empDeptId.toString() === applicantDeptId.toString();
@@ -267,15 +257,18 @@ export function useLeaveOverviewForm({
     : employees.filter((e) => {
         const empId = e.id || e._id;
         const appId = applicantEmployee?.id || applicantEmployee?._id;
-        return empId !== appId && e.email !== targetApplicantEmail;
+        return empId !== appId && (e.email || "").toLowerCase() !== (applicantEmployee?.email || "").toLowerCase();
       });
 
   const isHandoverCompulsory = Boolean(
-    selectedLeaveTypeObj?.requiresHandover ||
-    selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY"
+    (selectedLeaveTypeObj?.requiresHandover ||
+    selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY") &&
+    selectedLeaveTypeObj?.handoverRequirement !== "NONE"
   );
+  const isHandoverHidden = selectedLeaveTypeObj?.handoverRequirement === "NONE";
 
   const requiresAttachment = selectedLeaveTypeObj && (
+    selectedLeaveTypeObj.requiresAttachment ||
     selectedLeaveTypeObj.name === "Study Leave" || 
     (selectedLeaveTypeObj.name === "Sick Leave" && formData.total_days > 2)
   );
@@ -374,5 +367,7 @@ export function useLeaveOverviewForm({
     removeSelectedDate,
     handleFileUpload,
     handleSubmit,
+    availableLeaveTypes,
+    applicantEmployee,
   };
 }

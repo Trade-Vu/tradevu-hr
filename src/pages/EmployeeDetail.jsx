@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, Edit, Save, X } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Mail } from "lucide-react";
 import { toast } from "sonner";
 
-import { documentsApi } from "@/api";
+import { documentsApi, employeesApi } from "@/api";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
+import { isOnboardedStatus } from "@/lib/employmentStatus";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,34 +24,21 @@ import { useEmployeeDetailData } from "@/components/employee-detail/useEmployeeD
 import EmployeeHeader from "@/components/employee-detail/EmployeeHeader";
 import ProfileApprovalBanner from "@/components/employee-detail/ProfileApprovalBanner";
 import EmployeeDetailDialogs from "@/components/employee-detail/EmployeeDetailDialogs";
-
-import PersonalTab from "@/components/employee-detail/tabs/PersonalTab";
-import JobDataTab from "@/components/employee-detail/tabs/JobDataTab";
-import ContractsTab from "@/components/employee-detail/tabs/ContractsTab";
-import FinancialTab from "@/components/employee-detail/tabs/FinancialTab";
-import AttendanceTab from "@/components/employee-detail/tabs/AttendanceTab";
-import DocumentsTab from "@/components/employee-detail/tabs/DocumentsTab";
-import BenefitsTab from "@/components/employee-detail/tabs/BenefitsTab";
-import AssetsTab from "@/components/employee-detail/tabs/AssetsTab";
-import PerformanceTab from "@/components/employee-detail/tabs/PerformanceTab";
-import NotesTab from "@/components/employee-detail/tabs/NotesTab";
-import OnboardingTab from "@/components/employee-detail/tabs/OnboardingTab";
+import EmployeeDetailTabContent from "@/components/employee-detail/EmployeeDetailTabContent";
 
 export { isEmployeeEligibleForHrAdmin };
 
 export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose }) {
-  const { employeeId: paramId } = useParams();
+  const { id: routeId } = useParams();
+  const employeeId = employeeIdProp || routeId;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const urlParams = new URLSearchParams(window.location.search);
-  const employeeId = employeeIdProp || employeeDetail?.id || employeeDetail?._id || paramId || urlParams.get('id');
-  const isModal = Boolean(employeeIdProp || employeeDetail);
+  const { user } = useAuth();
+  const isModal = Boolean(employeeIdProp);
 
   const [activeSection, setActiveSection] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
-  const { user } = useAuth();
-
   const [activeDialog, setActiveDialog] = useState(null);
   const [selectedHrAdminEmpId, setSelectedHrAdminEmpId] = useState('');
   const [selectedDocHistory, setSelectedDocHistory] = useState(null);
@@ -63,15 +51,15 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     departments,
     employeeClasses,
     employees,
-    shifts,
-    assets,
-    documents,
-    leaveTypes,
-    employeeLeaveBalances,
-    leaveRequests,
     attendance,
-    evaluations,
+    shifts,
+    leaveRequests,
+    employeeLeaveBalances,
     salaryHistory,
+    evaluations,
+    documents,
+    assets,
+    leaveTypes,
     updateEmployeeMutation,
     requestCompensationUpdateMutation,
     suspendEmployeeMutation,
@@ -102,11 +90,39 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     if (employee && !isEditing) setEditData(employee);
   }, [employee, isEditing]);
 
-  const canApprove = ['SUPER_ADMIN', 'HR_ADMIN', 'admin', 'CEO'].includes(user?.role) || user?.isOrgOwner || user?.is_organization_owner;
+  const canApprove = ['SUPER_ADMIN', 'HR_ADMIN', 'admin', 'CEO'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
   const isSuperAdmin = user?.role === 'SUPER_ADMIN' || Boolean(user?.isOrgOwner || user?.is_organization_owner);
   const isDraft = Boolean(employee && (employee.employment_status === 'DRAFT' || employee.employmentStatus === 'DRAFT'));
   const isPendingApproval = Boolean(employee && (employee.employment_status === 'PENDING_APPROVAL' || employee.employmentStatus === 'PENDING_APPROVAL'));
   const isPendingApprovalOrDraft = isDraft || isPendingApproval;
+  const isNotOnboarded = Boolean(employee && (!isOnboardedStatus(employee.employment_status || employee.employmentStatus) || employee.onboarding_status !== 'completed' || employee.onboardingStatus !== 'completed'));
+  const canResendInvite = (['SUPER_ADMIN', 'HR_ADMIN', 'admin'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner)) && isNotOnboarded;
+
+  const resendInviteMutation = useMutation({
+    mutationFn: () => employeesApi.resendInvite(employee.id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      if (data?.emailSent === false && data?.inviteUrl) {
+        toast.warning(data.message, {
+          action: {
+            label: 'Copy Link',
+            onClick: () => {
+              navigator.clipboard?.writeText(data.inviteUrl);
+              toast.success('Invite link copied to clipboard!');
+            },
+          },
+          duration: 10000,
+        });
+      } else {
+        toast.success(data?.message || `Invitation resent successfully to ${employee.email}!`);
+      }
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to resend invitation.');
+    },
+  });
 
   const navigateToJobWithStatus = (status) => {
     setActiveSection('job');
@@ -163,112 +179,6 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     );
   }
 
-  const renderTabContent = () => {
-    switch (activeSection) {
-      case 'personal':
-        return (
-          <PersonalTab
-            employee={employee}
-            employeeId={employeeId}
-            isEditing={isEditing}
-            editData={editData}
-            setEditData={setEditData}
-            onNavigateToJobWithStatus={navigateToJobWithStatus}
-            onSendEmail={(email) => { window.location.href = `mailto:${email}`; }}
-            onSendSMS={(phone) => { window.location.href = `sms:${phone}`; }}
-            onSendWhatsApp={(phone) => { window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`, '_blank'); }}
-          />
-        );
-      case 'job':
-        return (
-          <JobDataTab
-            employee={employee}
-            isEditing={isEditing}
-            editData={editData}
-            setEditData={setEditData}
-            departments={departments}
-            employeeClasses={employeeClasses}
-            employees={employees}
-            isSuperAdmin={isSuperAdmin}
-            onReassignHrAdmin={handleOpenReassignDialog}
-          />
-        );
-      case 'contracts':
-        return (
-          <ContractsTab
-            employee={employee}
-            isEditing={isEditing}
-            editData={editData}
-            setEditData={setEditData}
-            shifts={shifts}
-            employeeLeaveBalances={employeeLeaveBalances}
-            leaveTypes={leaveTypes}
-            leaveRequests={leaveRequests}
-          />
-        );
-      case 'financial':
-        return (
-          <FinancialTab
-            employee={employee}
-            isEditing={isEditing}
-            editData={editData}
-            setEditData={setEditData}
-            user={user}
-            salaryHistory={salaryHistory}
-            onRequestCompensationUpdate={(formData, cb) => requestCompensationUpdateMutation.mutate(formData, { onSuccess: cb })}
-            isRequestingComp={requestCompensationUpdateMutation.isPending}
-          />
-        );
-      case 'attendance':
-        return <AttendanceTab employee={employee} attendance={attendance} />;
-      case 'documents':
-        return (
-          <DocumentsTab
-            documents={documents}
-            canApprove={canApprove}
-            onCreateDocument={(data, cb) => createDocumentMutation.mutate(data, { onSuccess: cb })}
-            isCreatingDoc={createDocumentMutation.isPending}
-            onApproveDocument={(id) => approveDocumentMutation.mutate(id)}
-            isApprovingDoc={approveDocumentMutation.isPending}
-            onRejectDocument={(data) => rejectDocumentMutation.mutate(data)}
-            isRejectingDoc={rejectDocumentMutation.isPending}
-            onReplaceDocument={(data, cb) => replaceDocumentVersionMutation.mutate(data, { onSuccess: cb })}
-            isReplacingDoc={replaceDocumentVersionMutation.isPending}
-            onDeleteDocument={(id) => deleteDocumentMutation.mutate(id)}
-            isDeletingDoc={deleteDocumentMutation.isPending}
-            documentHistory={documentHistory}
-            selectedDocHistory={selectedDocHistory}
-            setSelectedDocHistory={setSelectedDocHistory}
-          />
-        );
-      case 'benefits':
-        return <BenefitsTab employee={employee} isEditing={isEditing} editData={editData} setEditData={setEditData} />;
-      case 'assets':
-        return (
-          <AssetsTab
-            employee={employee}
-            assets={assets}
-            onUnassignAsset={(id, cb) => unassignAssetMutation.mutate(id, { onSuccess: cb })}
-            isUnassigning={unassignAssetMutation.isPending}
-          />
-        );
-      case 'performance':
-        return <PerformanceTab evaluations={evaluations} />;
-      case 'notes':
-        return <NotesTab employee={employee} isEditing={isEditing} editData={editData} setEditData={setEditData} />;
-      case 'onboarding':
-        return (
-          <OnboardingTab
-            employee={employee}
-            employeeId={employeeId}
-            onNavigateToJobWithStatus={navigateToJobWithStatus}
-          />
-        );
-      default:
-        return <div className="py-12 text-center text-slate-500">Section under development</div>;
-    }
-  };
-
   const cardContent = (
     <Card className={`border-slate-200/60 overflow-hidden ${isModal ? 'shadow-none border-0 h-full rounded-none flex flex-col bg-white flex-1 min-h-0' : 'shadow-xl shadow-slate-200/40 rounded-2xl bg-white/70 backdrop-blur-md'}`}>
       <EmployeeHeader
@@ -280,6 +190,8 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         onSuspend={() => setActiveDialog('suspend')}
         onProbation={() => setActiveDialog('probation')}
         onOffboard={() => setActiveDialog('offboard')}
+        onResendInvite={() => resendInviteMutation.mutate()}
+        isResendingInvite={resendInviteMutation.isPending}
       />
 
       <div className={`flex ${isModal ? 'flex-1 overflow-hidden' : ''} bg-white`}>
@@ -311,6 +223,18 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               {menuItems.find(m => m.id === activeSection)?.label}
             </h2>
             <div className="flex items-center gap-2">
+              {canResendInvite && !isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => resendInviteMutation.mutate()}
+                  disabled={resendInviteMutation.isPending}
+                  className="gap-1.5 text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <Mail className="w-4 h-4 text-indigo-600" />
+                  {resendInviteMutation.isPending ? "Resending..." : "Resend Invite"}
+                </Button>
+              )}
               {isEditing && (
                 <>
                   {hasChanges && (
@@ -364,10 +288,45 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
               employeeId={employeeId}
               onRequestRevision={() => setActiveDialog('reject')}
               queryClient={queryClient}
+              onResendInvite={() => resendInviteMutation.mutate()}
+              isResendingInvite={resendInviteMutation.isPending}
             />
           )}
 
-          {renderTabContent()}
+          <EmployeeDetailTabContent
+            activeSection={activeSection}
+            employee={employee}
+            employeeId={employeeId}
+            isEditing={isEditing}
+            editData={editData}
+            setEditData={setEditData}
+            navigateToJobWithStatus={navigateToJobWithStatus}
+            departments={departments}
+            employeeClasses={employeeClasses}
+            employees={employees}
+            isSuperAdmin={isSuperAdmin}
+            handleOpenReassignDialog={handleOpenReassignDialog}
+            shifts={shifts}
+            employeeLeaveBalances={employeeLeaveBalances}
+            leaveTypes={leaveTypes}
+            leaveRequests={leaveRequests}
+            user={user}
+            salaryHistory={salaryHistory}
+            requestCompensationUpdateMutation={requestCompensationUpdateMutation}
+            documents={documents}
+            canApprove={canApprove}
+            createDocumentMutation={createDocumentMutation}
+            approveDocumentMutation={approveDocumentMutation}
+            rejectDocumentMutation={rejectDocumentMutation}
+            replaceDocumentVersionMutation={replaceDocumentVersionMutation}
+            deleteDocumentMutation={deleteDocumentMutation}
+            documentHistory={documentHistory}
+            selectedDocHistory={selectedDocHistory}
+            setSelectedDocHistory={setSelectedDocHistory}
+            assets={assets}
+            unassignAssetMutation={unassignAssetMutation}
+            evaluations={evaluations}
+          />
         </div>
       </div>
     </Card>
@@ -397,15 +356,15 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         <div className="min-h-screen p-4">
           <motion.div
             className="mx-auto space-y-6 max-w-7xl"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Button variant="ghost" onClick={() => navigate(PAGE_ROUTES.EMPLOYEES)} className="gap-2 text-slate-600 hover:text-slate-900">
-                <ArrowLeft className="w-4 h-4" /> Back to Employees
-              </Button>
-              {cardContent}
-            </motion.div>
-          </div>
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Button variant="ghost" onClick={() => navigate(PAGE_ROUTES.EMPLOYEES)} className="gap-2 text-slate-600 hover:text-slate-900">
+              <ArrowLeft className="w-4 h-4" /> Back to Employees
+            </Button>
+            {cardContent}
+          </motion.div>
+        </div>
       )}
 
       <EmployeeDetailDialogs

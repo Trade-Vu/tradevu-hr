@@ -12,7 +12,7 @@ import { FileText, Plus, Download, CheckCircle, Clock, XCircle, Ban, Loader2 } f
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
-import { isSuperAdmin, isHrAdmin } from "@/lib/roleUtils";
+import { isSuperAdmin, isHrAdmin, isInAdminMode } from "@/lib/roleUtils";
 import { hrLettersApi, HR_LETTER_TYPES } from "@/api";
 
 const emptyForm = {
@@ -35,14 +35,14 @@ const statusConfig = {
 
 export default function HRLetters() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, viewMode } = useAuth();
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  // Backend @Roles gating: GET /hr-letters (all requests) allows SUPER_ADMIN, HR_ADMIN only.
-  // Generate/reject are restricted to the same roles; any employee can submit/withdraw their own.
-  const canReview = isSuperAdmin(user) || isHrAdmin(user);
+  // When in Employee view mode, HR Admin is strictly limited to their own employee access
+  const isAdminMode = isInAdminMode(user, viewMode);
+  const canReview = isSuperAdmin(user) || (isAdminMode && isHrAdmin(user));
   // SUPER_ADMIN typically has no Employee record of their own, so they can't submit a request.
   const canSubmit = !isSuperAdmin(user) || Boolean(user?.employeeId);
 

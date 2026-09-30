@@ -1,8 +1,8 @@
 import apiClient from './client';
 
 export const leaveApi = {
-  getLeaveTypes: async () => {
-    return apiClient.get('/leave/types');
+  getLeaveTypes: async (params = {}) => {
+    return apiClient.get('/leave/types', { params });
   },
 
   getPublicHolidays: async () => {

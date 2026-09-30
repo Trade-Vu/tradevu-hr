@@ -3,10 +3,12 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { calculateWorkingDays } from "@/lib/leaveDays";
+import { filterApplicableLeaveTypes } from "./leaveEligibilityUtils";
 
 export function useLeaveRequestDialogForm({
   open = false,
   editingLeave = null,
+  employees = [],
   leaveTypes = [],
   publicHolidays = [],
 }) {
@@ -82,7 +84,25 @@ export function useLeaveRequestDialogForm({
     }
   }, [open, editingLeave, leaveTypes]);
 
-  const selectedType = leaveTypes.find((t) => t.id === formData.leave_type);
+  const targetEmployee = useMemo(() => {
+    if (!formData.employee_id) return null;
+    return employees.find((e) => (e.id || e._id) === formData.employee_id) || null;
+  }, [employees, formData.employee_id]);
+
+  const availableLeaveTypes = useMemo(() => {
+    return filterApplicableLeaveTypes(leaveTypes, targetEmployee);
+  }, [leaveTypes, targetEmployee]);
+
+  useEffect(() => {
+    if (availableLeaveTypes.length > 0) {
+      const isValid = availableLeaveTypes.some((t) => (t.id || t._id) === formData.leave_type);
+      if (!formData.leave_type || !isValid) {
+        setFormData((prev) => ({ ...prev, leave_type: availableLeaveTypes[0].id || availableLeaveTypes[0]._id }));
+      }
+    }
+  }, [availableLeaveTypes]);
+
+  const selectedType = leaveTypes.find((t) => (t.id || t._id) === formData.leave_type);
   const hasNoticePeriod = !editingLeave && Boolean(
     selectedType?.hasNoticePeriod ||
     (selectedType?.noticePeriodDays > 0) ||
@@ -190,5 +210,7 @@ export function useLeaveRequestDialogForm({
     addSelectedDate,
     removeSelectedDate,
     handleDocUpload,
+    availableLeaveTypes,
+    targetEmployee,
   };
 }

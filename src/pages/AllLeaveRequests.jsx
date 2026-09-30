@@ -199,16 +199,16 @@ export default function AllLeaveRequests() {
             <p className="text-slate-500">Manage and approve employee time off</p>
           </div>
 
-          <Button 
+          {/* <Button
             onClick={() => {
               setEditingLeave(null);
               setShowForm(true);
-            }} 
+            }}
             className="text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Request
-          </Button>
+          </Button> */}
         </motion.div>
 
         <LeaveStatsCards

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload, Paperclip } from "lucide-react";
 import { uploadToCloudinary } from "@/utils/cloudinary";
@@ -114,17 +113,6 @@ export default function LeaveHandoverFormSection({
         <p className="text-[11px] text-slate-500">
           The selected relief officer must confirm your attached handover note as part of your application.
         </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-slate-700">Handover Summary / Notes</Label>
-        <Textarea
-          placeholder="Outline your delegated duties, ongoing tasks, client contacts, and critical coverage notes..."
-          value={handoverNote}
-          onChange={(e) => onHandoverNoteChange(e.target.value)}
-          rows={3}
-          className="bg-white text-sm"
-        />
       </div>
 
       <div className="space-y-2">

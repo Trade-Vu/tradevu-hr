@@ -13,6 +13,7 @@ import {
   Briefcase, Mail, Shield, ShieldCheck, MoreVertical
 } from "lucide-react";
 import { isEmployeeEligibleForHrAdmin } from "./employeeDetailUtils";
+import { isOnboardedStatus } from "@/lib/employmentStatus";
 
 export default function EmployeeHeader({
   employee,
@@ -23,8 +24,12 @@ export default function EmployeeHeader({
   onSuspend,
   onProbation,
   onOffboard,
+  onResendInvite,
+  isResendingInvite = false,
 }) {
   const isEligibleForHr = isEmployeeEligibleForHrAdmin(employee);
+  const isNotOnboarded = !isOnboardedStatus(employee?.employment_status || employee?.employmentStatus);
+  const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
 
   return (
     <div className="relative text-white border-b bg-slate-900 border-slate-800">
@@ -72,6 +77,19 @@ export default function EmployeeHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          {canManageInvites && isNotOnboarded && onResendInvite && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-indigo-400/40 text-indigo-200 hover:bg-indigo-950/40 hover:text-white"
+              onClick={onResendInvite}
+              disabled={isResendingInvite}
+            >
+              <Mail className="w-4 h-4 mr-1.5 text-indigo-400" />
+              {isResendingInvite ? "Resending..." : "Resend Invite"}
+            </Button>
+          )}
+
           {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
             <Button
               size="sm"
@@ -88,7 +106,7 @@ export default function EmployeeHeader({
             </Button>
           )}
 
-          {['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (
+          {canManageInvites && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800">
@@ -98,6 +116,19 @@ export default function EmployeeHeader({
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel>Employee Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {isNotOnboarded && onResendInvite && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={onResendInvite}
+                      disabled={isResendingInvite}
+                      className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Resend Invite Email
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
                   <>
                     <DropdownMenuItem

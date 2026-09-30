@@ -4,51 +4,27 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
-import { ArrowLeft, Plus, Upload, Grid, List, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, ChevronLeft, ChevronRight, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import EmployeeList from "../components/dashboard/EmployeeList";
 import AddEmployeeForm from "../components/employees/AddEmployeeForm";
 import BulkImportDialog from "../components/employees/BulkImportDialog";
 import InviteEmployeeDialog from "../components/employees/InviteEmployeeDialog";
 import EmployeeCard from "../components/employees/EmployeeCard";
+import EmployeeCardSkeleton from "../components/employees/EmployeeCardSkeleton";
+import EmployeeDirectoryFilters from "../components/employees/EmployeeDirectoryFilters";
+import EmployeesHeader from "../components/employees/EmployeesHeader";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EmployeeDetail from "./EmployeeDetail";
 import { motion } from "framer-motion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const CardSkeleton = () => (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-    {Array(6).fill(0).map((_, i) => (
-      <div key={i} className="h-[280px] bg-white border border-slate-100 rounded-2xl shadow-sm p-6 flex flex-col animate-pulse">
-        <div className="flex items-start gap-4 mb-5">
-          <div className="rounded-full w-14 h-14 bg-slate-100 shrink-0"></div>
-          <div className="flex-1 py-1 space-y-2">
-            <div className="w-3/4 h-4 rounded bg-slate-100"></div>
-            <div className="flex gap-2">
-              <div className="w-1/4 h-4 rounded bg-slate-100"></div>
-              <div className="w-1/3 h-4 rounded bg-slate-100"></div>
-            </div>
-          </div>
-        </div>
-        <div className="mb-auto space-y-3">
-          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-2/3 h-3 rounded bg-slate-100"></div></div>
-          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-1/2 h-3 rounded bg-slate-100"></div></div>
-          <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-md bg-slate-100"></div><div className="w-1/3 h-3 rounded bg-slate-100"></div></div>
-        </div>
-        <div className="flex justify-between pt-4 mt-4 border-t border-slate-100">
-          <div className="w-1/4 h-3 rounded bg-slate-100"></div>
-          <div className="w-1/4 h-3 rounded bg-slate-100"></div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Employees() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
   const urlParams = new URLSearchParams(window.location.search);
   const action = urlParams.get('action');
   const [showAddForm, setShowAddForm] = useState(action === 'add');
@@ -232,65 +208,19 @@ export default function Employees() {
       className="p-4 mx-auto space-y-8 md:p-8 max-w-7xl"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div className="flex items-start gap-4">
-          {showAddForm && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="mt-1 rounded-xl border-slate-200 hover:bg-slate-50"
-              onClick={() => {
-                setShowAddForm(false);
-                navigate(PAGE_ROUTES.EMPLOYEES);
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
-            </Button>
-          )}
-          <div>
-            {!showAddForm && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
-                <Users className="w-4 h-4 text-indigo-600" />
-                <span className="text-xs font-semibold tracking-wider text-indigo-700 uppercase">Directory</span>
-              </div>
-            )}
-            
-            <p className="mt-1 text-slate-500">
-              {showAddForm 
-                ? "Add a new team member to your organization." 
-                : `Manage your ${totalEmployees} employee${totalEmployees !== 1 ? 's' : ''}`
-              }
-            </p>
-          </div>
-        </div>
-        {!showAddForm && (
-          <div className="flex gap-3 shrink-0">
-            {/* <Button 
-              onClick={() => setShowInviteDialog(true)}
-              variant="outline"
-              className="text-indigo-700 border-indigo-200 rounded-lg hover:bg-indigo-50"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Invite User
-            </Button> */}
-            <Button 
-              onClick={() => setShowImportDialog(true)}
-              variant="outline"
-              className="text-indigo-700 border-indigo-200 rounded-lg hover:bg-indigo-50"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import CSV
-            </Button>
-            <Button 
-              onClick={() => setShowAddForm(true)}
-              className="text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Employee
-            </Button>
-          </div>
-        )}
-      </motion.div>
+      <EmployeesHeader
+        showAddForm={showAddForm}
+        totalEmployees={totalEmployees}
+        canManageInvites={canManageInvites}
+        onBackToDirectory={() => {
+          setShowAddForm(false);
+          navigate(PAGE_ROUTES.EMPLOYEES);
+        }}
+        onOpenInviteDialog={() => setShowInviteDialog(true)}
+        onOpenImportDialog={() => setShowImportDialog(true)}
+        onOpenAddForm={() => setShowAddForm(true)}
+        itemVariants={itemVariants}
+      />
 
       {/* Content */}
       {showAddForm ? (
@@ -308,58 +238,14 @@ export default function Employees() {
         </motion.div>
       ) : (
         <motion.div variants={itemVariants} className="space-y-6">
-          {/* Filters and View Toggle */}
-          <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200/60">
-            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-              <div className="flex flex-col w-full gap-3 sm:flex-row md:w-auto">
-                <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-slate-400" />
-                  <Input
-                    placeholder="Search employees..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 transition-colors rounded-lg border-slate-200 bg-slate-50 focus:bg-white"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
-                  <SelectTrigger className="w-full rounded-lg sm:w-40 border-slate-200 bg-slate-50 focus:bg-white">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent className="shadow-lg rounded-xl border-slate-100">
-                    <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="PROBATION">Probation</SelectItem>
-                      <SelectItem value="PENDING_ONBOARDING">Pending Onboarding</SelectItem>
-                      <SelectItem value="ON_LEAVE">On Leave</SelectItem>
-                      <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                      <SelectItem value="RESIGNED">Resigned</SelectItem>
-                      <SelectItem value="TERMINATED">Terminated</SelectItem>
-                      <SelectItem value="OFFBOARDED">Offboarded</SelectItem>
-                      <SelectItem value="ARCHIVED">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  className={`rounded-md px-3 ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                  size="sm"
-                  className={`rounded-md px-3 ${viewMode === 'cards' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                  onClick={() => setViewMode('cards')}
-                >
-                  <Grid className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          <EmployeeDirectoryFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+          />
 
           {loadingPaginated && !paginatedData ? (
             viewMode === 'list' ? (
@@ -367,7 +253,7 @@ export default function Employees() {
                 <EmployeeList employees={[]} isLoading={true} onOpenDetail={handleOpenDetail} />
               </div>
             ) : (
-              <CardSkeleton />
+              <EmployeeCardSkeleton />
             )
           ) : currentEmployees.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed bg-white/50 border-slate-200/60 rounded-2xl">

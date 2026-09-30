@@ -50,14 +50,6 @@ export default function InviteEmployeeDialog({ open, onClose }) {
     if (!email) return;
     const cleanEmail = email.trim().toLowerCase();
 
-    const existingActiveUser = usersList.find(
-      (u) => u.email?.toLowerCase() === cleanEmail && u.isActive
-    );
-    if (existingActiveUser) {
-      toast.error('This user is already active on the platform and cannot be invited or reinvited.');
-      return;
-    }
-
     inviteMutation.mutate({ email: cleanEmail, role });
   };
 

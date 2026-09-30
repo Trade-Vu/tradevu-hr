@@ -45,9 +45,11 @@ export default function LeaveRequestDialog({
     addSelectedDate,
     removeSelectedDate,
     handleDocUpload,
+    availableLeaveTypes,
   } = useLeaveRequestDialogForm({
     open,
     editingLeave,
+    employees,
     leaveTypes,
     publicHolidays,
   });
@@ -150,12 +152,12 @@ export default function LeaveRequestDialog({
               onValueChange={(value) => setFormData((prev) => ({ ...prev, leave_type: value }))}
             >
               <SelectTrigger className="rounded-lg">
-                <SelectValue />
+                <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent className="shadow-lg rounded-xl border-slate-100">
-                {leaveTypes.map((type) => (
+                {(availableLeaveTypes?.length > 0 ? availableLeaveTypes : leaveTypes).map((type) => (
                   <SelectItem key={type.id} value={type.id}>
-                    {type.name}
+                    {type.name} {type.defaultDays ? `(${type.defaultDays} days)` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -355,7 +357,7 @@ export default function LeaveRequestDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Submitting..." : editingLeave ? "Update Request" : "Submit Request"}
             </Button>
           </div>

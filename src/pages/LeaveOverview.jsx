@@ -5,7 +5,7 @@ import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { leaveApi, approvalsApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { isLeaveEligibleStatus, isSeparatedStatus } from "@/lib/employmentStatus";
-import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
+import { isSuperAdmin, isHrAdmin, isManager as checkIsManager, isInAdminMode } from "@/lib/roleUtils";
 import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Button } from "@/components/ui/button";
 import { Plane, Plus } from "lucide-react";
@@ -20,11 +20,12 @@ import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
 
 export default function LeaveOverview() {
   const queryClient = useQueryClient();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, viewMode } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [isPastLeave, setIsPastLeave] = useState(false);
 
-  const isAdmin = isSuperAdmin(user) || isHrAdmin(user);
+  // When in Employee view mode, HR Admin is strictly limited to regular employee access.
+  const isAdmin = isInAdminMode(user, viewMode);
   const isManager = checkIsManager(user);
   const selfEmploymentStatus = user?.employeeId?.employmentStatus;
   const canRequestForSelf = !selfEmploymentStatus || isLeaveEligibleStatus(selfEmploymentStatus);
@@ -256,20 +257,19 @@ export default function LeaveOverview() {
 
         <LeaveBalances leaveBalances={leaveBalances} leaveTypes={leaveTypes} isAdmin={isAdmin} />
 
-        {/* Request Form Card */}
-        {showForm && (
-          <LeaveOverviewFormCard
-            user={user}
-            isAdmin={isAdmin}
-            isPastLeave={isPastLeave}
-            employees={employees}
-            leaveTypes={leaveTypes}
-            leaveBalances={leaveBalances}
-            publicHolidays={publicHolidays}
-            onClose={() => { setShowForm(false); setIsPastLeave(false); }}
-            onSuccess={handleFormSuccess}
-          />
-        )}
+        {/* Request Form Modal */}
+        <LeaveOverviewFormCard
+          isOpen={showForm}
+          user={user}
+          isAdmin={isAdmin}
+          isPastLeave={isPastLeave}
+          employees={employees}
+          leaveTypes={leaveTypes}
+          leaveBalances={leaveBalances}
+          publicHolidays={publicHolidays}
+          onClose={() => { setShowForm(false); setIsPastLeave(false); }}
+          onSuccess={handleFormSuccess}
+        />
 
         <ReliefHandoverConfirmations
           requests={reliefRequests}
