@@ -1,16 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectGroup,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toTitleCase } from '@/lib/utils';
 import {
   DEFAULT_EMPLOYMENT_TYPES,
@@ -18,6 +7,7 @@ import {
   normalizeEmploymentTypes,
   normalizeEmployeeClasses,
 } from '@/lib/formOptions';
+import LeaveQuotaExceptionRow from './LeaveQuotaExceptionRow';
 
 export default function LeaveQuotaExceptionsEditor({
   exceptions = [],
@@ -28,7 +18,6 @@ export default function LeaveQuotaExceptionsEditor({
   defaultDays = 0,
 }) {
   const parsedDefaultDays = Math.max(0, parseFloat(defaultDays) || 0);
-  const maxAllowedDays = Math.max(0, parsedDefaultDays - 1);
 
   const resolvedEmploymentTypes =
     Array.isArray(employmentTypeOptions) && employmentTypeOptions.length > 0
@@ -40,62 +29,82 @@ export default function LeaveQuotaExceptionsEditor({
       ? employeeClassOptions
       : normalizeEmployeeClasses(DEFAULT_EMPLOYEE_CLASSES);
 
-  const buildSubjectName = (catVal, subjVal) => {
-    let catLabel = '';
-    if (catVal && catVal !== 'ALL') {
-      const match = resolvedEmploymentTypes.find((t) => t.value === catVal);
-      catLabel = match?.label || toTitleCase(catVal);
+  const getNormalizedCategory = (row) => {
+    if (!row) return 'CLASS';
+    const cat = String(row.category || '').toUpperCase();
+    if (cat === 'CLASS' || cat === 'TYPE' || cat === 'INDIVIDUAL') {
+      return cat;
     }
-
-    let subjLabel = '';
-    if (subjVal && subjVal !== 'ALL') {
-      if (subjVal.startsWith('EMP:')) {
-        const empId = subjVal.replace('EMP:', '');
-        const emp = employees.find((e) => String(e.id || e._id) === String(empId));
-        subjLabel = emp?.fullName || emp?.email || 'Individual';
-      } else {
-        const match = resolvedEmployeeClasses.find((c) => c.value === subjVal);
-        subjLabel = match?.label || toTitleCase(subjVal);
-      }
+    if (
+      (row.subjectId && String(row.subjectId).startsWith('EMP:')) ||
+      employees.some((e) => String(e.id || e._id) === String(row.subjectId))
+    ) {
+      return 'INDIVIDUAL';
     }
-
-    if (catLabel && subjLabel) return `${catLabel} - ${subjLabel}`;
-    if (catLabel) return catLabel;
-    if (subjLabel) return subjLabel;
-    return 'All Employees';
+    if (resolvedEmploymentTypes.some((t) => t.value === row.category || t.value === row.employmentType)) {
+      return 'TYPE';
+    }
+    if (resolvedEmployeeClasses.some((c) => c.value === row.category || c.value === row.employeeClass)) {
+      return 'CLASS';
+    }
+    return 'CLASS';
   };
 
-  const getCategoryValue = (row) => {
-    if (!row) return 'ALL';
-    if (row.employmentType) return row.employmentType;
-    if (row.category && row.category !== 'CLASS' && row.category !== 'INDIVIDUAL') {
-      return row.category === 'TYPE' ? (row.subjectId || 'ALL') : row.category;
+  const getSubjectLabel = (cat, subjVal) => {
+    if (cat === 'CLASS') {
+      const match = resolvedEmployeeClasses.find((c) => c.value === subjVal);
+      return match?.label || toTitleCase(subjVal) || 'Class';
     }
-    return 'ALL';
+    if (cat === 'TYPE') {
+      const match = resolvedEmploymentTypes.find((t) => t.value === subjVal);
+      return match?.label || toTitleCase(subjVal) || 'Employment Type';
+    }
+    if (cat === 'INDIVIDUAL') {
+      const emp = employees.find((e) => String(e.id || e._id) === String(subjVal));
+      return emp?.fullName || emp?.email || 'Individual';
+    }
+    return subjVal || 'Exception';
   };
 
-  const getSubjectValue = (row) => {
-    if (!row) return 'ALL';
-    if (row.employeeClass) return row.employeeClass;
-    if (row.category === 'CLASS') return row.subjectId || 'ALL';
-    if (row.category === 'INDIVIDUAL' || (row.subjectId && row.subjectId.startsWith('EMP:'))) {
-      return row.subjectId.startsWith('EMP:') ? row.subjectId : `EMP:${row.subjectId}`;
+  const getNormalizedSubject = (row, cat) => {
+    if (!row) return '';
+    if (cat === 'CLASS') {
+      return (
+        row.employeeClass ||
+        (row.category === 'CLASS' ? row.subjectId : '') ||
+        row.subjectId ||
+        resolvedEmployeeClasses[0]?.value ||
+        ''
+      );
     }
-    if (row.subjectId && row.category !== 'TYPE') return row.subjectId;
-    return 'ALL';
+    if (cat === 'TYPE') {
+      return (
+        row.employmentType ||
+        (row.category === 'TYPE' ? row.subjectId : '') ||
+        (row.category !== 'CLASS' && row.category !== 'INDIVIDUAL' ? row.category : '') ||
+        row.subjectId ||
+        resolvedEmploymentTypes[0]?.value ||
+        ''
+      );
+    }
+    if (cat === 'INDIVIDUAL') {
+      const clean = String(row.subjectId || '').replace(/^EMP:/, '');
+      return clean || (employees[0] ? String(employees[0].id || employees[0]._id) : '');
+    }
+    return row.subjectId || '';
   };
 
   const handleAdd = () => {
-    const firstType = resolvedEmploymentTypes[0]?.value || 'PERMANENT';
-    const firstClass = 'ALL';
-    const subjectName = buildSubjectName(firstType, firstClass);
-    const initialDays = Math.max(0, parsedDefaultDays > 0 ? parsedDefaultDays - 1 : 0);
+    const initialCat = 'CLASS';
+    const initialSubj = resolvedEmployeeClasses[0]?.value || '';
+    const subjectName = getSubjectLabel(initialCat, initialSubj);
+    const initialDays = parsedDefaultDays || 0;
     const newRow = {
-      category: firstType,
-      employmentType: firstType,
-      subjectId: firstClass,
-      employeeClass: firstClass,
+      category: initialCat,
+      subjectId: initialSubj,
       subjectName,
+      employeeClass: initialSubj,
+      employmentType: '',
       days: initialDays,
     };
     onChange([...exceptions, newRow]);
@@ -108,15 +117,29 @@ export default function LeaveQuotaExceptionsEditor({
   const handleCategoryChange = (index, newCat) => {
     const updated = exceptions.map((row, i) => {
       if (i !== index) return row;
-      const currentSubj = getSubjectValue(row);
-      const subjectName = buildSubjectName(newCat, currentSubj);
+      let nextSubj = '';
+      let employeeClass = '';
+      let employmentType = '';
+
+      if (newCat === 'CLASS') {
+        nextSubj = resolvedEmployeeClasses[0]?.value || '';
+        employeeClass = nextSubj;
+      } else if (newCat === 'TYPE') {
+        nextSubj = resolvedEmploymentTypes[0]?.value || '';
+        employmentType = nextSubj;
+      } else if (newCat === 'INDIVIDUAL') {
+        const firstEmp = employees[0];
+        nextSubj = firstEmp ? String(firstEmp.id || firstEmp._id) : '';
+      }
+
+      const subjectName = getSubjectLabel(newCat, nextSubj);
       return {
         ...row,
         category: newCat,
-        employmentType: newCat,
-        subjectId: currentSubj,
-        employeeClass: currentSubj,
+        subjectId: nextSubj,
         subjectName,
+        employeeClass,
+        employmentType,
       };
     });
     onChange(updated);
@@ -125,17 +148,15 @@ export default function LeaveQuotaExceptionsEditor({
   const handleSubjectChange = (index, newSubj) => {
     const updated = exceptions.map((row, i) => {
       if (i !== index) return row;
-      const currentCat = getCategoryValue(row);
-      const subjectName = buildSubjectName(currentCat, newSubj);
-      const isEmp = newSubj.startsWith('EMP:');
-      const cleanSubjectId = isEmp ? newSubj.replace('EMP:', '') : newSubj;
+      const cat = getNormalizedCategory(row);
+      const subjectName = getSubjectLabel(cat, newSubj);
       return {
         ...row,
-        category: currentCat,
-        employmentType: currentCat,
-        subjectId: cleanSubjectId,
-        employeeClass: isEmp ? '' : newSubj,
+        category: cat,
+        subjectId: newSubj,
         subjectName,
+        employeeClass: cat === 'CLASS' ? newSubj : '',
+        employmentType: cat === 'TYPE' ? newSubj : '',
       };
     });
     onChange(updated);
@@ -156,7 +177,7 @@ export default function LeaveQuotaExceptionsEditor({
         <button
           type="button"
           onClick={handleAdd}
-          className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+          className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all duration-150 active:scale-[0.98]"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>+ Add exceptions</span>
@@ -170,10 +191,10 @@ export default function LeaveQuotaExceptionsEditor({
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Exceptions (Quota Overrides)
+            Exceptions
           </span>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Set custom annual leave days by organization employment type and employee class / tier. Max days must be less than the default ({parsedDefaultDays} days) and not a negative number.
+            Set custom overrides for specific individuals, employee types or classes.
           </p>
         </div>
       </div>
@@ -183,135 +204,30 @@ export default function LeaveQuotaExceptionsEditor({
         <div className="hidden sm:grid sm:grid-cols-12 gap-3 px-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
           <div className="col-span-4">Category</div>
           <div className="col-span-4">Subject</div>
-          <div className="col-span-3">Max Days Per Year</div>
+          <div className="col-span-3">Days Per Year</div>
           <div className="col-span-1 text-center"></div>
         </div>
 
         {/* Rows */}
         {exceptions.map((row, idx) => {
-          const numDays = Number(row.days);
-          const isInvalidDays =
-            row.days !== '' && (numDays >= parsedDefaultDays || numDays < 0);
+          const cat = getNormalizedCategory(row);
+          const subj = getNormalizedSubject(row, cat);
 
           return (
-            <div
+            <LeaveQuotaExceptionRow
               key={idx}
-              className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center p-3 sm:p-0 rounded-lg bg-white sm:bg-transparent border sm:border-0 border-slate-200 shadow-sm sm:shadow-none"
-            >
-              {/* Column 1: Category (Employment Type Dropdown) */}
-              <div className="col-span-4">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase sm:hidden block mb-1">
-                  Category
-                </label>
-                <Select
-                  value={getCategoryValue(row)}
-                  onValueChange={(val) => handleCategoryChange(idx, val)}
-                >
-                  <SelectTrigger className="h-9 bg-white border-slate-200 text-xs">
-                    <SelectValue placeholder="Select Employment Type..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value="ALL" className="text-xs font-medium text-slate-600">
-                      All Employment Types
-                    </SelectItem>
-                    <SelectGroup>
-                      <SelectLabel className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1 bg-slate-50 border-t border-b border-slate-100 mt-1">
-                        Configured Employment Types
-                      </SelectLabel>
-                      {resolvedEmploymentTypes.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                          {opt.label || opt.value}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Column 2: Subject (Employee Class / Tiers Dropdown) */}
-              <div className="col-span-4">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase sm:hidden block mb-1">
-                  Subject
-                </label>
-                <Select
-                  value={getSubjectValue(row)}
-                  onValueChange={(val) => handleSubjectChange(idx, val)}
-                >
-                  <SelectTrigger className="h-9 bg-white border-slate-200 text-xs">
-                    <SelectValue placeholder="Select Class / Tier..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value="ALL" className="text-xs font-medium text-slate-600">
-                      All Classes / Tiers
-                    </SelectItem>
-                    <SelectGroup>
-                      <SelectLabel className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1 bg-slate-50 border-t border-b border-slate-100 mt-1">
-                        Employee Classes / Tiers
-                      </SelectLabel>
-                      {resolvedEmployeeClasses.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                          {opt.label || opt.value}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                    {employees.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1 bg-slate-50 border-t border-b border-slate-100 mt-1">
-                          Individual Employees
-                        </SelectLabel>
-                        {employees.slice(0, 50).map((emp) => (
-                          <SelectItem key={`EMP:${emp.id}`} value={`EMP:${emp.id}`} className="text-xs">
-                            <span>{emp.fullName || emp.email}</span>
-                            {emp.jobTitle && (
-                              <span className="ml-1 text-[11px] text-slate-400">({emp.jobTitle})</span>
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Column 3: Max Days Per Year */}
-              <div className="col-span-3">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase sm:hidden block mb-1">
-                  Max Days Per Year
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max={maxAllowedDays}
-                  value={row.days}
-                  onChange={(e) => handleDaysChange(idx, e.target.value)}
-                  placeholder={String(maxAllowedDays)}
-                  className={`h-9 bg-white text-xs border-slate-200 ${
-                    isInvalidDays
-                      ? 'border-red-500 focus-visible:ring-red-400 bg-red-50/20 text-red-900'
-                      : ''
-                  }`}
-                />
-                {isInvalidDays && (
-                  <p className="text-[10px] text-red-500 mt-1 font-medium leading-tight">
-                    Must be between 0 and {maxAllowedDays} days (&lt; {parsedDefaultDays} default)
-                  </p>
-                )}
-              </div>
-
-              {/* Delete / Remove Action */}
-              <div className="col-span-1 flex justify-end sm:justify-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemove(idx)}
-                  className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                  title="Remove exception"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+              row={row}
+              index={idx}
+              cat={cat}
+              subj={subj}
+              resolvedEmployeeClasses={resolvedEmployeeClasses}
+              resolvedEmploymentTypes={resolvedEmploymentTypes}
+              employees={employees}
+              onCategoryChange={handleCategoryChange}
+              onSubjectChange={handleSubjectChange}
+              onDaysChange={handleDaysChange}
+              onRemove={handleRemove}
+            />
           );
         })}
       </div>
@@ -320,10 +236,10 @@ export default function LeaveQuotaExceptionsEditor({
         <button
           type="button"
           onClick={handleAdd}
-          className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
+          className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all duration-150 active:scale-[0.98]"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>+ Add another exception</span>
+          <span>Add another exception</span>
         </button>
       </div>
     </div>
