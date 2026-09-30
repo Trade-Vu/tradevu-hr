@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { employeesApi } from "@/api";
-import { isOnboardedStatus } from "@/lib/employmentStatus";
+import { isOnboardedStatus, isSeparatedStatus } from "@/lib/employmentStatus";
 import { toast } from "sonner";
 
 const getStatusColors = (status) => {
@@ -32,7 +32,11 @@ export default function EmployeeCard({ employee, onOpenDetail }) {
   const queryClient = useQueryClient();
   const [isResending, setIsResending] = useState(false);
   const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
-  const isNotOnboarded = !isOnboardedStatus(employee.employment_status);
+  const statusUpper = String(employee.employment_status || employee.employmentStatus || 'DRAFT').toUpperCase();
+  const isEmployeeActive = statusUpper === 'ACTIVE' || Boolean(employee.userActive || employee.isUserActive || employee.isActive);
+  const isSeparated = isSeparatedStatus(statusUpper);
+  const isPreOnboarding = !isOnboardedStatus(statusUpper);
+  const canShowResend = canManageInvites && !isEmployeeActive && !isSeparated && isPreOnboarding;
 
   const handleResend = async (e) => {
     e.stopPropagation();
@@ -138,7 +142,7 @@ export default function EmployeeCard({ employee, onOpenDetail }) {
                 )}
               </div>
 
-              {canManageInvites && isNotOnboarded && (
+              {canShowResend && (
                 <Button
                   size="sm"
                   variant="outline"

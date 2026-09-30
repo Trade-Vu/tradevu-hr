@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { leaveApi, approvalsApi, organizationsApi } from '@/api';
+import { leaveApi, approvalsApi, organizationsApi, employeesApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
 import { isHrAdmin, isSuperAdmin } from '@/lib/roleUtils';
 import { useLeaveTypes, LEAVE_TYPE_KEYS } from '@/hooks/useLeaveTypesQuery';
@@ -46,6 +46,7 @@ const DEFAULT_FORM_DATA = {
   onlyConfirmed: false,
   employmentTypes: [],
   employeeClasses: [],
+  daysExceptions: [],
 };
 
 export default function SettingsLeaveTypes() {
@@ -65,6 +66,20 @@ export default function SettingsLeaveTypes() {
   });
   const employmentTypeOptions = normalizeEmploymentTypes(orgData?.employmentTypes);
   const employeeClassOptions = normalizeEmployeeClasses(orgData?.employeeClasses);
+
+  const { data: rawEmployees = [] } = useQuery({
+    queryKey: ['employees', 'list'],
+    queryFn: async () => {
+      const res = await employeesApi.getAllEmployees();
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    },
+  });
+  const employees = (Array.isArray(rawEmployees) ? rawEmployees : []).map((emp) => ({
+    id: String(emp._id || emp.id),
+    fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
+    email: emp.email,
+    jobTitle: emp.jobTitle || emp.job_title || '',
+  }));
 
   const { data: workflowData } = useQuery({
     queryKey: ['workflows'],
@@ -146,6 +161,7 @@ export default function SettingsLeaveTypes() {
       onlyConfirmed: Boolean(lt.onlyConfirmed),
       employmentTypes: Array.isArray(lt.employmentTypes) ? lt.employmentTypes : [],
       employeeClasses: Array.isArray(lt.employeeClasses) ? lt.employeeClasses : [],
+      daysExceptions: Array.isArray(lt.daysExceptions) ? lt.daysExceptions : [],
     });
     setEditingId(lt.id || lt._id);
     setIsAdding(true);
@@ -168,6 +184,20 @@ export default function SettingsLeaveTypes() {
 
     const noticeDays = formData.hasNoticePeriod ? Math.max(0, parseInt(formData.noticePeriodDays, 10) || 0) : 0;
     const isHandoverRequired = Boolean(formData.requiresHandover || formData.handoverRequirement === 'COMPULSORY');
+    const defaultDaysVal = parseFloat(formData.daysPerYear) || 0;
+
+    if (Array.isArray(formData.daysExceptions) && formData.daysExceptions.length > 0) {
+      const invalidEx = formData.daysExceptions.find((ex) => {
+        const d = Number(ex.days);
+        return isNaN(d) || d >= defaultDaysVal || d < 0;
+      });
+      if (invalidEx) {
+        const targetLabel = invalidEx.subjectName || invalidEx.subjectId || invalidEx.category || 'exception';
+        return toast.error(
+          `Exception days for "${targetLabel}" (${invalidEx.days ?? 0}) must be less than default days (${defaultDaysVal}) and cannot be negative.`
+        );
+      }
+    }
 
     const payload = {
       name: formData.name,
@@ -187,6 +217,7 @@ export default function SettingsLeaveTypes() {
       onlyConfirmed: Boolean(formData.onlyConfirmed),
       employmentTypes: Array.isArray(formData.employmentTypes) ? formData.employmentTypes : [],
       employeeClasses: Array.isArray(formData.employeeClasses) ? formData.employeeClasses : [],
+      daysExceptions: Array.isArray(formData.daysExceptions) ? formData.daysExceptions : [],
     };
 
     if (editingId) {
@@ -316,6 +347,7 @@ export default function SettingsLeaveTypes() {
         defaultChainLabel={defaultChainLabel}
         employmentTypeOptions={employmentTypeOptions}
         employeeClassOptions={employeeClassOptions}
+        employees={employees}
       />
 
       {/* Delete Confirmation Dialog */}

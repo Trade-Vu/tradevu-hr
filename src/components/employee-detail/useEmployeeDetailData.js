@@ -7,6 +7,7 @@ import {
   leaveApi,
   attendanceApi,
   payrollApi,
+  assetsApi,
 } from "@/api";
 import { useDepartments } from "@/hooks/useDepartmentsQuery";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
@@ -300,6 +301,23 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
     onError: (err) => toast.error(extractErrorMessage(err, "Failed to update probation."))
   });
 
+  const reactivateEmployeeMutation = useMutation({
+    mutationFn: ({ id, data }) => employeesApi.updateEmployee(id || employeeId, {
+      employmentStatus: 'ACTIVE',
+      reason: data?.reason || 'Reactivated to active status',
+      effectiveDate: data?.effectiveDate || undefined,
+    }),
+    onSuccess: (_, vars) => {
+      const targetId = vars?.id || employeeId;
+      queryClient.invalidateQueries(['employee', targetId]);
+      queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['all-employees']);
+      queryClient.invalidateQueries(['paginatedEmployees']);
+      toast.success("Employee status updated to Active successfully.");
+    },
+    onError: (err) => toast.error(extractErrorMessage(err, "Failed to make employee active."))
+  });
+
   const reassignHrMutation = useMutation({
     mutationFn: (targetEmpId) => employeesApi.reassignHrAdmin(targetEmpId),
     onSuccess: (res) => {
@@ -400,6 +418,7 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
     requestPromotionMutation,
     requestOffboardingMutation,
     requestProbationMutation,
+    reactivateEmployeeMutation,
     reassignHrMutation,
     createDocumentMutation,
     replaceDocumentVersionMutation,

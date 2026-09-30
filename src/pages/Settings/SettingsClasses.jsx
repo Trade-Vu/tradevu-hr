@@ -131,7 +131,7 @@ export default function SettingsClasses() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="border-b border-slate-200 pb-5">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Employee Classifications
+          Employement Configuration
         </h2>
         <p className="text-sm text-slate-500 mt-1">
           Manage employment agreements (Employment Type) and organizational hierarchies (Employment Class).

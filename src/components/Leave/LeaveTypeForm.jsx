@@ -1,20 +1,19 @@
 import React from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Briefcase, Layers } from 'lucide-react';
 import ApprovalStepsEditor from '@/components/approvals/ApprovalStepsEditor';
-import LeaveEligibilitySelector from './LeaveEligibilitySelector';
+import LeaveQuotaExceptionsEditor from './LeaveQuotaExceptionsEditor';
 import { DEFAULT_LEAVE_APPROVAL_STEPS } from '@/lib/approvalSteps';
 
 export default function LeaveTypeForm({
@@ -29,25 +28,29 @@ export default function LeaveTypeForm({
   defaultChainLabel,
   employmentTypeOptions = [],
   employeeClassOptions = [],
+  employees = [],
 }) {
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden sm:rounded-xl">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50/50">
-          <DialogTitle className="text-xl font-bold text-slate-900">
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-2xl p-0 flex flex-col h-full bg-white shadow-2xl overflow-hidden"
+      >
+        <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50/50 shrink-0 text-left">
+          <SheetTitle className="text-xl font-bold text-slate-900">
             {editingId ? 'Edit Leave Type' : 'Add New Leave Type'}
-          </DialogTitle>
-          <DialogDescription className="text-slate-500">
+          </SheetTitle>
+          <SheetDescription className="text-slate-500 text-xs">
             {editingId
-              ? 'Update leave configuration, quotas, rules, and eligible employee groups.'
-              : 'Configure a new leave category, rules, approval flow, and eligible employee groups.'}
-          </DialogDescription>
-        </DialogHeader>
+              ? 'Update leave configuration, quotas, rules, and approval flow.'
+              : 'Configure a new leave category, rules, approval flow, and tiered quota exceptions.'}
+          </SheetDescription>
+        </SheetHeader>
 
         <form id="leave-type-form" onSubmit={onSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Basic Info: Name, Code, Days */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="leave-name" className="text-sm font-medium text-slate-700">
                 Name (e.g. Annual, Sick) *
               </Label>
@@ -73,10 +76,13 @@ export default function LeaveTypeForm({
                 className="bg-white"
               />
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="leave-days" className="text-sm font-medium text-slate-700">
-                Default Days Per Year
+          {/* Quota & Exceptions Section */}
+          <div className="space-y-3 p-4 rounded-xl border border-slate-200/80 bg-white">
+            <div className="max-w-xs space-y-1.5">
+              <Label htmlFor="leave-days" className="text-sm font-semibold text-slate-800">
+                Default Days Per Year *
               </Label>
               <Input
                 id="leave-days"
@@ -85,8 +91,22 @@ export default function LeaveTypeForm({
                 value={formData.daysPerYear}
                 onChange={(e) => setFormData({ ...formData, daysPerYear: e.target.value })}
                 className="bg-white"
+                required
               />
+              <p className="text-xs text-slate-400">
+                Baseline annual days given to employees without a specific exception.
+              </p>
             </div>
+
+            {/* Exceptions Builder: Class, Type, or Individual */}
+            <LeaveQuotaExceptionsEditor
+              exceptions={formData.daysExceptions || []}
+              onChange={(daysExceptions) => setFormData((prev) => ({ ...prev, daysExceptions }))}
+              employeeClassOptions={employeeClassOptions}
+              employmentTypeOptions={employmentTypeOptions}
+              employees={employees}
+              defaultDays={formData.daysPerYear}
+            />
           </div>
 
           {/* Toggles Grid */}
@@ -200,49 +220,6 @@ export default function LeaveTypeForm({
             />
           </div>
 
-          {/* Employee Eligibility: Confirmed Status, Types & Categories */}
-          <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between p-3.5 border rounded-lg border-slate-200/80 bg-slate-50/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="only-confirmed" className="text-sm font-medium text-slate-800 cursor-pointer">
-                  Only Confirmed Employees
-                </Label>
-                <p className="text-xs text-slate-500">
-                  When enabled, employees currently on probation cannot request this leave type.
-                </p>
-              </div>
-              <Switch
-                id="only-confirmed"
-                checked={Boolean(formData.onlyConfirmed)}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, onlyConfirmed: checked }))
-                }
-              />
-            </div>
-
-            <LeaveEligibilitySelector
-              label="Applicable Employment Types"
-              helperText="Specify which employment types can request this leave (Permanent, Contract, etc.)"
-              icon={Briefcase}
-              options={employmentTypeOptions}
-              selected={formData.employmentTypes || []}
-              onChange={(types) => setFormData((prev) => ({ ...prev, employmentTypes: types }))}
-              allLabel="All Employment Types"
-              placeholder="Select employment type..."
-            />
-
-            <LeaveEligibilitySelector
-              label="Applicable Employee Categories / Classes"
-              helperText="Specify which employee classes/tiers can request this leave (Intern, Manager, etc.)"
-              icon={Layers}
-              options={employeeClassOptions}
-              selected={formData.employeeClasses || []}
-              onChange={(classes) => setFormData((prev) => ({ ...prev, employeeClasses: classes }))}
-              allLabel="All Employee Categories"
-              placeholder="Select employee category..."
-            />
-          </div>
-
           {/* Approval Flow */}
           {formData.requiresApproval ? (
             <div className="p-3.5 space-y-3 border rounded-lg border-slate-200 bg-slate-50/50">
@@ -290,7 +267,7 @@ export default function LeaveTypeForm({
           )}
         </form>
 
-        <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
+        <SheetFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
@@ -298,12 +275,11 @@ export default function LeaveTypeForm({
             form="leave-type-form"
             type="submit"
             disabled={isPending}
-            className="bg-blue-600 hover:bg-blue-700 min-w-[110px]"
           >
             {isPending ? 'Saving...' : editingId ? 'Update Leave Type' : 'Save Leave Type'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

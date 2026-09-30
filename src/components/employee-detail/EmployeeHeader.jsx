@@ -10,10 +10,19 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
-  Briefcase, Mail, Shield, ShieldCheck, MoreVertical
+  Briefcase,
+  Mail,
+  Shield,
+  ShieldCheck,
+  MoreVertical,
+  UserCheck,
+  TrendingUp,
+  AlertTriangle,
+  UserX,
+  Clock,
 } from "lucide-react";
 import { isEmployeeEligibleForHrAdmin } from "./employeeDetailUtils";
-import { isOnboardedStatus } from "@/lib/employmentStatus";
+import { isOnboardedStatus, isSeparatedStatus, PRE_ONBOARDING_STATUSES } from "@/lib/employmentStatus";
 
 export default function EmployeeHeader({
   employee,
@@ -24,12 +33,23 @@ export default function EmployeeHeader({
   onSuspend,
   onProbation,
   onOffboard,
+  onReactivate,
   onResendInvite,
   isResendingInvite = false,
 }) {
+  const currentStatus = String(employee?.employment_status || employee?.employmentStatus || 'DRAFT').toUpperCase();
+  const isOffboarded = isSeparatedStatus(currentStatus);
+  const isActive = currentStatus === 'ACTIVE';
+  const isSuspended = currentStatus === 'SUSPENDED';
+  const isProbation = currentStatus === 'PROBATION';
+  const isPreOnboarding = PRE_ONBOARDING_STATUSES.includes(currentStatus);
+
+  const isUserActive = Boolean(employee?.userActive || employee?.isUserActive || employee?.isActive);
+  const isFullyActive = isActive || (isUserActive && isOnboardedStatus(currentStatus));
+
   const isEligibleForHr = isEmployeeEligibleForHrAdmin(employee);
-  const isNotOnboarded = !isOnboardedStatus(employee?.employment_status || employee?.employmentStatus);
   const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
+  const canShowResendInvite = canManageInvites && !isFullyActive && !isOffboarded && isPreOnboarding && Boolean(onResendInvite);
 
   return (
     <div className="relative text-white border-b bg-slate-900 border-slate-800">
@@ -77,7 +97,7 @@ export default function EmployeeHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          {canManageInvites && isNotOnboarded && onResendInvite && (
+          {canShowResendInvite && (
             <Button
               size="sm"
               variant="outline"
@@ -90,7 +110,7 @@ export default function EmployeeHeader({
             </Button>
           )}
 
-          {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
+          {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && !isOffboarded && (
             <Button
               size="sm"
               variant={employee.isHrAdmin ? "outline" : "default"}
@@ -102,7 +122,7 @@ export default function EmployeeHeader({
               onClick={onReassignHrAdmin}
             >
               <ShieldCheck className="w-4 h-4 mr-1.5" />
-              {employee.isHrAdmin ? 'Reassign HR Admin' : 'Reassign as HR Admin'}
+              {employee.isHrAdmin ? 'Reassign HR' : 'Reassign as HR'}
             </Button>
           )}
 
@@ -113,50 +133,109 @@ export default function EmployeeHeader({
                   <MoreVertical className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Employee Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {isNotOnboarded && onResendInvite && (
+
+                {isOffboarded ? (
+                  // Offboarded users only have actions applicable to them: reactivating / making active
+                  <DropdownMenuItem
+                    onClick={onReactivate}
+                    className="font-medium text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 cursor-pointer"
+                  >
+                    <UserCheck className="w-4 h-4 mr-2 text-emerald-600" />
+                    Make Active
+                  </DropdownMenuItem>
+                ) : (
                   <>
-                    <DropdownMenuItem
-                      onClick={onResendInvite}
-                      disabled={isResendingInvite}
-                      className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50"
-                    >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Resend Invite Email
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
+                    {/* Resend invite: only for non-active, non-separated, pre-onboarding users */}
+                    {canShowResendInvite && (
+                      <>
+                        <DropdownMenuItem
+                          onClick={onResendInvite}
+                          disabled={isResendingInvite}
+                            className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50 cursor-pointer"
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Resend Invite Email
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+
+                      {/* HR Admin reassignment: only for super admins and eligible active staff */}
+                      {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={onReassignHrAdmin}
+                            className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-4 h-4 mr-2" />
+                            {employee.isHrAdmin ? 'Reassign HR Admin Role' : 'Reassign as HR Admin'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+
+                      {/* Reinstate for suspended staff */}
+                      {isSuspended && (
+                        <DropdownMenuItem
+                          onClick={onReactivate}
+                          className="font-medium text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 cursor-pointer"
+                        >
+                          <UserCheck className="w-4 h-4 mr-2 text-emerald-600" />
+                          Reinstate Employee (Make Active)
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Make active from probation */}
+                      {isProbation && (
+                        <DropdownMenuItem
+                          onClick={onReactivate}
+                          className="font-medium text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 cursor-pointer"
+                        >
+                          <UserCheck className="w-4 h-4 mr-2 text-emerald-600" />
+                          Confirm Employment (Make Active)
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Promotion for active employees */}
+                      {isActive && (
+                        <DropdownMenuItem onClick={onPromote} className="cursor-pointer">
+                          <TrendingUp className="w-4 h-4 mr-2 text-slate-500" />
+                          Promote Employee
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Probation decision / assignment for active or probation employees */}
+                      {(isActive || isProbation) && (
+                        <DropdownMenuItem onClick={onProbation} className="cursor-pointer">
+                          <Clock className="w-4 h-4 mr-2 text-slate-500" />
+                          {isProbation ? 'Update Probation' : 'Place on Probation'}
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Suspension for active or probation staff */}
+                      {!isSuspended && !isPreOnboarding && (
+                        <DropdownMenuItem
+                          onClick={onSuspend}
+                          className="text-amber-600 focus:text-amber-700 focus:bg-amber-50 cursor-pointer"
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2 text-amber-500" />
+                          Suspend Employee
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Offboard: available for non-offboarded staff */}
+                      <DropdownMenuItem
+                        onClick={onOffboard}
+                        className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer"
+                      >
+                        <UserX className="w-4 h-4 mr-2 text-red-500" />
+                        Offboard Employee
+                      </DropdownMenuItem>
                   </>
                 )}
-                {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={onReassignHrAdmin}
-                      className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50"
-                    >
-                      <ShieldCheck className="w-4 h-4 mr-2" />
-                      {employee.isHrAdmin ? 'Reassign HR Admin Role' : 'Reassign as HR Admin'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                {employee.employment_status === 'ACTIVE' && (
-                  <DropdownMenuItem onClick={onPromote}>
-                    Promote Employee
-                  </DropdownMenuItem>
-                )}
-                {employee.employment_status !== 'SUSPENDED' && (
-                  <DropdownMenuItem onClick={onSuspend} className="text-amber-600 focus:text-amber-600 focus:bg-amber-50">
-                    Suspend Employee
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={onProbation}>
-                  Place on Probation
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onOffboard} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                  Offboard Employee
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

@@ -41,13 +41,43 @@ export function usePendingApprovalsData() {
 
   const { mutate: approveCompletedTasks, isPending: isApprovingTasks } = useMutation({
     mutationFn: (variables) => approvalsApi.approveCompletedTasks(variables.employeeId, variables.taskIds),
+    onMutate: async ({ employeeId, taskIds }) => {
+      await queryClient.cancelQueries({ queryKey: ['pendingApprovals'] });
+      const previousData = queryClient.getQueryData(['pendingApprovals']);
+      if (previousData?.employees) {
+        const idSet = new Set((taskIds || []).map(String));
+        queryClient.setQueryData(['pendingApprovals'], (old) => {
+          if (!old?.employees) return old;
+          return {
+            ...old,
+            employees: old.employees.map((emp) => {
+              if ((emp.id || emp._id) !== employeeId) return emp;
+              const updatedTasks = (emp.onboardingTasks || []).map((t) => {
+                const tid = String(t.id || t._id);
+                if (idSet.has(tid)) {
+                  return { ...t, status: 'approved', isApproved: true };
+                }
+                return t;
+              });
+              return { ...emp, onboardingTasks: updatedTasks };
+            }),
+          };
+        });
+      }
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['pendingApprovals'], context.previousData);
+      }
+      handleError(err);
+    },
     onSuccess: async () => {
       toast.success("Tasks approved successfully!");
       invalidate();
       await queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
       await queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
     },
-    onError: handleError
   });
 
   const { mutate: approveProbationSetup, isPending: isApprovingProbationSetup } = useMutation({
@@ -186,7 +216,9 @@ export function usePendingApprovalsData() {
   const pendingTasksReviews = allEmployees.filter(e => {
     // Show any employee who has completed onboarding tasks awaiting HR review/approval
     return e.onboardingTasks?.some(t => 
-      (t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status)) && t.status !== 'approved'
+      (t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status)) &&
+      t.status !== 'approved' &&
+      !t.isApproved
     );
   });
 
@@ -195,7 +227,7 @@ export function usePendingApprovalsData() {
     
     if (['ONGOING_ONBOARDING', 'PENDING_ONBOARDING'].includes(e.employmentStatus)) {
       if (e.onboardingTasks && e.onboardingTasks.length > 0) {
-        return e.onboardingTasks.every(t => t.status === 'approved');
+        return e.onboardingTasks.every(t => t.status === 'approved' || t.isApproved);
       }
     }
     return false;

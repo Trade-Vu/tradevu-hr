@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { documentsApi, employeesApi } from "@/api";
 import { useAuth } from "@/lib/AuthContext";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
-import { isOnboardedStatus } from "@/lib/employmentStatus";
+import { isOnboardedStatus, isSeparatedStatus } from "@/lib/employmentStatus";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -66,6 +66,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
     requestPromotionMutation,
     requestOffboardingMutation,
     requestProbationMutation,
+    reactivateEmployeeMutation,
     reassignHrMutation,
     createDocumentMutation,
     replaceDocumentVersionMutation,
@@ -92,11 +93,14 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const canApprove = ['SUPER_ADMIN', 'HR_ADMIN', 'admin', 'CEO'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
   const isSuperAdmin = user?.role === 'SUPER_ADMIN' || Boolean(user?.isOrgOwner || user?.is_organization_owner);
-  const isDraft = Boolean(employee && (employee.employment_status === 'DRAFT' || employee.employmentStatus === 'DRAFT'));
-  const isPendingApproval = Boolean(employee && (employee.employment_status === 'PENDING_APPROVAL' || employee.employmentStatus === 'PENDING_APPROVAL'));
+  const statusUpper = String(employee?.employment_status || employee?.employmentStatus || 'DRAFT').toUpperCase();
+  const isEmployeeActive = statusUpper === 'ACTIVE' || Boolean(employee?.userActive || employee?.isUserActive || employee?.isActive);
+  const isDraft = Boolean(employee && statusUpper === 'DRAFT');
+  const isPendingApproval = Boolean(employee && statusUpper === 'PENDING_APPROVAL');
   const isPendingApprovalOrDraft = isDraft || isPendingApproval;
-  const isNotOnboarded = Boolean(employee && (!isOnboardedStatus(employee.employment_status || employee.employmentStatus) || employee.onboarding_status !== 'completed' || employee.onboardingStatus !== 'completed'));
-  const canResendInvite = (['SUPER_ADMIN', 'HR_ADMIN', 'admin'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner)) && isNotOnboarded;
+  const isSeparated = isSeparatedStatus(statusUpper);
+  const isNotOnboarded = Boolean(employee && !isOnboardedStatus(statusUpper));
+  const canResendInvite = (['SUPER_ADMIN', 'HR_ADMIN', 'admin'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner)) && isNotOnboarded && !isEmployeeActive && !isSeparated;
 
   const resendInviteMutation = useMutation({
     mutationFn: () => employeesApi.resendInvite(employee.id),
@@ -190,6 +194,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
         onSuspend={() => setActiveDialog('suspend')}
         onProbation={() => setActiveDialog('probation')}
         onOffboard={() => setActiveDialog('offboard')}
+        onReactivate={() => setActiveDialog('reactivate')}
         onResendInvite={() => resendInviteMutation.mutate()}
         isResendingInvite={resendInviteMutation.isPending}
       />
@@ -384,6 +389,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
           suspendEmployee: suspendEmployeeMutation,
           requestOffboarding: requestOffboardingMutation,
           requestProbation: requestProbationMutation,
+          reactivateEmployee: reactivateEmployeeMutation,
         }}
       />
     </>

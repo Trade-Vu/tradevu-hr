@@ -20,8 +20,8 @@ export default function LeaveEligibilitySelector({
   options = [],
   selected = [],
   onChange,
-  allLabel = 'All',
-  placeholder = 'Select option...',
+  allLabel = 'All (No exceptions)',
+  placeholder = 'Select option to exclude...',
 }) {
   const isAllSelected = !selected || selected.length === 0;
 
@@ -58,7 +58,7 @@ export default function LeaveEligibilitySelector({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {Icon && (
-            <div className="p-1 rounded bg-blue-100/60 text-blue-700">
+            <div className="p-1 rounded bg-amber-100/70 text-amber-800">
               <Icon className="w-3.5 h-3.5" />
             </div>
           )}
@@ -74,8 +74,8 @@ export default function LeaveEligibilitySelector({
               {allLabel}
             </Badge>
           ) : (
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">
-              {selected.length} Selected
+            <Badge variant="outline" className="font-medium bg-amber-50 text-amber-800 border-amber-200">
+              {selected.length} {selected.length === 1 ? 'Exception' : 'Exceptions'}
             </Badge>
           )}
         </div>
@@ -87,21 +87,26 @@ export default function LeaveEligibilitySelector({
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent className="max-h-60">
-            <SelectItem value="__ALL__" className="font-medium text-blue-600">
-              {allLabel} (No restriction)
+            <SelectItem value="__ALL__" className="font-medium text-slate-700">
+              {allLabel}
             </SelectItem>
-            <SelectSeparator />
-            {options.map((opt) => {
-              const isItemChosen = selected.includes(opt.value.toUpperCase());
-              return (
-                <SelectItem key={opt.value} value={opt.value} className="flex justify-between">
-                  <span className="flex items-center gap-2">
-                    {opt.label || toTitleCase(opt.value)}
-                    {isItemChosen && <Check className="w-3.5 h-3.5 text-blue-600 inline ml-1" />}
-                  </span>
-                </SelectItem>
-              );
-            })}
+            {options.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-slate-400 italic text-center">
+                No options configured in organization settings
+              </div>
+            ) : (
+              options.map((opt) => {
+                const isItemChosen = selected.includes(opt.value.toUpperCase());
+                return (
+                  <SelectItem key={opt.value} value={opt.value} className="flex justify-between">
+                    <span className="flex items-center gap-2">
+                      {opt.label || toTitleCase(opt.value)}
+                      {isItemChosen && <Check className="w-3.5 h-3.5 text-amber-600 inline ml-1" />}
+                    </span>
+                  </SelectItem>
+                );
+              })
+            )}
           </SelectContent>
         </Select>
 
@@ -109,21 +114,21 @@ export default function LeaveEligibilitySelector({
         <div className="flex flex-wrap items-center gap-1.5 pt-1 min-h-[28px]">
           {isAllSelected ? (
             <span className="text-xs italic text-slate-500">
-              Applies to all (leave unrestricted, or pick specific ones above)
+              Applies to all employees (no exceptions configured)
             </span>
           ) : (
             selected.map((item) => (
               <Badge
                 key={item}
                 variant="secondary"
-                className="pl-2.5 pr-1 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1"
+                className="pl-2.5 pr-1 py-0.5 text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1"
               >
-                <span>{toTitleCase(item)}</span>
+                <span>Except: {toTitleCase(item)}</span>
                 <button
                   type="button"
                   onClick={() => handleRemove(item)}
-                  className="rounded hover:bg-blue-200/70 p-0.5 text-blue-600 transition-colors"
-                  aria-label={`Remove ${item}`}
+                  className="rounded hover:bg-amber-200/70 p-0.5 text-amber-700 transition-colors"
+                  aria-label={`Remove exception ${item}`}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -139,9 +144,9 @@ export default function LeaveEligibilitySelector({
             variant="ghost"
             size="sm"
             onClick={handleSelectAll}
-            className="h-6 px-2 text-[11px] text-slate-600 hover:text-blue-600"
+            className="h-6 px-2 text-[11px] text-slate-600 hover:text-amber-700"
           >
-            Select All
+            Exclude All
           </Button>
           {!isAllSelected && (
             <Button
@@ -151,7 +156,7 @@ export default function LeaveEligibilitySelector({
               onClick={handleClear}
               className="h-6 px-2 text-[11px] text-slate-600 hover:text-red-600"
             >
-              Reset to All
+              Clear Exceptions
             </Button>
           )}
         </div>
