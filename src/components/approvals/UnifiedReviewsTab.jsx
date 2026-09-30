@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, CalendarRange, Loader2, UserCircle } from 'lucide-react';
 import { ApprovalsSkeleton, EmptyState, RejectDialog, safeDate } from './ApprovalsUIComponents';
+import TaskReviewDialog from './TaskReviewDialog';
 
 export default function UnifiedReviewsTab({
   loading,
@@ -47,6 +48,16 @@ export default function UnifiedReviewsTab({
     return <EmptyState message="No pending reviews across the organization." icon={UserCircle} />;
   }
 
+  const selectedTaskEmp = pendingTasksReviews.find((e) => (e.id || e._id) === taskReviewEmpId);
+  const activeTasksForSelectedEmp = selectedTaskEmp
+    ? (selectedTaskEmp.onboardingTasks?.filter(
+        (t) =>
+          Boolean(t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status)) &&
+          t.status !== 'approved' &&
+          !t.isApproved
+      ) || [])
+    : [];
+
   return (
     <div className="space-y-8">
       {/* Employee Reviews (Unified View) */}
@@ -64,20 +75,20 @@ export default function UnifiedReviewsTab({
               <motion.div 
                 key={empId} 
                 whileHover={{ y: -2 }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
               >
                 <div>
                   <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{getEmployeeName(empId)}</h4>
                   <p className="text-sm text-slate-500 mt-1">{getEmployeeJobTitle(empId)} • <span className="font-medium text-slate-600">{getEmployeeDept(empId)}</span></p>
                   <div className="flex gap-2 mt-2">
-                    {ePendingOnboarding && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">Pending Activation</Badge>}
-                    {eProfs > 0 && <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50">{eProfs} Profile Changes</Badge>}
-                    {eDocs > 0 && <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">{eDocs} Documents</Badge>}
+                    {ePendingOnboarding && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200 font-medium">Pending Activation</Badge>}
+                    {eProfs > 0 && <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50 font-medium">{eProfs} Profile Changes</Badge>}
+                    {eDocs > 0 && <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 font-medium">{eDocs} Documents</Badge>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button 
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2"
                     onClick={() => onSelectUnifiedEmployee(empId)}
                   >
                     Review
@@ -95,69 +106,48 @@ export default function UnifiedReviewsTab({
           <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Completed Tasks</h3>
           {pendingTasksReviews.map((emp) => {
             const isCompletedTask = (t) => Boolean(t.isCompleted || ['completed', 'done', 'DONE', 'COMPLETED'].includes(t.status));
-            const completedTasks = emp.onboardingTasks?.filter((t) => isCompletedTask(t) && t.status !== 'approved') || [];
+            const completedTasks = emp.onboardingTasks?.filter((t) => isCompletedTask(t) && t.status !== 'approved' && !t.isApproved) || [];
             if (completedTasks.length === 0) return null;
             
             return (
               <motion.div 
                 key={emp.id || emp._id} 
                 whileHover={{ y: -2 }}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
               >
                 <div>
                   <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
                   <p className="text-sm text-slate-500 mt-1">{emp.jobTitle} • <span className="font-medium text-slate-600">{emp.department?.name || 'No Dept'}</span></p>
-                  <p className="text-sm text-indigo-600 font-medium mt-2">{completedTasks.length} tasks completed and awaiting approval.</p>
+                  <p className="text-sm text-indigo-600 font-medium mt-2 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{completedTasks.length} {completedTasks.length === 1 ? 'task' : 'tasks'} completed and awaiting approval.</span>
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Dialog open={taskReviewEmpId === (emp.id || emp._id)} onOpenChange={(open) => setTaskReviewEmpId(open ? (emp.id || emp._id) : null)}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center gap-2 rounded-lg shadow-sm">
-                        <CheckCircle2 className="w-4 h-4" />
-                        View Tasks
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Completed Tasks</DialogTitle>
-                        <DialogDescription>Review the tasks completed by {emp.fullName}.</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto">
-                        {completedTasks.map((task) => (
-                          <div key={task.id || task._id} className="text-sm flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-slate-800 font-medium">{task.title}</p>
-                              <Badge variant="outline" className="text-xs mt-1 bg-white">{task.category}</Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-end pt-2 border-t border-slate-100">
-                        <Button 
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
-                          onClick={() => {
-                            approveCompletedTasks(
-                              { 
-                                employeeId: emp.id || emp._id, 
-                                taskIds: completedTasks.map((t) => (t.id || t._id)?.toString()).filter(Boolean) 
-                              },
-                              { onSuccess: () => setTaskReviewEmpId(null) }
-                            );
-                          }}
-                          disabled={isApprovingTasks}
-                        >
-                          {isApprovingTasks ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                          Approve Tasks
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 active:scale-[0.98] transition-all duration-150 ease-out flex items-center gap-2 rounded-lg shadow-2xs font-medium text-xs px-3.5 py-2"
+                    onClick={() => setTaskReviewEmpId(emp.id || emp._id)}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    View Tasks ({completedTasks.length})
+                  </Button>
                 </div>
               </motion.div>
             );
           })}
         </div>
+      )}
+
+      {/* Task Review Dialog */}
+      {selectedTaskEmp && (
+        <TaskReviewDialog
+          open={Boolean(taskReviewEmpId)}
+          onOpenChange={(open) => !open && setTaskReviewEmpId(null)}
+          employee={selectedTaskEmp}
+          completedTasks={activeTasksForSelectedEmp}
+          onApproveTasks={approveCompletedTasks}
+          isApproving={isApprovingTasks}
+        />
       )}
 
       {/* Probation Setup Reviews */}
@@ -168,7 +158,7 @@ export default function UnifiedReviewsTab({
             <motion.div 
               key={emp.id} 
               whileHover={{ y: -2 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
             >
               <div>
                 <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
@@ -178,15 +168,15 @@ export default function UnifiedReviewsTab({
               <div className="flex items-center gap-2 shrink-0">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm">
+                    <Button className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2">
                       <CalendarRange className="w-4 h-4" />
                       Set Probation
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="sm:rounded-2xl border-slate-200/80 shadow-2xl">
                     <DialogHeader>
-                      <DialogTitle>Set Probation Period</DialogTitle>
-                      <DialogDescription>Define the probation start and end dates for {emp.fullName}.</DialogDescription>
+                      <DialogTitle className="text-lg font-bold text-slate-900">Set Probation Period</DialogTitle>
+                      <DialogDescription className="text-xs text-slate-500">Define the probation start and end dates for {emp.fullName}.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={(e) => {
                       e.preventDefault();
@@ -199,15 +189,15 @@ export default function UnifiedReviewsTab({
                     }} className="space-y-4 pt-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Start Date</label>
-                          <input type="date" name="startDate" required className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm" />
+                          <label className="text-xs font-semibold text-slate-700">Start Date</label>
+                          <input type="date" name="startDate" required className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">End Date</label>
-                          <input type="date" name="endDate" required className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm" />
+                          <label className="text-xs font-semibold text-slate-700">End Date</label>
+                          <input type="date" name="endDate" required className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         </div>
                       </div>
-                      <Button type="submit" disabled={isApprovingProbationSetup} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                      <Button type="submit" disabled={isApprovingProbationSetup} className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white font-semibold text-xs py-2.5 rounded-lg shadow-sm">
                         {isApprovingProbationSetup ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
                       </Button>
                     </form>
@@ -227,7 +217,7 @@ export default function UnifiedReviewsTab({
             <motion.div 
               key={emp.id} 
               whileHover={{ y: -2 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
             >
               <div>
                 <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{emp.fullName}</h4>
@@ -237,14 +227,14 @@ export default function UnifiedReviewsTab({
               <div className="flex items-center gap-2 shrink-0">
                 <Button 
                   variant="outline"
-                  className="text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2 rounded-lg shadow-sm"
+                  className="text-red-600 border-red-200 hover:bg-red-50 active:scale-[0.98] transition-all duration-150 ease-out flex items-center gap-2 rounded-lg shadow-2xs font-medium text-xs px-3.5 py-2"
                   onClick={() => onBeginOffboarding(emp.id)}
                 >
                   <XCircle className="w-4 h-4" />
                   Begin Offboarding
                 </Button>
                 <Button 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2"
                   onClick={() => approveProbationEnd({ employeeId: emp.id })}
                   disabled={isApprovingProbationEnd}
                 >
@@ -265,7 +255,7 @@ export default function UnifiedReviewsTab({
             <motion.div 
               key={update.id} 
               whileHover={{ y: -2 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
             >
               <div>
                 <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{getEmployeeName(update.employeeId)}</h4>
@@ -281,7 +271,7 @@ export default function UnifiedReviewsTab({
               <div className="flex items-center gap-2 shrink-0">
                 <RejectDialog onReject={(reason) => rejectProfile({ id: update.id, reason, attachmentUrl: "" })} title="Reject Profile Update" />
                 <Button 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2"
                   onClick={() => approveProfile({ id: update.id })}
                   disabled={isApprovingProfile && profAppVars?.id === update.id}
                 >
@@ -306,7 +296,7 @@ export default function UnifiedReviewsTab({
             <motion.div 
               key={prob.id} 
               whileHover={{ y: -2 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
             >
               <div>
                 <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{prob.employee?.fullName || 'Unknown'}</h4>
@@ -317,7 +307,7 @@ export default function UnifiedReviewsTab({
               <div className="flex items-center gap-2 shrink-0">
                 <RejectDialog onReject={(reason) => approveProbation({ id: prob.id, status: 'REJECTED', comments: reason })} title="Reject Probation Request" />
                 <Button 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2"
                   onClick={() => approveProbation({ id: prob.id, status: 'APPROVED' })}
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -337,7 +327,7 @@ export default function UnifiedReviewsTab({
             <motion.div 
               key={off.id} 
               whileHover={{ y: -2 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-sm hover:shadow-md transition-all gap-4 group"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-slate-200/60 rounded-xl bg-white shadow-xs hover:shadow-md transition-all gap-4 group"
             >
               <div>
                 <h4 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{off.employee?.fullName || 'Unknown'}</h4>
@@ -349,7 +339,7 @@ export default function UnifiedReviewsTab({
               <div className="flex items-center gap-2 shrink-0">
                 <RejectDialog onReject={(reason) => rejectOffboarding({ id: off.id, comments: reason })} title="Reject Offboarding" />
                 <Button 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-150 ease-out text-white flex items-center gap-2 rounded-lg shadow-sm font-medium text-xs px-4 py-2"
                   onClick={() => approveOffboarding({ id: off.id })}
                 >
                   <CheckCircle2 className="w-4 h-4" />

@@ -8,6 +8,7 @@ import SuspendEmployeeDialog from "./dialogs/SuspendEmployeeDialog";
 import OffboardEmployeeDialog from "./dialogs/OffboardEmployeeDialog";
 import ProbationDecisionDialog from "./dialogs/ProbationDecisionDialog";
 import RejectProfileDialog from "./dialogs/RejectProfileDialog";
+import ReactivateEmployeeDialog from "./dialogs/ReactivateEmployeeDialog";
 
 export default function EmployeeDetailDialogs({
   employee,
@@ -93,6 +94,16 @@ export default function EmployeeDetailDialogs({
             toast.error(extractErrorMessage(err, "Failed to request profile revision."));
           }
         }}
+      />
+
+      <ReactivateEmployeeDialog
+        open={activeDialog === 'reactivate'}
+        onOpenChange={(open) => !open && onCloseDialog()}
+        employee={employee}
+        onConfirm={(data) => mutations.reactivateEmployee?.mutate(data, {
+          onSuccess: onCloseDialog
+        })}
+        isPending={Boolean(mutations.reactivateEmployee?.isPending)}
       />
     </>
   );

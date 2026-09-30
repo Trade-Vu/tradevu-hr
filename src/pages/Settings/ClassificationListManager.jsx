@@ -114,7 +114,6 @@ export default function ClassificationListManager({
           <Button
             onClick={handleStartAdd}
             disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700 shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" /> Add {itemLabel}
           </Button>

@@ -122,53 +122,40 @@ export default function LeaveTypeCard({
             </div>
           </div>
 
-          {/* Eligibility Section Footer */}
+          {/* Quota & Exceptions Section Footer */}
           <div className="pt-3 border-t border-slate-100 space-y-2 bg-slate-50/50 -mx-5 -mb-5 p-4 rounded-b-xl">
-            {/* Employment Types */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="inline-flex items-center gap-1 font-semibold text-slate-600 shrink-0 w-16">
-                <Briefcase className="w-3 h-3 text-slate-400" />
-                Types:
-              </span>
-              <div className="flex flex-wrap gap-1 items-center flex-1">
-                {lt.employmentTypes && lt.employmentTypes.length > 0 ? (
-                  lt.employmentTypes.map((t) => (
-                    <Badge
-                      key={t}
-                      variant="secondary"
-                      className="px-1.5 py-0 text-[10px] font-normal bg-white text-slate-700 border border-slate-200"
-                    >
-                      {toTitleCase(t)}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-slate-400 italic text-[11px]">All Employment Types</span>
-                )}
-              </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700">Baseline Quota:</span>
+              <span className="font-bold text-slate-900">{lt.defaultDays ?? lt.daysPerYear ?? 0} days / yr</span>
             </div>
 
-            {/* Employee Classes */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="inline-flex items-center gap-1 font-semibold text-slate-600 shrink-0 w-16">
-                <Layers className="w-3 h-3 text-slate-400" />
-                Classes:
-              </span>
-              <div className="flex flex-wrap gap-1 items-center flex-1">
-                {lt.employeeClasses && lt.employeeClasses.length > 0 ? (
-                  lt.employeeClasses.map((c) => (
-                    <Badge
-                      key={c}
-                      variant="secondary"
-                      className="px-1.5 py-0 text-[10px] font-normal bg-white text-slate-700 border border-slate-200"
-                    >
-                      {toTitleCase(c)}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-slate-400 italic text-[11px]">All Employee Categories</span>
-                )}
+            {Array.isArray(lt.daysExceptions) && lt.daysExceptions.length > 0 ? (
+              <div className="space-y-1 pt-1.5 border-t border-slate-200/60">
+                <span className="text-[11px] font-medium text-slate-500 block">Exceptions:</span>
+                <div className="flex flex-wrap gap-1">
+                  {lt.daysExceptions.map((ex, i) => {
+                    const label =
+                      ex.subjectName ||
+                      (ex.employmentType && ex.employmentType !== 'ALL'
+                        ? `${toTitleCase(ex.employmentType)}${ex.subjectId && ex.subjectId !== 'ALL' ? ` (${toTitleCase(ex.subjectId)})` : ''}`
+                        : toTitleCase(ex.subjectId || ex.category || 'Exception'));
+                    return (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="px-2 py-0.5 text-[10px] font-medium bg-blue-50/80 text-blue-700 border-blue-200"
+                      >
+                        {label}: {ex.days}d
+                      </Badge>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            ) : (
+              <span className="text-slate-400 italic text-[11px] block">
+                Standard quota applies to all employees
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

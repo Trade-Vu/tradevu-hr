@@ -378,7 +378,7 @@ export default function JobDataTab({
                   onClick={onReassignHrAdmin}
                 >
                   <ShieldCheck className="w-4 h-4 mr-1.5" />
-                  {employee.isHrAdmin ? 'Reassign HR Admin' : 'Reassign as HR Admin'}
+                    {employee.isHrAdmin ? 'Reassign HR' : 'Reassign as HR'}
                 </Button>
               )}
             </div>

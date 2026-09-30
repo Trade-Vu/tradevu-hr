@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { employeesApi } from "@/api";
-import { isOnboardedStatus } from "@/lib/employmentStatus";
+import { isOnboardedStatus, isSeparatedStatus } from "@/lib/employmentStatus";
 import { toast } from "sonner";
 
 const statusColors = {
@@ -159,7 +159,13 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
               </div>
             </div>
 
-            {canManageInvites && !isOnboardedStatus(employee.employment_status || employee.employmentStatus) && (
+            {canManageInvites && (() => {
+              const statusUpper = String(employee.employment_status || employee.employmentStatus || 'DRAFT').toUpperCase();
+              const isEmployeeActive = statusUpper === 'ACTIVE' || Boolean(employee.userActive || employee.isUserActive || employee.isActive);
+              const isSeparated = isSeparatedStatus(statusUpper);
+              const isPreOnboarding = !isOnboardedStatus(statusUpper);
+              return !isEmployeeActive && !isSeparated && isPreOnboarding;
+            })() && (
               <Button
                 size="sm"
                 variant="outline"
