@@ -75,7 +75,7 @@ describe('SettingsLeaveTypes', () => {
     expect(payload).toMatchObject({
       requiresAttachment: true,
       allowHalfDay: false,
-      maxCarryOver: 5,
+      maxCarryOver: 0,
       approvalSteps: [{ order: 1, role: 'MANAGER' }, { order: 2, role: 'HR_ADMIN' }],
     });
     expect(payload).not.toHaveProperty('eligibleAfterDays');

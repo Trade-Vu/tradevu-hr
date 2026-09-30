@@ -83,7 +83,7 @@ export default function LeaveHandoverFormSection({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-medium text-slate-700">
-            Relief Officer {isCompulsory ? <span className="text-rose-600 font-semibold">* (Required)</span> : <span className="text-slate-400 font-normal">(Optional)</span>}
+            Relief Officer <span className="text-rose-600 font-semibold">* (Required)</span>
           </Label>
           {departmentName && (
             <span className="text-[11px] text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
@@ -111,12 +111,14 @@ export default function LeaveHandoverFormSection({
           </SelectContent>
         </Select>
         <p className="text-[11px] text-slate-500">
-          The selected relief officer must confirm your attached handover note as part of your application.
+          A relief officer is required to cover your responsibilities while on leave.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-medium text-slate-700">Attach Completed Handover Document</Label>
+        <Label className="text-xs font-medium text-slate-700">
+          Attach Completed Handover Document {isCompulsory ? <span className="text-rose-600 font-semibold">* (Required)</span> : <span className="text-slate-400 font-normal">(Optional)</span>}
+        </Label>
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="file"

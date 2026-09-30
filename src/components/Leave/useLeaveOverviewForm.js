@@ -261,11 +261,10 @@ export function useLeaveOverviewForm({
       });
 
   const isHandoverCompulsory = Boolean(
-    (selectedLeaveTypeObj?.requiresHandover ||
-    selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY") &&
-    selectedLeaveTypeObj?.handoverRequirement !== "NONE"
+    selectedLeaveTypeObj?.requiresHandover ||
+    selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY"
   );
-  const isHandoverHidden = selectedLeaveTypeObj?.handoverRequirement === "NONE";
+  const isHandoverHidden = Boolean(isPastLeave);
 
   const requiresAttachment = selectedLeaveTypeObj && (
     selectedLeaveTypeObj.requiresAttachment ||
@@ -281,7 +280,9 @@ export function useLeaveOverviewForm({
       ? formData.selectedDates.length > 0
       : formData.start_date && formData.end_date) &&
     (!isAdmin || formData.employee_email) &&
-    (!requiresAttachment || formData.attachment_url)
+    (!requiresAttachment || formData.attachment_url) &&
+    (isPastLeave || formData.relief_officer_id) &&
+    (!isHandoverCompulsory || (formData.handover_note?.trim() || formData.handover_note_url))
   );
 
   const handleSubmit = (e) => {
@@ -311,15 +312,14 @@ export function useLeaveOverviewForm({
       return;
     }
 
-    if (isHandoverCompulsory) {
-      if (!formData.relief_officer_id) {
-        toast.error("Please select a Relief Officer from your department to confirm your handover note.");
-        return;
-      }
-      if (!formData.handover_note?.trim() && !formData.handover_note_url) {
-        toast.error("Handover note is required for this leave type. Please provide a summary or upload a completed note.");
-        return;
-      }
+    if (!isPastLeave && !formData.relief_officer_id) {
+      toast.error("Please select a Relief Officer from your department to cover during your leave.");
+      return;
+    }
+
+    if (isHandoverCompulsory && !formData.handover_note?.trim() && !formData.handover_note_url) {
+      toast.error("Handover note is required for this leave type. Please upload a completed note.");
+      return;
     }
 
     const selectedBalance = leaveBalances.find((b) => b.leaveTypeId === formData.leave_type);
