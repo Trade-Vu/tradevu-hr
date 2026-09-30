@@ -32,3 +32,8 @@ cypress/videos
 cypress/screenshots
 cypress.env.json
 base44/.app.jsonc
+
+agents.md
+CLAUDE.md
+agents
+SKILL.md
