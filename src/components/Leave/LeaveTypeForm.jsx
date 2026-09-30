@@ -45,8 +45,8 @@ export default function LeaveTypeForm({
         </DialogHeader>
 
         <form id="leave-type-form" onSubmit={onSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Row 1: Name and Code */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Basic Info: Name, Code, Days */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="leave-name" className="text-sm font-medium text-slate-700">
                 Name (e.g. Annual, Sick) *
@@ -73,10 +73,7 @@ export default function LeaveTypeForm({
                 className="bg-white"
               />
             </div>
-          </div>
 
-          {/* Row 2: Default Days and Max Carry Over */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="leave-days" className="text-sm font-medium text-slate-700">
                 Default Days Per Year
@@ -87,21 +84,6 @@ export default function LeaveTypeForm({
                 min="0"
                 value={formData.daysPerYear}
                 onChange={(e) => setFormData({ ...formData, daysPerYear: e.target.value })}
-                className="bg-white"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="max-carry-over" className="text-sm font-medium text-slate-700">
-                Max Carry Over (Days)
-              </Label>
-              <Input
-                id="max-carry-over"
-                type="number"
-                min="0"
-                value={formData.maxCarryOver}
-                onChange={(e) => setFormData({ ...formData, maxCarryOver: e.target.value })}
-                placeholder="0 (no carry over)"
                 className="bg-white"
               />
             </div>
@@ -199,10 +181,10 @@ export default function LeaveTypeForm({
           <div className="flex items-center justify-between p-3.5 border rounded-lg border-slate-200/80 bg-slate-50/50">
             <div className="space-y-0.5">
               <Label htmlFor="requires-handover" className="text-sm font-medium text-slate-800 cursor-pointer">
-                Require Handover Note & Relief Officer
+                Require Handover Note
               </Label>
               <p className="text-xs text-slate-500">
-                When enabled, designating a relief officer and providing a handover note is compulsory.
+                When enabled, employees must provide a handover note or document. When disabled, handover notes are optional. (A relief officer is always required for all leave requests).
               </p>
             </div>
             <Switch

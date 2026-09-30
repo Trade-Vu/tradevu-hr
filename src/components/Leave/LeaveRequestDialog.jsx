@@ -89,15 +89,14 @@ export default function LeaveRequestDialog({
       }
     }
 
-    if (isHandoverCompulsory) {
-      if (!formData.relief_officer_id) {
-        toast.error("Please select a Relief Officer from the department for this request.");
-        return;
-      }
-      if (!formData.handover_note?.trim() && !formData.handover_note_url) {
-        toast.error("Handover note is required for this leave type.");
-        return;
-      }
+    if (!formData.relief_officer_id) {
+      toast.error("Please select a Relief Officer from the department for this request.");
+      return;
+    }
+
+    if (isHandoverCompulsory && !formData.handover_note?.trim() && !formData.handover_note_url) {
+      toast.error("Handover note is required for this leave type. Please upload a completed document.");
+      return;
     }
 
     onSubmit(formData, null);

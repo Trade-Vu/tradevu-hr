@@ -240,7 +240,7 @@ export default function Layout({ children }) {
         { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
         { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
         { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
-        { title: "Employee Classes", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
+        { title: "Employement", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
         { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
         { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
         { title: "Audit Logs", url: PAGE_ROUTES.AUDIT_LOGS, icon: ShieldCheck }
