@@ -113,6 +113,11 @@ export function RouteGuard({ pageKey, children }) {
 
   // 7. Check Manager or Admin Pages (Pending Approvals, All Leave Requests)
   if (MANAGER_OR_ADMIN_PAGES.has(normalizedKey)) {
+    if (isEmployeeView) {
+      if (normalizedKey === 'allleaverequests' || !userIsManager) {
+        return <UnauthorizedRedirect to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;
+      }
+    }
     const hasApprovalAccess = userIsSuperAdmin || userIsAdmin || userIsManager;
     if (!hasApprovalAccess) {
       return <UnauthorizedRedirect to={PAGE_ROUTES.EMPLOYEE_SELF_SERVICE} />;

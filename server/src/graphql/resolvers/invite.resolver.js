@@ -72,7 +72,7 @@ export const inviteResolvers = {
         sendEmail: true,
         emailProps: {
           inviterName: user.email,
-          roleName: role === 'HR_ADMIN' ? 'HR Manager' : 'Employee',
+          roleName: role === 'HR_ADMIN' ? 'Head of People' : 'Employee',
           inviteLink,
         }
       });
@@ -164,7 +164,7 @@ export const inviteResolvers = {
             email: invite.email,
             employeeCode,
             hireDate: new Date(),
-            jobTitle: invite.role === 'HR_ADMIN' ? 'HR Manager' : 'Employee',
+            jobTitle: invite.role === 'HR_ADMIN' ? 'Head of People' : 'Employee',
             employmentStatus: 'DRAFT',
             departmentId
           }

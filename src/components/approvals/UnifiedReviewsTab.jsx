@@ -80,7 +80,7 @@ export default function UnifiedReviewsTab({
                     className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 rounded-lg shadow-sm"
                     onClick={() => onSelectUnifiedEmployee(empId)}
                   >
-                    Review & Action
+                    Review
                   </Button>
                 </div>
               </motion.div>

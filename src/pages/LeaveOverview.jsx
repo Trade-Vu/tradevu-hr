@@ -1,88 +1,40 @@
-import { calculateWorkingDays } from "@/lib/leaveDays";
-import LeaveBalances from "@/components/Leave/LeaveBalances";
-import PendingLeaveApprovals from "@/components/Leave/PendingLeaveApprovals";
-import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { leaveApi, approvalsApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { isLeaveEligibleStatus, isSeparatedStatus } from "@/lib/employmentStatus";
-import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
+import { isSuperAdmin, isHrAdmin, isManager as checkIsManager, isInAdminMode } from "@/lib/roleUtils";
 import { isPendingLeaveStatus } from "@/lib/leaveStatus";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { uploadToCloudinary } from "@/utils/cloudinary";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plane, Plus, Calendar, CheckCircle, XCircle, Clock, Upload, Paperclip } from "lucide-react";
-import { format } from "date-fns";
+import { Plane, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { extractErrorMessage, getRefId } from "@/lib/utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+
+import LeaveBalances from "@/components/Leave/LeaveBalances";
+import LeaveOverviewFormCard from "@/components/Leave/LeaveOverviewFormCard";
+import ReliefHandoverConfirmations from "@/components/Leave/ReliefHandoverConfirmations";
+import PendingLeaveApprovals from "@/components/Leave/PendingLeaveApprovals";
+import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
 
 export default function LeaveOverview() {
   const queryClient = useQueryClient();
-  const { user, refreshUser } = useAuth();
-  const [employee, setEmployee] = useState(null);
+  const { user, refreshUser, viewMode } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [isPastLeave, setIsPastLeave] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  // Matches the backend's check for filing leave on someone else's behalf (SUPER_ADMIN/HR_ADMIN/org owner).
-  const isAdmin = isSuperAdmin(user) || isHrAdmin(user);
-  // employeeId is populated with employmentStatus by /auth/me; if it isn't, let the backend decide.
+
+  // When in Employee view mode, HR Admin is strictly limited to regular employee access.
+  const isAdmin = isInAdminMode(user, viewMode);
+  const isManager = checkIsManager(user);
   const selfEmploymentStatus = user?.employeeId?.employmentStatus;
   const canRequestForSelf = !selfEmploymentStatus || isLeaveEligibleStatus(selfEmploymentStatus);
 
-  // The user object is loaded once at login, so an employee approved mid-session would still look
-  // ineligible here. Re-check once on mount, only when we'd otherwise hide the request buttons.
   useEffect(() => {
     if (!canRequestForSelf) refreshUser();
   }, []);
-  const isManager = checkIsManager(user);
-  const [formData, setFormData] = useState({
-    employee_email: user?.email || '',
-    leave_type: '',
-    start_date: '',
-    end_date: '',
-    reason: '',
-    total_days: 0,
-    attachment_url: '',
-    isHalfDay: false,
-    useMultipleDates: false,
-    selectedDates: [],
-  });
 
-  useEffect(() => {
-    if (user) {
-      setFormData(prev => ({ ...prev, employee_email: user.email }));
-    }
-  }, [user]);
-
-  // Only onboarded, still-employed staff can have leave filed for them.
-  const { data: employees = [] } = useLeaveEligibleEmployees({ enabled: isAdmin });
-
-  useEffect(() => {
-    if (employees.length > 0 && user) {
-      setEmployee(employees.find(e => e.email === user.email));
-    }
-  }, [employees, user]);
-
+  const { data: employees = [] } = useLeaveEligibleEmployees({ enabled: !!user });
   const { data: leaveTypes = [] } = useLeaveTypes();
 
   const { data: publicHolidays = [] } = useQuery({
@@ -93,36 +45,25 @@ export default function LeaveOverview() {
     },
   });
 
-  useEffect(() => {
-    if (leaveTypes.length > 0 && !formData.leave_type) {
-      setFormData(prev => ({ ...prev, leave_type: leaveTypes[0].id }));
-    }
-  }, [leaveTypes]);
-
-  const activeEmployeeId = isAdmin && formData.employee_email
-    ? employees.find(e => e.email === formData.employee_email)?.id
-    : getRefId(user?.employeeId);
+  const activeEmployeeId = getRefId(user?.employeeId);
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['leave-requests', isAdmin, isManager],
     queryFn: async () => {
-      // Deliberately unscoped by employeeId for admin/manager: this list feeds both
-      // "my requests" and "pending approvals" below, and approval authority for a given
-      // request is enforced server-side (assertLeaveApprovalAccess), not by this fetch.
       const payload = isAdmin || isManager
         ? await leaveApi.getAllRequests({ page: 1, limit: 100 })
         : await leaveApi.getMyRequests({ page: 1, limit: 100 });
 
       const list = Array.isArray(payload) ? payload : payload?.data || [];
       return list.map(l => {
-        const employee = l.employeeId || {};
+        const emp = l.employeeId || {};
         const typeName = l.leaveTypeId?.name || l.leaveType?.name || 'Annual Leave';
 
         return {
           ...l,
           id: l._id || l.id,
-          employee_email: employee.email || l.employee_email || (typeof employee === 'string' ? employee : ''),
-          employee_name: employee.fullName || l.employee_name || (typeof employee === 'string' ? employee : 'Employee'),
+          employee_email: emp.email || l.employee_email || (typeof emp === 'string' ? emp : ''),
+          employee_name: emp.fullName || l.employee_name || (typeof emp === 'string' ? emp : 'Employee'),
           leave_type: typeName,
           start_date: l.startDate || l.start_date,
           end_date: l.endDate || l.end_date,
@@ -130,13 +71,46 @@ export default function LeaveOverview() {
           isHalfDay: !!l.isHalfDay,
           selectedDates: l.selectedDates || [],
           attachment_url: l.attachmentUrl || l.attachment_url || '',
+          handover_note: l.handoverNote || l.handover_note || '',
+          handover_note_url: l.handoverNoteUrl || l.handover_note_url || '',
+          relief_officer_id: l.reliefOfficerId?._id || l.reliefOfficerId?.id || l.reliefOfficerId || '',
+          relief_officer_name: l.reliefOfficerId?.fullName || l.reliefOfficerId?.name || '',
+          relief_officer_status: l.reliefOfficerStatus || 'PENDING',
+          relief_officer_comments: l.reliefOfficerComments || '',
           approvers: l.approvers || [],
           isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
+          isPastLeave: Boolean(l.isPastLeave),
         };
       });
     },
     enabled: !!user,
     initialData: [],
+  });
+
+  const { data: reliefRequests = [] } = useQuery({
+    queryKey: ['relief-requests'],
+    queryFn: async () => {
+      const res = await leaveApi.getReliefRequests();
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+    enabled: !!user,
+  });
+
+  const confirmReliefMutation = useMutation({
+    mutationFn: async ({ id, action, comments }) => {
+      return leaveApi.confirmReliefHandover(id, { action, comments });
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.action === 'CONFIRMED' ? 'Handover note confirmed successfully!' : 'Handover confirmation declined.');
+      queryClient.invalidateQueries({ queryKey: ['relief-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err, 'Failed to update handover confirmation.'));
+    }
   });
 
   const { data: leaveBalances = [], refetch: refetchBalances } = useQuery({
@@ -165,95 +139,6 @@ export default function LeaveOverview() {
     enabled: !!user,
   });
 
-  const createLeaveMutation = useMutation({
-    mutationFn: async (data) => {
-      const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
-      const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
-
-      return leaveApi.createRequest({
-        // Admins file on behalf of the selected employee; everyone else always files for themselves.
-        employeeId: isAdmin ? employees.find(e => e.email === data.employee_email)?.id : undefined,
-        leaveTypeId: data.leave_type,
-        startDate: new Date(start).toISOString(),
-        endDate: new Date(end).toISOString(),
-        reason: data.reason,
-        attachmentUrl: data.attachment_url,
-        isHalfDay: !!data.isHalfDay,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
-      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      refetchBalances();
-      setShowForm(false);
-      setFormData({
-        employee_email: employee?.email || '',
-        leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : '',
-        start_date: '',
-        end_date: '',
-        reason: '',
-        total_days: 0,
-        attachment_url: '',
-        isHalfDay: false,
-        useMultipleDates: false,
-        selectedDates: [],
-      });
-    },
-    onError: (error) => {
-      console.error(error);
-      const msg = extractErrorMessage(error, "Failed to submit leave request.");
-      toast.error(msg);
-    }
-  });
-
-  const logPastLeaveMutation = useMutation({
-    mutationFn: async (data) => {
-      const start = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[0] : data.start_date;
-      const end = data.useMultipleDates && data.selectedDates.length > 0 ? data.selectedDates[data.selectedDates.length - 1] : data.end_date;
-
-      return leaveApi.createRequest({
-        // Admins file on behalf of the selected employee; everyone else always files for themselves.
-        employeeId: isAdmin ? employees.find(e => e.email === data.employee_email)?.id : undefined,
-        leaveTypeId: data.leave_type,
-        startDate: new Date(start).toISOString(),
-        endDate: new Date(end).toISOString(),
-        reason: data.reason,
-        attachmentUrl: data.attachment_url,
-        isHalfDay: !!data.isHalfDay,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
-      queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      refetchBalances();
-      setShowForm(false);
-      setFormData({
-        employee_email: employee?.email || '',
-        leave_type: leaveTypes.length > 0 ? leaveTypes[0].id : '',
-        start_date: '',
-        end_date: '',
-        reason: '',
-        total_days: 0,
-        attachment_url: '',
-        isHalfDay: false,
-        useMultipleDates: false,
-        selectedDates: [],
-      });
-      toast.success("Past leave successfully logged");
-    },
-    onError: (error) => {
-      console.error(error);
-      const msg = extractErrorMessage(error, "Failed to log past leave.");
-      toast.error(msg);
-    }
-  });
-
   const updateLeaveMutation = useMutation({
     mutationFn: async ({ id, status, reason }) => {
       if (status === 'APPROVED') {
@@ -280,53 +165,21 @@ export default function LeaveOverview() {
     },
     onError: (error) => {
       console.error(error);
-      const msg = extractErrorMessage(error, "Failed to update leave request.");
-      toast.error(msg);
+      toast.error(extractErrorMessage(error, "Failed to update leave request."));
     }
   });
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingFile(true);
-    try {
-      const uploadResult = await uploadToCloudinary(file);
-      if (!uploadResult || !uploadResult.secure_url) {
-        throw new Error("Failed to upload document to cloud storage.");
-      }
-      setFormData(prev => ({ ...prev, attachment_url: uploadResult.secure_url }));
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      toast.error("Failed to upload file. Please try again.");
-      setFormData(prev => ({ ...prev, attachment_url: '' })); // Clear attachment on error
-    }
-    setUploadingFile(false);
-  };
-
   const handleApprove = (request) => {
-    updateLeaveMutation.mutate({
-      id: request.id,
-      status: 'APPROVED'
-    });
+    updateLeaveMutation.mutate({ id: request.id, status: 'APPROVED' });
   };
 
   const handleReject = (request, reason) => {
-    updateLeaveMutation.mutate({
-      id: request.id,
-      status: 'REJECTED',
-      reason
-    });
+    updateLeaveMutation.mutate({ id: request.id, status: 'REJECTED', reason });
   };
 
   const handleCancel = (request) => {
-    updateLeaveMutation.mutate({
-      id: request.id,
-      status: 'CANCELLED'
-    });
+    updateLeaveMutation.mutate({ id: request.id, status: 'CANCELLED' });
   };
-
-  const calculateDays = (start, end) => calculateWorkingDays(start, end, publicHolidays);
 
   const safeDate = (val) => {
     if (!val) return new Date();
@@ -335,30 +188,6 @@ export default function LeaveOverview() {
     const num = Number(val);
     if (!isNaN(num)) return new Date(num);
     return new Date();
-  };
-
-  const handleDateChange = (field, value) => {
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      if (field === 'start_date' || field === 'end_date') {
-        const days = calculateDays(newData.start_date, newData.end_date);
-        newData.total_days = newData.isHalfDay ? days * 0.5 : days;
-      }
-      return newData;
-    });
-  };
-
-  const addSelectedDate = (date) => {
-    if (!date) return;
-    const newDates = [...formData.selectedDates, date].sort();
-    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
-  };
-
-  const removeSelectedDate = (date) => {
-    const newDates = formData.selectedDates.filter(d => d !== date);
-    const workingDays = newDates.reduce((total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays), 0);
-    setFormData({ ...formData, selectedDates: newDates, total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays });
   };
 
   const myRequests = leaveRequests.filter(r => r.employee_email === user?.email);
@@ -374,22 +203,16 @@ export default function LeaveOverview() {
     return isAdmin || isManager;
   });
 
-  const selectedLeaveTypeObj = leaveTypes.find(t => t.id === formData.leave_type);
-  const requiresAttachment = selectedLeaveTypeObj && (
-    selectedLeaveTypeObj.name === 'Study Leave' || 
-    (selectedLeaveTypeObj.name === 'Sick Leave' && formData.total_days > 2)
-  );
-
-  const hasRequiredRequestData = Boolean(
-    formData.leave_type &&
-    formData.reason.trim() &&
-    formData.total_days > 0 &&
-    (formData.useMultipleDates
-      ? formData.selectedDates.length > 0
-      : formData.start_date && formData.end_date) &&
-    (!isAdmin || formData.employee_email) &&
-    (!requiresAttachment || formData.attachment_url)
-  );
+  const handleFormSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    refetchBalances();
+    setShowForm(false);
+    setIsPastLeave(false);
+  };
 
   return (
     <div className="min-h-screen">
@@ -401,11 +224,11 @@ export default function LeaveOverview() {
               <Plane className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-slate-700">Leave Management</span>
             </div>
-            
             <p className="text-lg text-slate-600">
               Request time off and manage approvals
             </p>
           </div>
+
           {leaveTypes.length > 0 && !isAdmin && !canRequestForSelf && (
             <p className="max-w-xs text-sm text-slate-500">
               {isSeparatedStatus(selfEmploymentStatus)
@@ -413,6 +236,7 @@ export default function LeaveOverview() {
                 : "You'll be able to request leave once your onboarding is complete."}
             </p>
           )}
+
           {leaveTypes.length > 0 && (isAdmin || canRequestForSelf) && (
             <div className="flex gap-2">
               <Button 
@@ -433,247 +257,26 @@ export default function LeaveOverview() {
 
         <LeaveBalances leaveBalances={leaveBalances} leaveTypes={leaveTypes} isAdmin={isAdmin} />
 
-        {/* Request Form */}
-        {showForm && (
-          <Card className="border-slate-200">
-            <CardHeader className="border-b border-slate-200">
-              <CardTitle>{isPastLeave ? 'Log Past Leave' : 'New Leave Request'}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!hasRequiredRequestData) {
-                    toast.error('Complete all required leave request fields before submitting.');
-                    return;
-                  }
-                  if (requiresAttachment && !formData.attachment_url) {
-                    toast.error("Please upload a supporting document for your leave request.");
-                    return;
-                  }
-                  
-                  const selectedBalance = leaveBalances.find(b => b.leaveTypeId === formData.leave_type);
-                  if (selectedBalance && formData.total_days > selectedBalance.available) {
-                    toast.error(`You cannot request ${formData.total_days} days. You only have ${selectedBalance.available} available for this leave type.`);
-                    return;
-                  }
+        {/* Request Form Modal */}
+        <LeaveOverviewFormCard
+          isOpen={showForm}
+          user={user}
+          isAdmin={isAdmin}
+          isPastLeave={isPastLeave}
+          employees={employees}
+          leaveTypes={leaveTypes}
+          leaveBalances={leaveBalances}
+          publicHolidays={publicHolidays}
+          onClose={() => { setShowForm(false); setIsPastLeave(false); }}
+          onSuccess={handleFormSuccess}
+        />
 
-                  if (isPastLeave) {
-                    logPastLeaveMutation.mutate(formData);
-                  } else {
-                    createLeaveMutation.mutate(formData);
-                  }
-                }}
-                className="space-y-6"
-              >
-                {/* Conditional Employee Selection for Admin */}
-                {isAdmin && (
-                  <div className="space-y-2">
-                    <Label>Apply For</Label>
-                    <Select 
-                      value={formData.employee_email} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_email: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select employee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map(emp => (
-                          <SelectItem key={emp.id} value={emp.email}>
-                            {emp.full_name} - {emp.job_title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Leave Type *</Label>
-                    <Select 
-                      value={formData.leave_type} 
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, leave_type: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {leaveTypes.map(type => (
-                          <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!isPastLeave && selectedLeaveTypeObj?.noticeDaysRequired > 0 && (
-                      <p className="mt-1 text-xs text-amber-600">
-                        Requires at least {selectedLeaveTypeObj.noticeDaysRequired} days notice.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="checkbox" 
-                        id="isHalfDay" 
-                        checked={formData.isHalfDay} 
-                        onChange={(e) => {
-                          const isHalf = e.target.checked;
-                          let tDays = 0;
-                          let newEndDate = formData.end_date;
-                          if (isHalf && !formData.useMultipleDates) {
-                            newEndDate = formData.start_date;
-                          }
-                          if (formData.useMultipleDates) {
-                            tDays = formData.selectedDates.length * (isHalf ? 0.5 : 1);
-                          } else {
-                            tDays = calculateDays(formData.start_date, newEndDate) * (isHalf ? 0.5 : 1);
-                          }
-                          setFormData({ ...formData, isHalfDay: isHalf, end_date: newEndDate, total_days: tDays });
-                        }} 
-                        className="rounded border-slate-300"
-                      />
-                      <Label htmlFor="isHalfDay">Half-Day Request</Label>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="checkbox" 
-                        id="useMultipleDates" 
-                        checked={formData.useMultipleDates} 
-                        onChange={(e) => {
-                          const useMultiple = e.target.checked;
-                          let tDays = 0;
-                          if (useMultiple) {
-                            tDays = formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1);
-                          } else {
-                            tDays = calculateDays(formData.start_date, formData.end_date) * (formData.isHalfDay ? 0.5 : 1);
-                          }
-                          setFormData({ ...formData, useMultipleDates: useMultiple, total_days: tDays });
-                        }} 
-                        className="rounded border-slate-300"
-                      />
-                      <Label htmlFor="useMultipleDates">Multiple Non-Continuous Dates</Label>
-                    </div>
-                  </div>
-
-                  {!formData.useMultipleDates ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Start Date *</Label>
-                        <Input 
-                          type="date" 
-                          value={formData.start_date}
-                          onChange={(e) => {
-                            handleDateChange('start_date', e.target.value);
-                            if (formData.isHalfDay) {
-                               handleDateChange('end_date', e.target.value);
-                            }
-                          }}
-                          required
-                        />
-                      </div>
-
-                      {!formData.isHalfDay && (
-                        <div className="space-y-2">
-                          <Label>End Date *</Label>
-                          <Input 
-                            type="date" 
-                            value={formData.end_date}
-                            onChange={(e) => handleDateChange('end_date', e.target.value)}
-                            required
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="col-span-1 space-y-2 md:col-span-2">
-                      <Label>Selected Dates</Label>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Input 
-                          type="date" 
-                          id="multipleDateInput"
-                        />
-                        <Button type="button" onClick={() => {
-                          const val = document.getElementById('multipleDateInput').value;
-                          if (val) addSelectedDate(val);
-                        }}>Add Date</Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.selectedDates.map(date => (
-                          <Badge key={date} variant="secondary" className="flex items-center gap-2 px-3 py-1 text-sm">
-                            {format(new Date(date), 'MMM d, yyyy')}
-                            <XCircle className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => removeSelectedDate(date)} />
-                          </Badge>
-                        ))}
-                        {formData.selectedDates.length === 0 && <span className="text-sm text-slate-500">No dates added yet</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="col-span-1 space-y-2 md:col-span-2">
-                    <Label>Total Days</Label>
-                    <Input type="number" value={formData.total_days} disabled className="bg-slate-50" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Reason *</Label>
-                  <Textarea
-                    value={formData.reason}
-                    onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                {/* File Upload Section */}
-                {(requiresAttachment || formData.attachment_url) && (
-                  <div className="space-y-2">
-                    <Label>Supporting Document {requiresAttachment ? '* (Required)' : '(Optional)'}</Label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="file"
-                        id="attachment"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('attachment').click()}
-                        disabled={uploadingFile}
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        {uploadingFile ? 'Uploading...' : 'Upload Document'}
-                      </Button>
-                      {formData.attachment_url && (
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                          <Paperclip className="w-4 h-4" />
-                          Document attached
-                        </div>
-                      )}
-                      {requiresAttachment && !formData.attachment_url && (
-                        <span className="text-sm text-red-500">
-                          Document is required for this request.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" isLoading={createLeaveMutation.isPending} disabled={!hasRequiredRequestData || createLeaveMutation.isPending || logPastLeaveMutation.isPending}>
-                    {createLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+        <ReliefHandoverConfirmations
+          requests={reliefRequests}
+          onConfirm={confirmReliefMutation.mutate}
+          isPending={confirmReliefMutation.isPending}
+          safeDate={safeDate}
+        />
 
         <PendingLeaveApprovals
           requests={pendingApprovals}

@@ -290,7 +290,7 @@ export default function UnifiedProfileReviewDialog({
               disabled={isApprovingAll}
             >
               {isApprovingAll ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <CheckCircle2 className="w-5 h-5 mr-2" />}
-              Approve All Unactioned Items
+              Approve
             </Button>
           </div>
         )}

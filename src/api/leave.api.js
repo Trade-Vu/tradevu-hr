@@ -1,8 +1,8 @@
 import apiClient from './client';
 
 export const leaveApi = {
-  getLeaveTypes: async () => {
-    return apiClient.get('/leave/types');
+  getLeaveTypes: async (params = {}) => {
+    return apiClient.get('/leave/types', { params });
   },
 
   getPublicHolidays: async () => {
@@ -83,6 +83,14 @@ export const leaveApi = {
 
   getLeaveCalendar: async (year, departmentId) => {
     return apiClient.get('/leave/calendar', { params: { year, ...(departmentId ? { departmentId } : {}) } });
+  },
+
+  getReliefRequests: async () => {
+    return apiClient.get('/leave/requests/relief');
+  },
+
+  confirmReliefHandover: async (id, dto) => {
+    return apiClient.put(`/leave/requests/${id}/relief-confirm`, dto);
   },
 };
 

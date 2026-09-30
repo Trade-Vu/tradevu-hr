@@ -35,5 +35,11 @@ base44/.app.jsonc
 
 agents.md
 CLAUDE.md
+# add the package-lock.json file
+package-lock.json
+
+agents.md
+.agents/
+.agents.md
 agents
 SKILL.md

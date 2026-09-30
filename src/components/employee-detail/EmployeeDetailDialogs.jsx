@@ -20,7 +20,7 @@ export default function EmployeeDetailDialogs({
   onCloseDialog,
   selectedHrAdminEmpId,
   setSelectedHrAdminEmpId,
-  mutations,
+  mutations = {},
 }) {
   return (
     <>
@@ -31,10 +31,10 @@ export default function EmployeeDetailDialogs({
         employees={employees}
         selectedHrAdminEmpId={selectedHrAdminEmpId}
         setSelectedHrAdminEmpId={setSelectedHrAdminEmpId}
-        onConfirm={(targetId) => mutations.reassignHr.mutate(targetId, {
+        onConfirm={(targetId) => mutations.reassignHr?.mutate(targetId, {
           onSuccess: onCloseDialog
         })}
-        isPending={mutations.reassignHr.isPending}
+        isPending={Boolean(mutations.reassignHr?.isPending)}
       />
 
       <PromoteEmployeeDialog
@@ -43,40 +43,40 @@ export default function EmployeeDetailDialogs({
         employee={employee}
         departments={departments}
         employeeClasses={employeeClasses}
-        onConfirm={(data) => mutations.requestPromotion.mutate(data, {
+        onConfirm={(data) => mutations.requestPromotion?.mutate(data, {
           onSuccess: onCloseDialog
         })}
-        isPending={mutations.requestPromotion.isPending}
+        isPending={Boolean(mutations.requestPromotion?.isPending)}
       />
 
       <SuspendEmployeeDialog
         open={activeDialog === 'suspend'}
         onOpenChange={(open) => !open && onCloseDialog()}
         employee={employee}
-        onConfirm={(data) => mutations.suspendEmployee.mutate(data, {
+        onConfirm={(data) => mutations.suspendEmployee?.mutate(data, {
           onSuccess: onCloseDialog
         })}
-        isPending={mutations.suspendEmployee.isPending}
+        isPending={Boolean(mutations.suspendEmployee?.isPending)}
       />
 
       <OffboardEmployeeDialog
         open={activeDialog === 'offboard'}
         onOpenChange={(open) => !open && onCloseDialog()}
         employee={employee}
-        onConfirm={(data) => mutations.requestOffboarding.mutate(data, {
+        onConfirm={(data) => mutations.requestOffboarding?.mutate(data, {
           onSuccess: onCloseDialog
         })}
-        isPending={mutations.requestOffboarding.isPending}
+        isPending={Boolean(mutations.requestOffboarding?.isPending)}
       />
 
       <ProbationDecisionDialog
         open={activeDialog === 'probation'}
         onOpenChange={(open) => !open && onCloseDialog()}
         employee={employee}
-        onConfirm={(data) => mutations.requestProbation.mutate(data, {
+        onConfirm={(data) => mutations.requestProbation?.mutate(data, {
           onSuccess: onCloseDialog
         })}
-        isPending={mutations.requestProbation.isPending}
+        isPending={Boolean(mutations.requestProbation?.isPending)}
       />
 
       <RejectProfileDialog

@@ -127,7 +127,7 @@ export default function EmployeeSelfService() {
   if (isLoadingAuth || (isLoadingEmployee && employeeId)) return <LoadingState />;
   if (!employee) return <EmptyProfile onBack={() => navigate(PAGE_ROUTES.HOME)} />;
   return (
-    <div className="relative min-h-screen p-8 -m-4 md:-m-8 bg-gradient-to-br from-indigo-50 via-white to-blue-50 md:p-12">
+    <div className="relative min-h-screen p-8 -m-4 md:-m-8">
       <motion.div className="mx-auto space-y-8 max-w-7xl" initial="hidden" animate="visible">
         <motion.div variants={itemVariants}>
           <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 border rounded-full shadow-sm bg-white/80 border-slate-200/60">

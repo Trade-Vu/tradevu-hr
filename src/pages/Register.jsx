@@ -107,7 +107,7 @@ export default function Register() {
                   {step === 1 && "Set up Tradevu HR for your organization."}
                   {step === 2 && "How should we contact you?"}
                   {step === 3 && "Create a secure password for your admin account."}
-                  {step === 4 && "Invite your HR manager to help you set up."}
+                  {step === 4 && "Invite your Head of People to help you set up."}
                 </p>
               </>
             )}

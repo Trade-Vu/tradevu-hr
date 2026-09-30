@@ -150,7 +150,7 @@ describe('CEO → HR Onboarding Critical Path', () => {
         cy.get('button[role="combobox"]').first().click();
       });
       // The select popover is usually appended to body, not inside the dialog, so we keep this outside within()
-      cy.contains('div[role="option"]', 'HR Manager').click();
+      cy.contains('div[role="option"]', 'Head of People').click();
 
       cy.get('[role="dialog"]').contains('button', /send invite/i).first().click();
 

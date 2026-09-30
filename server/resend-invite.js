@@ -33,7 +33,7 @@ async function main() {
     sendEmail: true,
     emailProps: {
       inviterName: inviter.email,
-      roleName: token.role === 'HR_ADMIN' ? 'HR Manager' : 'Employee',
+      roleName: token.role === 'HR_ADMIN' ? 'Head of People' : 'Employee',
       inviteLink,
     }
   });

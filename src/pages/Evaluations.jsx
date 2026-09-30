@@ -75,14 +75,26 @@ export default function Evaluations() {
 
         {/* Main Content */}
         <Tabs defaultValue="evaluations" className="space-y-6">
-          <TabsList className="bg-white border border-slate-200 grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="evaluations" className="flex items-center gap-2">
+          <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70">
+            <TabsTrigger
+              value="evaluations"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
               <ClipboardCheck className="w-4 h-4" />
-              Evaluations
+              <span>Evaluations</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {evaluations.length}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="training-needs" className="flex items-center gap-2">
+            <TabsTrigger
+              value="training-needs"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
               <Target className="w-4 h-4" />
-              Training Needs
+              <span>Training Needs</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {trainingNeeds.length}
+              </span>
             </TabsTrigger>
           </TabsList>
 

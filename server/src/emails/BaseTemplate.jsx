@@ -18,13 +18,19 @@ import React from 'react';
 // each file hardcoding its own localhost/staging URL.
 export const getPreviewBaseUrl = () => {
   try {
+    if (typeof process !== 'undefined' && process.env.EMAIL_LOGO_URL) {
+      return process.env.EMAIL_LOGO_URL;
+    }
     if (typeof process !== 'undefined' && process.env.FRONTEND_URL) {
-      return process.env.FRONTEND_URL;
+      const url = process.env.FRONTEND_URL.replace(/\/+$/, '');
+      if (!url.includes('localhost') && !url.includes('127.0.0.1')) {
+        return url;
+      }
     }
   } catch (e) {
     // Ignore errors in environments without process
   }
-  return 'https://trade-hriscp.vercel.app';
+  return 'https://hr.tradevu.co';
 };
 
 export const BaseTemplate = ({ children, previewText, headerTitle = "Tradevu HR" }) => {
