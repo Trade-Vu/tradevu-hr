@@ -180,7 +180,7 @@ export default function LeaveQuotaExceptionsEditor({
           className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all duration-150 active:scale-[0.98]"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>+ Add exceptions</span>
+          <span>Add exceptions</span>
         </button>
       </div>
     );
