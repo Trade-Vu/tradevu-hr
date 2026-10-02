@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Calendar, User, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import AddTaskDialog from "./AddTaskDialog";
+import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
 
 const statusColors = {
   pending: "bg-orange-100 text-orange-800 border-orange-200",
@@ -47,7 +48,11 @@ export default function TaskManager({ tasks = [], employeeId }) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }) => {
-      return await onboardingApi.updateTask(taskId, data);
+      const canonicalStatus = data.status ? normalizeTaskStatus(data.status) : undefined;
+      return await onboardingApi.updateTask(taskId, {
+        ...data,
+        ...(canonicalStatus ? { status: canonicalStatus } : {}),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
@@ -66,18 +71,32 @@ export default function TaskManager({ tasks = [], employeeId }) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData) => {
-      return { ...taskData, employee_id: employeeId, id: `task_${Date.now()}` };
+      const payload = {
+        employeeId,
+        title: taskData.title,
+        description: taskData.description,
+        category: taskData.department || taskData.category || 'other',
+        priority: taskData.priority || 'medium',
+        dueDate: taskData.deadline || undefined,
+        status: TASK_STATUSES.TODO,
+      };
+      return await onboardingApi.createTask(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
       setShowAddDialog(false);
+      toast.success("Task created successfully");
     },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create task");
+    }
   });
 
   const toggleTaskComplete = (task) => {
-    const isCurrentlyDone = ['completed', 'done', 'DONE', 'approved'].includes(task.status) || Boolean(task.isCompleted);
-    const newStatus = isCurrentlyDone ? 'not_started' : 'completed';
+    const isCurrentlyDone = normalizeTaskStatus(task.status, Boolean(task.isCompleted)) === TASK_STATUSES.DONE;
+    const newStatus = isCurrentlyDone ? TASK_STATUSES.TODO : TASK_STATUSES.DONE;
     updateTaskMutation.mutate({ 
       taskId: task.id, 
       data: { status: newStatus } 
@@ -85,13 +104,19 @@ export default function TaskManager({ tasks = [], employeeId }) {
   };
 
   const updateTaskStatus = (taskId, newStatus) => {
-    updateTaskMutation.mutate({ taskId, data: { status: newStatus } });
+    updateTaskMutation.mutate({ taskId, data: { status: normalizeTaskStatus(newStatus) } });
   };
 
   const groupedTasks = {
-    pending: effectiveTasks.filter(t => ['pending', 'not_started', 'todo'].includes(t.status) || (!t.status && !t.isCompleted)),
-    in_progress: effectiveTasks.filter(t => t.status === 'in_progress'),
-    completed: effectiveTasks.filter(t => ['completed', 'done', 'DONE', 'approved'].includes(t.status) || Boolean(t.isCompleted)),
+    pending: effectiveTasks.filter(t => {
+      const s = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
+      return s === TASK_STATUSES.TODO || s === TASK_STATUSES.BACKLOG;
+    }),
+    in_progress: effectiveTasks.filter(t => {
+      const s = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
+      return s === TASK_STATUSES.IN_PROGRESS || s === TASK_STATUSES.REVIEW;
+    }),
+    completed: effectiveTasks.filter(t => normalizeTaskStatus(t.status, Boolean(t.isCompleted)) === TASK_STATUSES.DONE),
   };
 
   return (

@@ -16,6 +16,7 @@ import {
   expensesApi,
   notificationsApi,
 } from "@/api";
+import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
 
 // Banner-worthy notification types shown on the self-service dashboard - other types
 // (e.g. document/leave notifications) aren't rendered as dashboard banners.
@@ -135,11 +136,8 @@ export default function useEmployeeSelfService() {
       listFrom(await onboardingApi.getMyTasks()).map((t) => ({
         ...t,
         id: t._id || t.id,
-        isCompleted:
-          t.status === "completed" ||
-          t.status === "DONE" ||
-          t.status === "approved" ||
-          !!t.isCompleted,
+        status: normalizeTaskStatus(t.status, Boolean(t.isCompleted)),
+        isCompleted: normalizeTaskStatus(t.status, Boolean(t.isCompleted)) === TASK_STATUSES.DONE,
       })),
     enabled: true,
   });
@@ -213,7 +211,7 @@ export default function useEmployeeSelfService() {
   });
   const toggleTaskMutation = useMutation({
     mutationFn: ({ taskId, isCompleted }) =>
-      onboardingApi.updateTask(taskId, { status: isCompleted ? "not_started" : "completed" }),
+      onboardingApi.updateTask(taskId, { status: isCompleted ? TASK_STATUSES.TODO : TASK_STATUSES.DONE }),
     onSuccess: () => {
       invalidate(["my-onboarding-tasks"]);
       invalidate(["onboarding-tasks"]);
@@ -223,7 +221,7 @@ export default function useEmployeeSelfService() {
   });
   const completeAllMutation = useMutation({
     mutationFn: async (ids) => {
-      for (const id of ids) await onboardingApi.updateTask(id, { status: "completed" });
+      for (const id of ids) await onboardingApi.updateTask(id, { status: TASK_STATUSES.DONE });
     },
     onSuccess: () => {
       invalidate(["my-onboarding-tasks", employee?.id]);
