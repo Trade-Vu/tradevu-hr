@@ -67,7 +67,7 @@ export default function DashboardEmptyState({ user }) {
     },
   });
 
-  // An HR manager can already have been invited two ways that never show up as an
+  // A Head of People can already have been invited two ways that never show up as an
   // Employee record: (1) the optional "HR Email" field on Register.jsx step 4, which
   // only creates a User (role HR_ADMIN, isActive:false) with no Employee, or (2) an
   // invite sent here that the invitee hasn't accepted yet. Both are inactive users, so
@@ -134,7 +134,7 @@ export default function DashboardEmptyState({ user }) {
 
   const ceoSteps = [
     { id: 'org', title: 'Complete Organization Profile', description: 'Add your company logo, legal name, and industry details.', icon: Building2, isModal: true },
-    { id: 'hr', title: 'Invite your HR Manager', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, isHRModal: true },
+    { id: 'hr', title: 'Invite your Head of People', description: 'Onboard your HR head to take over the rest of the setup.', icon: UserPlus, isHRModal: true },
   ];
 
   const hrSteps = [

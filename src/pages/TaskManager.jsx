@@ -15,6 +15,7 @@ import { Plus, Kanban, FolderKanban, Calendar, Clock, User, CheckCircle } from "
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { TASK_STATUSES, TASK_STATUS_CONFIG, normalizeTaskStatus } from "@/constants/taskStatus";
 
 const TaskSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -146,11 +147,8 @@ export default function TaskManager() {
   // Normalized Custom Project Tasks
   const normalizedProjectTasks = rawProjectTasks.map(t => {
     const rawProjectId = t.projectId?._id || t.projectId;
-    const proj = rawProjects.find(p => (p._id || p.id) === rawProjectId);
-    
-    let status = t.status || 'todo';
-    if (status === 'not_started') status = 'todo';
-    if (status === 'completed') status = 'done';
+    const proj = rawProjects.find(p => String(p._id || p.id) === String(rawProjectId));
+    const status = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
 
     let assignedToDisplay = 'Unassigned';
     if (typeof t.assignedTo === 'string') {
@@ -177,16 +175,13 @@ export default function TaskManager() {
   // Normalized Onboarding Tasks
   const normalizedOnboardingTasks = rawOnboardingTasks.map(t => {
     const rawEmpId = t.employeeId?._id || t.employeeId;
-    const emp = t.employeeId && typeof t.employeeId === 'object' && t.employeeId.fullName
+    const emp = t.employeeId && typeof t.employeeId === 'object' && (t.employeeId.fullName || t.employeeId.email)
       ? t.employeeId 
-      : employees.find(e => (e._id || e.id) === rawEmpId);
+      : employees.find(e => String(e._id || e.id) === String(rawEmpId));
     
     const empName = emp?.fullName || emp?.email || 'Employee';
-    const projId = rawEmpId ? `onboarding_${rawEmpId}` : 'onboarding';
-
-    let status = t.status || (t.isCompleted ? 'done' : 'todo');
-    if (status === 'not_started') status = 'todo';
-    if (status === 'completed') status = 'done';
+    const projId = rawEmpId ? `onboarding_${String(rawEmpId)}` : 'onboarding';
+    const status = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
 
     return {
       id: t._id || t.id,
@@ -290,14 +285,15 @@ export default function TaskManager() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ task, newStatus }) => {
+      const canonicalStatus = normalizeTaskStatus(newStatus);
       if (task.is_onboarding) {
-        const backendStatus = newStatus === 'done' ? 'completed' : newStatus;
-        return await onboardingApi.updateTask(task.id, { status: backendStatus });
+        return await onboardingApi.updateTask(task.id, { status: canonicalStatus });
       } else {
-        return await projectsApi.updateTask(task.id, { status: newStatus });
+        return await projectsApi.updateTask(task.id, { status: canonicalStatus });
       }
     },
     onMutate: async ({ task, newStatus }) => {
+      const canonicalStatus = normalizeTaskStatus(newStatus);
       const queryKey = task.is_onboarding ? ['onboarding-tasks'] : ['project-tasks'];
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
@@ -310,9 +306,9 @@ export default function TaskManager() {
           if (itemId === task.id) {
             return {
               ...item,
-              status: newStatus,
-              isCompleted: newStatus === 'done',
-              completedAt: newStatus === 'done' ? new Date().toISOString() : item.completedAt,
+              status: canonicalStatus,
+              isCompleted: canonicalStatus === TASK_STATUSES.DONE,
+              completedAt: canonicalStatus === TASK_STATUSES.DONE ? new Date().toISOString() : item.completedAt,
             };
           }
           return item;
@@ -342,21 +338,21 @@ export default function TaskManager() {
     : allTasks;
 
   const tasksByStatus = {
-    backlog: tasks.filter(t => t.status === 'backlog'),
-    todo: tasks.filter(t => t.status === 'todo'),
-    in_progress: tasks.filter(t => t.status === 'in_progress'),
-    review: tasks.filter(t => t.status === 'review'),
-    done: tasks.filter(t => t.status === 'done'),
+    [TASK_STATUSES.BACKLOG]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.BACKLOG),
+    [TASK_STATUSES.TODO]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.TODO),
+    [TASK_STATUSES.IN_PROGRESS]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.IN_PROGRESS),
+    [TASK_STATUSES.REVIEW]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.REVIEW),
+    [TASK_STATUSES.DONE]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.DONE),
   };
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
     
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId;
+    const newStatus = normalizeTaskStatus(result.destination.droppableId);
     const task = tasks.find(t => t.id === taskId);
     
-    if (task && task.status !== newStatus) {
+    if (task && normalizeTaskStatus(task.status) !== newStatus) {
       updateTaskMutation.mutate({
         task,
         newStatus,
@@ -364,13 +360,7 @@ export default function TaskManager() {
     }
   };
 
-  const statusConfig = {
-    backlog: { title: 'Backlog', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    todo: { title: 'To Do', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    in_progress: { title: 'In Progress', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-    review: { title: 'Review', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    done: { title: 'Done', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  };
+  const statusConfig = TASK_STATUS_CONFIG;
 
   const priorityColors = {
     low: 'bg-slate-300',

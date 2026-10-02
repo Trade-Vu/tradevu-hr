@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ChevronRight, Mail, Briefcase, UserPlus } from "lucide-react";
+import { ChevronRight, Mail, Briefcase, UserPlus, Send, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { employeesApi } from "@/api";
+import { isOnboardedStatus, isSeparatedStatus } from "@/lib/employmentStatus";
+import { toast } from "sonner";
 
 const statusColors = {
   ACTIVE: "bg-emerald-50 text-emerald-600 border-emerald-200",
@@ -30,6 +36,37 @@ const statusLabels = {
 };
 
 export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [resendingId, setResendingId] = React.useState(null);
+  const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
+
+  const handleResend = async (employee) => {
+    try {
+      setResendingId(employee.id);
+      const res = await employeesApi.resendInvite(employee.id);
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      if (res?.emailSent === false && res?.inviteUrl) {
+        toast.warning(res.message, {
+          action: {
+            label: 'Copy Link',
+            onClick: () => {
+              navigator.clipboard?.writeText(res.inviteUrl);
+              toast.success('Invite link copied to clipboard!');
+            },
+          },
+          duration: 10000,
+        });
+      } else {
+        toast.success(res?.message || `Invitation resent successfully to ${employee.email}!`);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to resend invite.');
+    } finally {
+      setResendingId(null);
+    }
+  };
   if (isLoading) {
     return (
       <div className="divide-y divide-slate-100">
@@ -121,6 +158,37 @@ export default function EmployeeList({ employees, isLoading, onOpenDetail }) {
                 <Progress value={employee.progress_percentage || 0} className="h-1.5 bg-slate-100" />
               </div>
             </div>
+
+            {canManageInvites && (() => {
+              const statusUpper = String(employee.employment_status || employee.employmentStatus || 'DRAFT').toUpperCase();
+              const isEmployeeActive = statusUpper === 'ACTIVE' || Boolean(employee.userActive || employee.isUserActive || employee.isActive);
+              const isSeparated = isSeparatedStatus(statusUpper);
+              const isPreOnboarding = !isOnboardedStatus(statusUpper);
+              return !isEmployeeActive && !isSeparated && isPreOnboarding;
+            })() && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2.5 text-xs font-medium text-indigo-700 border-indigo-200 hover:bg-indigo-50 shrink-0 z-10 hidden sm:inline-flex"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleResend(employee);
+                }}
+                disabled={resendingId === employee.id}
+              >
+                {resendingId === employee.id ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-indigo-600" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                    Resend Invite
+                  </>
+                )}
+              </Button>
+            )}
 
             {/* Arrow */}
             <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />

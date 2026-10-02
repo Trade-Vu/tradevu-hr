@@ -47,7 +47,7 @@ export default function EmployeeSelfServiceAlerts({
           </div>
         );
       })}
-      {!hideBanner && pendingTasksCount > 0 && (
+      {/* {!hideBanner && pendingTasksCount > 0 && (
         <div className="sticky top-0 z-[100] flex flex-col items-center justify-between px-4 py-5 text-base border shadow-sm rounded-2xl bg-slate-100 border-slate-300 text-slate-800 xl:flex-row md:px-8">
           <div className="flex-1 pr-4 mb-3 font-medium xl:mb-0">
             You have {pendingTasksCount} pending onboarding {pendingTasksCount === 1 ? 'task' : 'tasks'} to complete.
@@ -61,7 +61,7 @@ export default function EmployeeSelfServiceAlerts({
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {isDraft && (
         <div className="flex flex-col items-start justify-between gap-4 p-5 border shadow-sm rounded-2xl border-amber-200 bg-amber-50/90 text-amber-900 sm:flex-row sm:items-center">

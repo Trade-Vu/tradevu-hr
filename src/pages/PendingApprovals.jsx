@@ -79,33 +79,42 @@ export default function PendingApprovals() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs defaultValue={!data.isAdmin && data.isManager ? "leaves" : "unified"} className="space-y-6">
-          <TabsList className="bg-slate-50/80 border border-slate-100 p-1.5 rounded-xl flex-wrap h-auto">
-            <TabsTrigger value="unified" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+          <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex flex-wrap border border-slate-200/70">
+            <TabsTrigger
+              value="unified"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
               <UserCircle className="w-4 h-4" />
-              Employee Reviews
+              <span>Employee Reviews</span>
               {data.totalEmployeeReviewsCount > 0 && (
-                <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">
+                <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   {data.totalEmployeeReviewsCount}
-                </Badge>
+                </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="leaves" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+            <TabsTrigger
+              value="leaves"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
               <CalendarRange className="w-4 h-4" />
-              Leave Requests
+              <span>Leave Requests</span>
               {data.pendingLeaves.length > 0 && (
-                <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">
+                <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                   {data.pendingLeaves.length}
-                </Badge>
+                </span>
               )}
             </TabsTrigger>
             {data.isSuperAdmin && (
-              <TabsTrigger value="departments" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm flex gap-2">
+              <TabsTrigger
+                value="departments"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+              >
                 <Building2 className="w-4 h-4" />
-                Departments
+                <span>Departments</span>
                 {data.pendingDepartments.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 bg-indigo-100 text-indigo-700 px-1.5 py-0 min-w-[20px]">
+                  <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
                     {data.pendingDepartments.length}
-                  </Badge>
+                  </span>
                 )}
               </TabsTrigger>
             )}

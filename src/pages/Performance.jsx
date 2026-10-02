@@ -35,7 +35,9 @@ import {
   Star,
   CheckCircle,
   Clock,
+  BarChart3,
 } from "lucide-react";
+import PerformanceCheckInsList from "@/components/evaluations/PerformanceCheckInsList";
 
 export default function Performance() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -297,124 +299,90 @@ export default function Performance() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList>
-            <TabsTrigger value="overview">All Evaluations</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
+          <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70">
+            <TabsTrigger
+              value="overview"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>All Evaluations</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {goals.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="pending"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
+              <Clock className="w-4 h-4" />
+              <span>Pending</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {checkIns.filter((c) => c.status === "SCHEDULED").length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="completed"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>Completed</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {checkIns.filter((c) => c.status === "COMPLETED").length}
+              </span>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4 mt-6">
+          <TabsContent value="overview" className="space-y-4 mt-6 focus-visible:outline-none">
             <h2 className="text-xl font-semibold mb-4">My Goals</h2>
             <div className="grid gap-4">
               {goals.map((goal) => (
-                  <Card key={goal.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {goal.title}
-                            </h3>
-                            <Badge className={getStatusColor(goal.status)}>
-                              {goal.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {goal.period}
-                            </span>
-                            <span>Weight: {goal.weight}%</span>
-                          </div>
+                <Card key={goal.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {goal.title}
+                          </h3>
+                          <Badge className={getStatusColor(goal.status)}>
+                            {goal.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {goal.period}
+                          </span>
+                          <span>Weight: {goal.weight}%</span>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </TabsContent>
 
-          <TabsContent value="pending" className="space-y-4 mt-6">
+          <TabsContent value="pending" className="space-y-4 mt-6 focus-visible:outline-none">
             <h2 className="text-xl font-semibold mb-4">Pending Check-ins</h2>
-            <div className="grid gap-4">
-              {checkIns
-                .filter((c) => c.status === "SCHEDULED")
-                .map((checkIn) => (
-                  <Card key={checkIn.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="w-full">
-                          <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                            Check-in for {checkIn.period}
-                          </h3>
-                          <div className="flex items-center gap-3 text-sm text-slate-600 mb-4">
-                            <span>Scheduled: {checkIn.scheduledDate}</span>
-                            <Badge className={getStatusColor(checkIn.status)}>
-                              {checkIn.status}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Self Appraisal Notes</Label>
-                            <Textarea 
-                              placeholder="Write your reflections here..." 
-                              onBlur={(e) => updateCheckInMutation.mutate({
-                                id: checkIn.id,
-                                data: { selfAppraisal: e.target.value, status: 'COMPLETED' }
-                              })}
-                            />
-                            <p className="text-xs text-slate-500">Clicking outside the box will submit your appraisal.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
+            <PerformanceCheckInsList
+              checkIns={checkIns}
+              status="SCHEDULED"
+              onUpdateCheckIn={(id, data) =>
+                updateCheckInMutation.mutate({ id, data })
+              }
+              getStatusColor={getStatusColor}
+            />
           </TabsContent>
 
-          <TabsContent value="completed" className="space-y-4 mt-6">
+          <TabsContent value="completed" className="space-y-4 mt-6 focus-visible:outline-none">
             <h2 className="text-xl font-semibold mb-4">Completed Check-ins</h2>
-            <div className="grid gap-4">
-              {checkIns
-                .filter((c) => c.status === "COMPLETED")
-                .map((checkIn) => (
-                  <Card key={checkIn.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                            Check-in for {checkIn.period}
-                          </h3>
-                          <div className="flex items-center gap-3 text-sm text-slate-600 mb-3">
-                            <span>Completed on {checkIn.completedDate || checkIn.scheduledDate}</span>
-                            <Badge className={getStatusColor(checkIn.status)}>
-                              {checkIn.status}
-                            </Badge>
-                          </div>
-                          {checkIn.overallRating > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">Manager Rating:</span>
-                              <div className="flex gap-1">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-4 h-4 ${
-                                      i < checkIn.overallRating
-                                        ? "fill-yellow-500 text-yellow-500"
-                                        : "text-gray-300"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
+            <PerformanceCheckInsList
+              checkIns={checkIns}
+              status="COMPLETED"
+              getStatusColor={getStatusColor}
+            />
           </TabsContent>
         </Tabs>
       </div>

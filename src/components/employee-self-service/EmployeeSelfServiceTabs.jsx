@@ -26,16 +26,20 @@ const tabs = [
 
 export default function EmployeeSelfServiceTabs({ pendingTasksCount }) {
   return (
-    <TabsList className="inline-flex h-auto gap-1 p-1 border shadow-sm bg-slate-50 min-w-max rounded-xl border-slate-200">
+    <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70 min-w-max gap-1">
       {tabs.map(({ value, label, icon: Icon }) => (
         <TabsTrigger
           key={value}
           value={value}
-          className="gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 data-[state=active]:bg-[slate-900] data-[state=active]:text-slate-900 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
         >
           <Icon className="w-4 h-4" />
           <span>{label}</span>
-          {value === "onboarding" && pendingTasksCount > 0 && `(${pendingTasksCount})`}
+          {value === "onboarding" && pendingTasksCount > 0 && (
+            <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              {pendingTasksCount}
+            </span>
+          )}
         </TabsTrigger>
       ))}
     </TabsList>

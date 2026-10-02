@@ -47,6 +47,10 @@ export const employeesApi = {
     return apiClient.post('/employees/invite', dto);
   },
 
+  resendInvite: async (id) => {
+    return apiClient.post(`/employees/${id}/resend-invite`);
+  },
+
   bulkImport: async (employees) => {
     return apiClient.post('/employees/bulk-import', { employees });
   },

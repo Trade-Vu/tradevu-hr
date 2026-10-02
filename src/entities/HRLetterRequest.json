@@ -49,7 +49,7 @@
     },
     "approved_by": {
       "type": "string",
-      "description": "HR manager who approved"
+      "description": "Head of People who approved"
     },
     "approved_date": {
       "type": "string",

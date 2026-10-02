@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Clock, Paperclip, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, Paperclip, XCircle, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,11 +41,45 @@ export default function PendingLeaveApprovals({ requests, onApprove, onReject, i
                           Annual Plan
                         </Badge>
                       )}
+                      {request.isPastLeave && (
+                        <Badge variant="outline" className="text-[10px] uppercase font-semibold border-amber-200 text-amber-700 bg-amber-50">
+                          Past Leave
+                        </Badge>
+                      )}
                     </p>
                     <p><strong>Duration:</strong> {request.selectedDates?.length > 0
                       ? request.selectedDates.map((date) => format(safeDate(date), 'MMM d')).join(', ')
                       : `${format(safeDate(request.start_date), 'MMM d')} - ${format(safeDate(request.end_date), 'MMM d')}`} ({request.total_days} days)</p>
                     <p><strong>Reason:</strong> {request.reason}</p>
+                    {request.relief_officer_name && (
+                      <div className="flex items-center gap-2 flex-wrap py-0.5">
+                        <span><strong>Relief Officer:</strong> {request.relief_officer_name}</span>
+                        {request.relief_officer_status === 'CONFIRMED' && (
+                          <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 text-[10px] font-semibold">
+                            Handover Confirmed ✓
+                          </Badge>
+                        )}
+                        {request.relief_officer_status === 'REJECTED' && (
+                          <Badge variant="outline" className="text-rose-700 bg-rose-50 border-rose-200 text-[10px] font-semibold">
+                            Handover Declined ✗
+                          </Badge>
+                        )}
+                        {(!request.relief_officer_status || request.relief_officer_status === 'PENDING') && (
+                          <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 text-[10px] font-semibold">
+                            Awaiting Relief Confirmation ⏳
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    {request.handover_note && (
+                      <p><strong>Handover Note:</strong> {request.handover_note}</p>
+                    )}
+                    {request.handover_note_url && (
+                      <p className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-500" />
+                        <a href={request.handover_note_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">View Handover Document</a>
+                      </p>
+                    )}
                     {request.attachment_url && (
                       <p className="flex items-center gap-2">
                         <Paperclip className="w-4 h-4 text-blue-500" />

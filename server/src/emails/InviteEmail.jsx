@@ -3,7 +3,7 @@ import { BaseTemplate, getPreviewBaseUrl } from './BaseTemplate.jsx';
 import { Text, Button, Section, Hr } from '@react-email/components';
 
 export const InviteEmail = ({ inviteeName, orgName, role, inviteLink }) => {
-  const roleLabel = role === 'HR_ADMIN' ? 'HR Manager' : 'Employee';
+  const roleLabel = role === 'HR_ADMIN' ? 'Head of People' : 'Employee';
 
   return (
     <BaseTemplate previewText={`You've been invited to join ${orgName} on Tradevu HR`}>

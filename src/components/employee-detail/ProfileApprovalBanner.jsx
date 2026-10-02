@@ -10,6 +10,8 @@ export default function ProfileApprovalBanner({
   employeeId,
   onRequestRevision,
   queryClient,
+  onResendInvite,
+  isResendingInvite = false,
 }) {
   const [isApproving, setIsApproving] = useState(false);
 
@@ -41,11 +43,21 @@ export default function ProfileApprovalBanner({
             </h3>
             <p className="mt-1 text-sm text-blue-800">
               {isDraft
-                ? "This employee profile is currently in Draft status. You can review their details and approve/activate their profile to change their status to Active."
-                : "This employee has completed their profile data and submitted it for review. Approve to activate their profile, or request revisions."}
+                ? "This employee profile is currently in Draft status. You can review their details, resend an onboarding invite, or approve/activate their profile."
+                : "This employee has completed their profile data and submitted it for review. Approve to activate their profile, request revisions, or resend an invite."}
             </p>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {onResendInvite && (
+              <Button
+                variant="outline"
+                className="text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                onClick={onResendInvite}
+                disabled={isResendingInvite}
+              >
+                {isResendingInvite ? "Resending..." : "Resend Invite"}
+              </Button>
+            )}
             <Button
               variant="outline"
               className="text-red-700 border-red-200 hover:bg-red-50 hover:text-red-800"

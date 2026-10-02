@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, Briefcase, Users, Upload, Eye, CheckCircle, XCircle, Clock, Star } from "lucide-react";
 import { format } from "date-fns";
+import ApplicantsList from "@/components/recruitment/ApplicantsList";
+import CreateJobPostForm from "@/components/recruitment/CreateJobPostForm";
 
 export default function Recruitment() {
   const queryClient = useQueryClient();
@@ -28,19 +30,6 @@ export default function Recruitment() {
     queryKey: ['applicants'],
     queryFn: async () => [],
     initialData: [],
-  });
-
-  const [jobFormData, setJobFormData] = useState({
-    job_title: '',
-    department: '',
-    location: '',
-    employment_type: 'full_time',
-    salary_range: '',
-    description: '',
-    requirements: '',
-    responsibilities: '',
-    status: 'draft',
-    published_to: [],
   });
 
   const createJobMutation = useMutation({
@@ -222,97 +211,39 @@ export default function Recruitment() {
 
         {/* Job Form */}
         {showJobForm && (
-          <Card className="border-slate-200 shadow-xl">
-            <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-blue-50">
-              <CardTitle>Post New Job</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <form onSubmit={(e) => { e.preventDefault(); createJobMutation.mutate(jobFormData); }} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="job_title">Job Title *</Label>
-                    <Input
-                      id="job_title"
-                      value={jobFormData.job_title}
-                      onChange={(e) => setJobFormData(prev => ({ ...prev, job_title: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department *</Label>
-                    <Input
-                      id="department"
-                      value={jobFormData.department}
-                      onChange={(e) => setJobFormData(prev => ({ ...prev, department: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={jobFormData.location}
-                      onChange={(e) => setJobFormData(prev => ({ ...prev, location: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="employment_type">Employment Type</Label>
-                    <Select value={jobFormData.employment_type} onValueChange={(value) => setJobFormData(prev => ({ ...prev, employment_type: value }))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="full_time">Full Time</SelectItem>
-                        <SelectItem value="part_time">Part Time</SelectItem>
-                        <SelectItem value="contract">Contract</SelectItem>
-                        <SelectItem value="internship">Internship</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Job Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={jobFormData.description}
-                    onChange={(e) => setJobFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="requirements">Requirements</Label>
-                  <Textarea
-                    id="requirements"
-                    value={jobFormData.requirements}
-                    onChange={(e) => setJobFormData(prev => ({ ...prev, requirements: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowJobForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" isLoading={createJobMutation.isPending}>
-                    {createJobMutation.isPending ? "Creating..." : "Create Job"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          <CreateJobPostForm
+            onSubmit={(data) => createJobMutation.mutate(data)}
+            onCancel={() => setShowJobForm(false)}
+            isPending={createJobMutation.isPending}
+          />
         )}
 
         {/* Main Content */}
         <Tabs defaultValue="jobs" className="space-y-6">
-          <TabsList className="bg-white border border-slate-200">
-            <TabsTrigger value="jobs">Job Postings</TabsTrigger>
-            <TabsTrigger value="applicants">Applicants</TabsTrigger>
+          <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70">
+            <TabsTrigger
+              value="jobs"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span>Job Postings</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {jobs.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="applicants"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+            >
+              <Users className="w-4 h-4" />
+              <span>Applicants</span>
+              <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                {applicants.length}
+              </span>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="jobs">
+          <TabsContent value="jobs" className="focus-visible:outline-none">
             <div className="grid md:grid-cols-2 gap-6">
               {jobs.map(job => (
                 <Card key={job.id} className="border-slate-200 hover:shadow-lg transition-shadow">
@@ -369,77 +300,15 @@ export default function Recruitment() {
             </div>
           </TabsContent>
 
-          <TabsContent value="applicants">
-            <Card className="border-slate-200">
-              <CardHeader className="border-b border-slate-200">
-                <CardTitle>All Applicants</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-slate-100">
-                  {applicants.map(applicant => {
-                    const config = statusConfig[applicant.status];
-                    const StatusIcon = config.icon;
-                    const job = jobs.find(j => j.id === applicant.job_posting_id);
-
-                    return (
-                      <div key={applicant.id} className="p-6 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold text-slate-900">{applicant.full_name}</h3>
-                              {applicant.ai_score && (
-                                <Badge className="bg-purple-100 text-purple-700 border-purple-200">
-                                  AI Score: {applicant.ai_score}%
-                                </Badge>
-                              )}
-                              <Badge variant="outline" className={`${config.color} border flex items-center gap-1`}>
-                                <StatusIcon className="w-3 h-3" />
-                                {applicant.status.replace('_', ' ')}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-slate-600 mb-1">
-                              Applied for: {job?.job_title}
-                            </p>
-                            <p className="text-sm text-slate-500">
-                              {applicant.email} • {applicant.phone}
-                            </p>
-                            {applicant.ai_summary && (
-                              <p className="text-sm text-slate-600 mt-2 italic">{applicant.ai_summary}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <Select
-                              value={applicant.status}
-                              onValueChange={(value) => updateApplicantStatus.mutate({ id: applicant.id, status: value })}
-                            >
-                              <SelectTrigger className="w-40">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="reviewed">Reviewed</SelectItem>
-                                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                                <SelectItem value="interview_scheduled">Interview</SelectItem>
-                                <SelectItem value="offered">Offered</SelectItem>
-                                <SelectItem value="hired">Hired</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {applicant.cv_url && (
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={applicant.cv_url} target="_blank" rel="noopener noreferrer">
-                                  View CV
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="applicants" className="focus-visible:outline-none">
+            <ApplicantsList
+              applicants={applicants}
+              jobs={jobs}
+              statusConfig={statusConfig}
+              onUpdateStatus={(id, status) =>
+                updateApplicantStatus.mutate({ id, status })
+              }
+            />
           </TabsContent>
         </Tabs>
       </div>

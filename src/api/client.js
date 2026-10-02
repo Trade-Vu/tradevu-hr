@@ -61,7 +61,8 @@ apiClient.interceptors.response.use(
         currentPath.includes('/register') ||
         currentPath.includes('/forgot-password') ||
         currentPath.includes('/resetpassword') ||
-        currentPath.includes('/reset-password');
+        currentPath.includes('/reset-password') ||
+        currentPath.includes('/accept-invite');
 
       if (!isAuthPage) {
         localStorage.removeItem('token');

@@ -47,3 +47,14 @@ export const isAdmin = (user) => {
 export const hasAdminPrivileges = (user) => {
   return isAdmin(user) || isManager(user);
 };
+
+/**
+ * Returns true only if the user has administrative privileges IN THEIR CURRENT VIEW MODE.
+ * If an HR_ADMIN has switched to 'EMPLOYEE' view mode, they are strictly limited to regular employee access.
+ * SUPER_ADMIN is always in admin view.
+ */
+export const isInAdminMode = (user, viewMode) => {
+  if (isSuperAdmin(user)) return true;
+  if (viewMode === 'EMPLOYEE') return false;
+  return isAdmin(user);
+};

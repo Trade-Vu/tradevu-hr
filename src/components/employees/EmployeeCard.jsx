@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, Briefcase, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Phone, Briefcase, Calendar, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { employeesApi } from "@/api";
+import { isOnboardedStatus, isSeparatedStatus } from "@/lib/employmentStatus";
+import { toast } from "sonner";
 
 const getStatusColors = (status) => {
   const s = (status || 'active').toLowerCase();
@@ -22,6 +28,44 @@ const getStatusColors = (status) => {
 };
 
 export default function EmployeeCard({ employee, onOpenDetail }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isResending, setIsResending] = useState(false);
+  const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
+  const statusUpper = String(employee.employment_status || employee.employmentStatus || 'DRAFT').toUpperCase();
+  const isEmployeeActive = statusUpper === 'ACTIVE' || Boolean(employee.userActive || employee.isUserActive || employee.isActive);
+  const isSeparated = isSeparatedStatus(statusUpper);
+  const isPreOnboarding = !isOnboardedStatus(statusUpper);
+  const canShowResend = canManageInvites && !isEmployeeActive && !isSeparated && isPreOnboarding;
+
+  const handleResend = async (e) => {
+    e.stopPropagation();
+    try {
+      setIsResending(true);
+      const res = await employeesApi.resendInvite(employee.id);
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      if (res?.emailSent === false && res?.inviteUrl) {
+        toast.warning(res.message, {
+          action: {
+            label: 'Copy Link',
+            onClick: () => {
+              navigator.clipboard?.writeText(res.inviteUrl);
+              toast.success('Invite link copied to clipboard!');
+            },
+          },
+          duration: 10000,
+        });
+      } else {
+        toast.success(res?.message || `Invitation resent successfully to ${employee.email}!`);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to resend invite.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <motion.div whileHover={{ y: -2 }} className="h-full">
       <div onClick={() => onOpenDetail ? onOpenDetail(employee) : null} className="block h-full cursor-pointer flex flex-col">
@@ -84,16 +128,37 @@ export default function EmployeeCard({ employee, onOpenDetail }) {
               )}
             </div>
 
-            {employee.employment_type && (
-              <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                  Employment Type
-                </span>
-                <span className="text-xs font-medium text-slate-700">
-                  {employee.employment_type.replace('_', ' ')}
-                </span>
+            <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div>
+                {employee.employment_type && (
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                      Employment Type
+                    </span>
+                    <span className="text-xs font-medium text-slate-700">
+                      {employee.employment_type.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
+
+              {canShowResend && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isResending}
+                  onClick={handleResend}
+                  className="h-7 text-xs px-2.5 font-medium border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:text-indigo-800 transition-colors"
+                >
+                  {isResending ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3 mr-1" />
+                  )}
+                  Resend Invite
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

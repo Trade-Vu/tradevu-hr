@@ -365,22 +365,7 @@ export default function JobDataTab({
                           : `Standard employee workspace. Ineligible to be HR Admin: must be ACTIVE and have finished onboarding on the platform (Current status: ${employee.employment_status || 'Inactive'}, Onboarding: ${employee.onboarding_status || 'Incomplete'}).`}
                   </p>
                 </div>
-              </div>
-              {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && (
-                <Button
-                  size="sm"
-                  variant={employee.isHrAdmin ? "outline" : "default"}
-                  className={
-                    employee.isHrAdmin
-                      ? "border-slate-300 text-slate-700 hover:bg-slate-100 shrink-0"
-                      : "bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-sm"
-                  }
-                  onClick={onReassignHrAdmin}
-                >
-                  <ShieldCheck className="w-4 h-4 mr-1.5" />
-                  {employee.isHrAdmin ? 'Reassign HR Admin' : 'Reassign as HR Admin'}
-                </Button>
-              )}
+                </div>
             </div>
           </div>}
         </div>

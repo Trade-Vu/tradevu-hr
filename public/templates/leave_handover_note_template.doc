@@ -1,0 +1,237 @@
+﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <title>Leave Handover Note</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    body {
+      font-family: Arial, 'Segoe UI', Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: #111827;
+      margin: 36pt 42pt;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24pt;
+    }
+    .header-table td {
+      border: none;
+      padding: 0;
+      vertical-align: top;
+    }
+    .logo-td {
+      text-align: right;
+    }
+    .brand-logo {
+      font-family: Arial, sans-serif;
+      font-size: 19pt;
+      font-weight: bold;
+      color: #111827;
+      letter-spacing: -0.5px;
+    }
+    .brand-logo span {
+      color: #8b5cf6;
+      font-size: 20pt;
+      margin-right: 2pt;
+    }
+    h1.doc-title {
+      text-align: center;
+      font-size: 13.5pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 0;
+      margin-bottom: 22pt;
+    }
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 18pt;
+    }
+    .meta-table td {
+      border: none;
+      padding: 3pt 0;
+      font-size: 10.5pt;
+      vertical-align: top;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: #000000;
+    }
+    .section-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 14pt;
+      margin-bottom: 4pt;
+    }
+    .section-prompt {
+      font-size: 10pt;
+      color: #1f2937;
+      margin-top: 0;
+      margin-bottom: 8pt;
+    }
+    .bullets {
+      margin-top: 0;
+      margin-bottom: 12pt;
+      padding-left: 18pt;
+      list-style-type: disc;
+      color: #374151;
+      font-size: 10.5pt;
+      line-height: 1.8;
+    }
+    .bullet-placeholder {
+      color: #9ca3af;
+      margin-left: 4pt;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6pt;
+      margin-bottom: 14pt;
+    }
+    table.data-table th, table.data-table td {
+      border: 1pt solid #000000;
+      padding: 6pt 8pt;
+      font-size: 10pt;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.data-table th {
+      font-weight: bold;
+      color: #000000;
+      background-color: #ffffff;
+    }
+    table.data-table td {
+      height: 22pt;
+    }
+    .underline-box {
+      border-bottom: 1pt solid #9ca3af;
+      margin-top: 18pt;
+      margin-bottom: 8pt;
+      height: 1pt;
+      width: 100%;
+    }
+    .clarification-note {
+      margin-top: 24pt;
+      border-top: 1pt solid #e5e7eb;
+      padding-top: 8pt;
+      font-size: 9pt;
+      color: #6b7280;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header with Tradevu Logo -->
+  <table class="header-table">
+    <tr>
+      <td></td>
+      <td class="logo-td">
+        <div class="brand-logo">
+          <span>&#x29C9;</span> Tradevu
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Document Title -->
+  <h1 class="doc-title">Leave Handover Note</h1>
+
+  <!-- Metadata Header Fields -->
+  <table class="meta-table">
+    <tr>
+      <td style="width: 60%;"><span class="meta-label">Team Member’s Name:</span></td>
+      <td style="width: 40%;"><span class="meta-label">Team:</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><span class="meta-label">Leave Period:</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><span class="meta-label">Resumption Date:</span></td>
+    </tr>
+    <tr>
+      <td colspan="2"><span class="meta-label">Handover Team Member:</span></td>
+    </tr>
+  </table>
+
+  <!-- Section 1 -->
+  <div class="section-title">1. Ongoing Tasks</div>
+  <p class="section-prompt">What responsibilities are currently in progress that may need to be followed up on?</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
+
+  <!-- Section 2 -->
+  <div class="section-title">2. Pending Tasks & Deadlines</div>
+  <p class="section-prompt">List any important tasks, deliverables, or deadlines that fall during your leave period.</p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 28%;">Tasks</th>
+        <th style="width: 18%;">Status</th>
+        <th style="width: 28%;">Action Required</th>
+        <th style="width: 26%;">Ongoing/Deadline</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+        <td>&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Section 3 -->
+  <div class="section-title">3. Important Information</div>
+  <p class="section-prompt">Include any information, links, documents, or contacts the person covering for you may need.</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
+
+  <!-- Section 4 -->
+  <div class="section-title">4. Items Requiring Attention</div>
+  <p class="section-prompt">Are there any issues, decisions, approvals, or follow-ups that the team should be aware of during your absence?</p>
+  <ul class="bullets">
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+    <li><span class="bullet-placeholder">&nbsp;</span></li>
+  </ul>
+
+  <!-- Section 5 -->
+  <div class="section-title">5. Additional Notes</div>
+  <p class="section-prompt">Any other information relevant to ensuring a smooth handover:</p>
+  <div class="underline-box"></div>
+
+  <div class="clarification-note">
+    You can use the attached template as is or edit it to fit your specific use case.
+  </div>
+
+</body>
+</html>

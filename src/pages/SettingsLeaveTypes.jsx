@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { leaveApi, approvalsApi } from '@/api';
+import { leaveApi, approvalsApi, organizationsApi, employeesApi } from '@/api';
 import { useAuth } from '@/lib/AuthContext';
 import { isHrAdmin, isSuperAdmin } from '@/lib/roleUtils';
 import { useLeaveTypes, LEAVE_TYPE_KEYS } from '@/hooks/useLeaveTypesQuery';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Switch } from '../components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
-import ApprovalStepsEditor from '@/components/approvals/ApprovalStepsEditor';
-import { formatApprovalChain, normalizeApprovalSteps } from '@/lib/approvalSteps';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  formatApprovalChain,
+  normalizeApprovalSteps,
+  DEFAULT_LEAVE_APPROVAL_STEPS,
+  FULL_LEAVE_APPROVAL_FLOW,
+} from '@/lib/approvalSteps';
+import { toTitleCase } from '@/lib/utils';
+import { normalizeEmploymentTypes, normalizeEmployeeClasses } from '@/lib/formOptions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +24,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../components/ui/alert-dialog';
-import { Plus, Trash2, Edit } from 'lucide-react';
-import { motion } from 'framer-motion';
+} from '@/components/ui/alert-dialog';
+import { Plus, Calendar, Clock, CheckCircle2, FileText } from 'lucide-react';
+import LeaveTypeForm from '@/components/Leave/LeaveTypeForm';
+import LeaveTypeCard from '@/components/Leave/LeaveTypeCard';
 
 const DEFAULT_FORM_DATA = {
   name: '',
@@ -31,16 +35,18 @@ const DEFAULT_FORM_DATA = {
   daysPerYear: 10,
   isPaid: true,
   requiresApproval: true,
-  // Not editable on this form yet, but part of the leave type: carried through on edit so saving
-  // doesn't reset them (the payload used to hard-code these values on every update).
+  requiresHandover: false,
+  handoverRequirement: 'OPTIONAL',
+  hasNoticePeriod: false,
+  noticePeriodDays: 0,
   requiresAttachment: false,
   allowHalfDay: true,
-  maxCarryOver: 0,
-  // 'default' = the organization's leave workflow; 'custom' = approvalSteps below, stored on the leave type.
   approvalMode: 'default',
-  approvalSteps: [],
-  // "Eligible After (Days of Service)" and "Overrides by Employee Class" were removed from this form:
-  // the backend has no fields for them, so anything entered was silently discarded on save.
+  approvalSteps: DEFAULT_LEAVE_APPROVAL_STEPS,
+  onlyConfirmed: false,
+  employmentTypes: [],
+  employeeClasses: [],
+  daysExceptions: [],
 };
 
 export default function SettingsLeaveTypes() {
@@ -51,17 +57,39 @@ export default function SettingsLeaveTypes() {
   const [leaveTypeToDelete, setLeaveTypeToDelete] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
 
-  // Same key and fetcher as Settings → Approval Workflows, so both pages share one cache entry.
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', 'me'],
+    queryFn: async () => {
+      const res = await organizationsApi.getMyOrganization();
+      return res?.data || res;
+    },
+  });
+  const employmentTypeOptions = normalizeEmploymentTypes(orgData?.employmentTypes);
+  const employeeClassOptions = normalizeEmployeeClasses(orgData?.employeeClasses);
+
+  const { data: rawEmployees = [] } = useQuery({
+    queryKey: ['employees', 'list'],
+    queryFn: async () => {
+      const res = await employeesApi.getAllEmployees();
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    },
+  });
+  const employees = (Array.isArray(rawEmployees) ? rawEmployees : []).map((emp) => ({
+    id: String(emp._id || emp.id),
+    fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
+    email: emp.email,
+    jobTitle: emp.jobTitle || emp.job_title || '',
+  }));
+
   const { data: workflowData } = useQuery({
     queryKey: ['workflows'],
     queryFn: approvalsApi.getWorkflows,
   });
   const workflows = Array.isArray(workflowData) ? workflowData : workflowData?.data || [];
-  // The backend uses the first active 'leave' workflow as the org default.
   const defaultLeaveWorkflow = workflows.find((workflow) => workflow.type === 'leave' && workflow.isActive !== false);
   const defaultChainLabel = defaultLeaveWorkflow?.levels?.length
     ? formatApprovalChain(defaultLeaveWorkflow.levels)
-    : "a single approval from an HR Admin, Super Admin or the employee's manager";
+    : formatApprovalChain(DEFAULT_LEAVE_APPROVAL_STEPS);
 
   const { data: leaveTypes = [], isLoading } = useLeaveTypes();
 
@@ -112,19 +140,29 @@ export default function SettingsLeaveTypes() {
 
   const handleEdit = (lt) => {
     const approvalSteps = normalizeApprovalSteps(lt.approvalSteps);
+    const hasNotice = Boolean(lt.hasNoticePeriod || (lt.noticePeriodDays && lt.noticePeriodDays > 0) || (lt.noticeDaysRequired && lt.noticeDaysRequired > 0));
+    const noticeDays = hasNotice ? (lt.noticePeriodDays ?? lt.noticeDaysRequired ?? 0) : 0;
+    const requiresHandover = Boolean(lt.requiresHandover || lt.handoverRequirement === 'COMPULSORY');
+
     setFormData({
       name: lt.name,
       code: lt.code || '',
       daysPerYear: lt.defaultDays ?? lt.daysPerYear ?? 10,
       isPaid: lt.isPaid,
       requiresApproval: lt.requiresApproval,
+      requiresHandover,
+      handoverRequirement: requiresHandover ? 'COMPULSORY' : 'OPTIONAL',
+      hasNoticePeriod: hasNotice,
+      noticePeriodDays: noticeDays,
       requiresAttachment: lt.requiresAttachment ?? DEFAULT_FORM_DATA.requiresAttachment,
       allowHalfDay: lt.allowHalfDay ?? DEFAULT_FORM_DATA.allowHalfDay,
-      maxCarryOver: lt.maxCarryOver ?? DEFAULT_FORM_DATA.maxCarryOver,
       approvalMode: approvalSteps.length > 0 ? 'custom' : 'default',
-      approvalSteps,
+      approvalSteps: approvalSteps.length > 0 ? approvalSteps : DEFAULT_LEAVE_APPROVAL_STEPS,
+      onlyConfirmed: Boolean(lt.onlyConfirmed),
+      employmentTypes: Array.isArray(lt.employmentTypes) ? lt.employmentTypes : [],
+      employeeClasses: Array.isArray(lt.employeeClasses) ? lt.employeeClasses : [],
+      daysExceptions: Array.isArray(lt.daysExceptions) ? lt.daysExceptions : [],
     });
-    // useLeaveTypes maps _id -> id; before it did, this was undefined and "Update" created a duplicate.
     setEditingId(lt.id || lt._id);
     setIsAdding(true);
   };
@@ -143,6 +181,31 @@ export default function SettingsLeaveTypes() {
     if (useCustomSteps && formData.approvalSteps.length === 0) {
       return toast.error('Add at least one approval step, or use the organization default.');
     }
+    if (useCustomSteps) {
+      const hasUnassignedOther = (formData.approvalSteps || []).some(
+        (step) => String(step.role).toUpperCase() === 'OTHER' && !step.userId && !step.employeeId
+      );
+      if (hasUnassignedOther) {
+        return toast.error('Please designate a specific employee for all approval steps marked "Other".');
+      }
+    }
+
+    const noticeDays = formData.hasNoticePeriod ? Math.max(0, parseInt(formData.noticePeriodDays, 10) || 0) : 0;
+    const isHandoverRequired = Boolean(formData.requiresHandover || formData.handoverRequirement === 'COMPULSORY');
+    const defaultDaysVal = parseFloat(formData.daysPerYear) || 0;
+
+    if (Array.isArray(formData.daysExceptions) && formData.daysExceptions.length > 0) {
+      const invalidEx = formData.daysExceptions.find((ex) => {
+        const d = Number(ex.days);
+        return isNaN(d) || d < 0;
+      });
+      if (invalidEx) {
+        const targetLabel = invalidEx.subjectName || invalidEx.subjectId || invalidEx.category || 'exception';
+        return toast.error(
+          `Exception days for "${targetLabel}" cannot be negative.`
+        );
+      }
+    }
 
     const payload = {
       name: formData.name,
@@ -150,12 +213,19 @@ export default function SettingsLeaveTypes() {
       defaultDays: parseFloat(formData.daysPerYear) || 0,
       isPaid: formData.isPaid,
       requiresApproval: formData.requiresApproval,
+      requiresHandover: isHandoverRequired,
+      handoverRequirement: isHandoverRequired ? 'COMPULSORY' : 'OPTIONAL',
+      hasNoticePeriod: Boolean(formData.hasNoticePeriod),
+      noticePeriodDays: noticeDays,
+      noticeDaysRequired: noticeDays,
       requiresAttachment: formData.requiresAttachment,
       allowHalfDay: formData.allowHalfDay,
-      maxCarryOver: parseFloat(formData.maxCarryOver) || 0,
-      // Empty = organization default. Also cleared when approval is off, so turning it back on later
-      // doesn't silently resurrect an old chain.
+      maxCarryOver: 0,
       approvalSteps: useCustomSteps ? normalizeApprovalSteps(formData.approvalSteps) : [],
+      onlyConfirmed: Boolean(formData.onlyConfirmed),
+      employmentTypes: Array.isArray(formData.employmentTypes) ? formData.employmentTypes : [],
+      employeeClasses: Array.isArray(formData.employeeClasses) ? formData.employeeClasses : [],
+      daysExceptions: Array.isArray(formData.daysExceptions) ? formData.daysExceptions : [],
     };
 
     if (editingId) {
@@ -165,172 +235,130 @@ export default function SettingsLeaveTypes() {
     }
   };
 
+  const paidCount = leaveTypes.filter(lt => lt.isPaid).length;
+  const noticeCount = leaveTypes.filter(lt => lt.hasNoticePeriod || (lt.noticePeriodDays > 0) || (lt.noticeDaysRequired > 0)).length;
+  const handoverCount = leaveTypes.filter(lt => lt.requiresHandover || lt.handoverRequirement === 'COMPULSORY').length;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Leave Types</h2>
-        <p className="mt-1 text-slate-500">Configure available leave categories, quotas, and rules.</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Leave Types</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Configure leave categories, quotas, advance notice periods, approval flows, and eligible employee groups.
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            resetForm();
+            setIsAdding(true);
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Add Leave Type
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
-        <div className="space-y-4 lg:col-span-3">
-          {isLoading ? (
-            <Card><CardContent className="p-8 text-center text-slate-500">Loading leave types...</CardContent></Card>
-          ) : leaveTypes.length === 0 ? (
-            <Card><CardContent className="p-8 text-center text-slate-500">No leave types configured yet.</CardContent></Card>
-          ) : (
-            leaveTypes.map(lt => (
-              <motion.div key={lt.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Card>
-                  <CardContent className="flex items-start justify-between p-5">
-                    <div className="flex-1 space-y-2">
-                      <div>
-                        <h4 className="font-semibold text-slate-900">{lt.name}</h4>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Default: {(lt.defaultDays ?? lt.daysPerYear ?? 0)} days/year • {lt.isPaid ? 'Paid' : 'Unpaid'} • {lt.requiresApproval === false ? 'Auto-approved' : 'Requires Approval'}
-                        </p>
-                      </div>
-
-                      {lt.requiresApproval !== false && (
-                        <p className="text-xs text-slate-500">
-                          <span className="font-medium text-slate-700">Approval flow: </span>
-                          {lt.approvalSteps?.length
-                            ? formatApprovalChain(lt.approvalSteps)
-                            : `Organization default (${defaultChainLabel})`}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-shrink-0 gap-1 ml-4">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(lt)} className="text-slate-400 hover:text-indigo-600">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      {canDeleteLeaveTypes && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(lt)}
-                          disabled={isDeleting}
-                          className="text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          aria-label={`Delete ${lt.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
+      {/* Summary Stats Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900">{leaveTypes.length}</div>
+            <div className="text-xs text-slate-500 font-medium">Configured Types</div>
+          </div>
         </div>
 
-        <div className="w-full lg:col-span-3">
-          {isAdding ? (
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">{editingId ? 'Edit Leave Type' : 'Add Leave Type'}</CardTitle>
-                <CardDescription>{editingId ? 'Update leave category' : 'Create a new leave category'}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Name (e.g. Annual, Sick)</label>
-                    <Input 
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      placeholder="Annual Leave"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Leave Code</label>
-                    <Input 
-                      value={formData.code}
-                      onChange={e => setFormData({...formData, code: e.target.value})}
-                      placeholder="annual"
-                    />
-                  </div>
+        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900">{paidCount}</div>
+            <div className="text-xs text-slate-500 font-medium">Paid Types</div>
+          </div>
+        </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Default Days Per Year</label>
-                    <Input 
-                      type="number"
-                      value={formData.daysPerYear}
-                      onChange={e => setFormData({...formData, daysPerYear: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-2">
-                    <label className="text-sm font-medium text-slate-700">Is Paid Leave?</label>
-                    <Switch 
-                      checked={formData.isPaid}
-                      onCheckedChange={c => setFormData({...formData, isPaid: c})}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-2">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="requires-approval">Requires Approval?</label>
-                    <Switch
-                      id="requires-approval"
-                      checked={formData.requiresApproval}
-                      onCheckedChange={c => setFormData({...formData, requiresApproval: c})}
-                    />
-                  </div>
+        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900">{noticeCount}</div>
+            <div className="text-xs text-slate-500 font-medium">Notice Required</div>
+          </div>
+        </div>
 
-                  {formData.requiresApproval ? (
-                    <div className="p-3 space-y-3 border rounded-md border-slate-200">
-                      <p className="text-sm font-medium text-slate-700">Approval flow</p>
-                      <RadioGroup
-                        value={formData.approvalMode}
-                        onValueChange={(approvalMode) => setFormData(prev => ({
-                          ...prev,
-                          approvalMode,
-                          // Seed a sensible first step when switching to custom with nothing configured.
-                          approvalSteps: approvalMode === 'custom' && prev.approvalSteps.length === 0
-                            ? [{ order: 1, role: 'MANAGER' }]
-                            : prev.approvalSteps,
-                        }))}
-                        className="space-y-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <RadioGroupItem value="default" id="approval-default" className="mt-0.5" />
-                          <label htmlFor="approval-default" className="text-sm cursor-pointer text-slate-700">
-                            Organization default
-                            <span className="block text-xs text-slate-500">{defaultChainLabel}</span>
-                          </label>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <RadioGroupItem value="custom" id="approval-custom" className="mt-0.5" />
-                          <label htmlFor="approval-custom" className="text-sm cursor-pointer text-slate-700">
-                            Custom steps for this leave type
-                          </label>
-                        </div>
-                      </RadioGroup>
-
-                      {formData.approvalMode === 'custom' && (
-                        <ApprovalStepsEditor
-                          steps={formData.approvalSteps}
-                          onChange={(approvalSteps) => setFormData(prev => ({ ...prev, approvalSteps }))}
-                        />
-                      )}
-                      <p className="text-xs text-slate-500">Changes apply to new requests; requests already submitted keep the flow they started with.</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">Requests are approved as soon as they're submitted and deducted from the employee's balance. The employee's manager is notified.</p>
-                  )}
-                  <div className="flex gap-2 pt-4">
-                    <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>Cancel</Button>
-                    <Button type="submit" className="flex-1" disabled={isPending}>{editingId ? 'Update' : 'Save'}</Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          ) : (
-            <Button onClick={() => setIsAdding(true)} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Add Leave Type
-            </Button>
-          )}
+        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900">{handoverCount}</div>
+            <div className="text-xs text-slate-500 font-medium">Handover Required</div>
+          </div>
         </div>
       </div>
 
+      {/* Grid of Leave Types */}
+      {isLoading ? (
+        <Card className="border-slate-200">
+          <CardContent className="p-12 text-center text-slate-500">
+            <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent mb-2" />
+            <p className="text-sm">Loading leave types...</p>
+          </CardContent>
+        </Card>
+      ) : leaveTypes.length === 0 ? (
+        <div className="text-center p-12 bg-white rounded-xl border border-slate-200 border-dashed">
+          <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Calendar className="w-6 h-6 text-blue-600" />
+          </div>
+          <h4 className="text-base font-semibold text-slate-900 mb-1">No leave types configured</h4>
+          <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
+            Create your organization's leave policies, quotas, and applicable workforce groups.
+          </p>
+          <Button onClick={() => { resetForm(); setIsAdding(true); }} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" /> Create First Leave Type
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {leaveTypes.map((lt) => (
+            <LeaveTypeCard
+              key={lt.id || lt._id}
+              leaveType={lt}
+              defaultChainLabel={defaultChainLabel}
+              canDelete={canDeleteLeaveTypes}
+              isDeleting={isDeleting}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Modal Dialog Form */}
+      <LeaveTypeForm
+        isOpen={isAdding}
+        onOpenChange={(open) => {
+          if (!open) resetForm();
+          else setIsAdding(true);
+        }}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleSubmit}
+        onCancel={resetForm}
+        isPending={isPending}
+        editingId={editingId}
+        defaultChainLabel={defaultChainLabel}
+        employmentTypeOptions={employmentTypeOptions}
+        employeeClassOptions={employeeClassOptions}
+        employees={employees}
+      />
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={!!leaveTypeToDelete}
         onOpenChange={(open) => !open && setLeaveTypeToDelete(null)}

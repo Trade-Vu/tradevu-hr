@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const token = searchParams.get('token')?.trim() || '';
   const navigate = useNavigate();
 
   const [inviteDetails, setInviteDetails] = useState(null);
@@ -44,7 +44,7 @@ export default function AcceptInvite() {
         // ad hoc email-only invites (InviteHRModal, the optional HR email at
         // registration) that never collected a real name - leave those blank for
         // the invitee to fill in themselves.
-        const placeholderNames = ['hr manager', 'employee'];
+        const placeholderNames = ['head of people', 'hr manager', 'employee'];
         const fullName = details?.fullName?.trim();
         if (fullName && !placeholderNames.includes(fullName.toLowerCase())) {
           const [first, ...rest] = fullName.split(' ');
@@ -109,6 +109,7 @@ export default function AcceptInvite() {
       });
 
       if (data && data.token) {
+        localStorage.removeItem('tradevu_view_mode');
         localStorage.setItem('token', data.token);
         // No need to refresh AuthContext's user here: window.location.href below
         // is a full page navigation, which re-initializes the whole app (and
@@ -181,7 +182,7 @@ export default function AcceptInvite() {
                 <p className="mt-2 text-base text-slate-500">
                   {inviteDetails ? (
                     <>
-                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'an HR Manager' : (inviteDetails.role === 'MANAGER' ? 'a Manager' : 'an Employee')}.<br/>
+                      You've been invited as {inviteDetails.role === 'HR_ADMIN' ? 'Head of People' : (inviteDetails.role === 'MANAGER' ? 'a Manager' : 'an Employee')}.<br/>
                       <span className="font-medium text-slate-700">{inviteDetails.email}</span>
                     </>
                   ) : (
