@@ -73,6 +73,23 @@ function getLeaveApprovalStageInfo(leave) {
     };
   }
 
+  if (role === 'OTHER') {
+    const approverName = currentStep?.approverName;
+    return {
+      label: totalSteps > 1
+        ? `Stage ${stepNumber}/${totalSteps}: Waiting on ${approverName || 'Custom Approver'}`
+        : `Waiting on ${approverName || 'Custom Approver'}`,
+      role: 'OTHER',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80',
+      icon: UserCheck,
+      stepNumber,
+      totalSteps,
+      designatedUserId: currentStep?.userId,
+      designatedEmployeeId: currentStep?.employeeId,
+      approverName,
+    };
+  }
+
   return {
     label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on ${role}` : `Waiting on ${role}`,
     role,
@@ -128,7 +145,18 @@ export default function LeaveApprovalsTab({
           let disabledReason = null;
 
           if (!isSuperAdmin) {
-            if (stageInfo.role === 'MANAGER') {
+            if (stageInfo.role === 'OTHER') {
+              const isDesignated =
+                (stageInfo.designatedUserId && String(stageInfo.designatedUserId) === String(user?.id || user?._id)) ||
+                (stageInfo.designatedEmployeeId && String(stageInfo.designatedEmployeeId) === String(currentEmployeeId));
+
+              if (!isDesignated && !isHrAdmin) {
+                canApprove = false;
+                disabledReason = stageInfo.approverName
+                  ? `Requires approval from designated approver: ${stageInfo.approverName}`
+                  : 'Requires approval from designated custom approver';
+              }
+            } else if (stageInfo.role === 'MANAGER' || stageInfo.role === 'LINE_MANAGER') {
               if (isManager) {
                 if (currentEmployeeId) {
                   const isAuthorized =

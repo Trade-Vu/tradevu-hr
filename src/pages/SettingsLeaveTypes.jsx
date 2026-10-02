@@ -41,7 +41,7 @@ const DEFAULT_FORM_DATA = {
   noticePeriodDays: 0,
   requiresAttachment: false,
   allowHalfDay: true,
-  approvalMode: 'custom',
+  approvalMode: 'default',
   approvalSteps: DEFAULT_LEAVE_APPROVAL_STEPS,
   onlyConfirmed: false,
   employmentTypes: [],
@@ -89,7 +89,7 @@ export default function SettingsLeaveTypes() {
   const defaultLeaveWorkflow = workflows.find((workflow) => workflow.type === 'leave' && workflow.isActive !== false);
   const defaultChainLabel = defaultLeaveWorkflow?.levels?.length
     ? formatApprovalChain(defaultLeaveWorkflow.levels)
-    : formatApprovalChain(FULL_LEAVE_APPROVAL_FLOW);
+    : formatApprovalChain(DEFAULT_LEAVE_APPROVAL_STEPS);
 
   const { data: leaveTypes = [], isLoading } = useLeaveTypes();
 
@@ -180,6 +180,14 @@ export default function SettingsLeaveTypes() {
     const useCustomSteps = formData.requiresApproval && formData.approvalMode === 'custom';
     if (useCustomSteps && formData.approvalSteps.length === 0) {
       return toast.error('Add at least one approval step, or use the organization default.');
+    }
+    if (useCustomSteps) {
+      const hasUnassignedOther = (formData.approvalSteps || []).some(
+        (step) => String(step.role).toUpperCase() === 'OTHER' && !step.userId && !step.employeeId
+      );
+      if (hasUnassignedOther) {
+        return toast.error('Please designate a specific employee for all approval steps marked "Other".');
+      }
     }
 
     const noticeDays = formData.hasNoticePeriod ? Math.max(0, parseInt(formData.noticePeriodDays, 10) || 0) : 0;
