@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
+import { filterApplicableLeaveTypes } from "@/components/Leave/leaveEligibilityUtils";
 import { leaveApi, approvalsApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { isLeaveEligibleStatus, isSeparatedStatus } from "@/lib/employmentStatus";
@@ -34,8 +35,14 @@ export default function LeaveOverview() {
     if (!canRequestForSelf) refreshUser();
   }, []);
 
-  const { data: employees = [] } = useLeaveEligibleEmployees({ enabled: !!user });
-  const { data: leaveTypes = [] } = useLeaveTypes();
+  const { data: rawLeaveTypes = [] } = useLeaveTypes();
+  const leaveTypes = useMemo(() => {
+    if (isAdmin) return rawLeaveTypes;
+    if (!canRequestForSelf) return [];
+    return filterApplicableLeaveTypes(rawLeaveTypes, user?.employeeId);
+  }, [isAdmin, canRequestForSelf, rawLeaveTypes, user?.employeeId]);
+
+  const { data: employees = [] } = useLeaveEligibleEmployees();
 
   const { data: publicHolidays = [] } = useQuery({
     queryKey: ['publicHolidays'],

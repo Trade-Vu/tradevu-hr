@@ -121,6 +121,16 @@ export function useLeaveOverviewForm({
     }
   }, [minAllowedDate, isPastLeave]);
 
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      start_date: "",
+      end_date: "",
+      selectedDates: [],
+      total_days: 0,
+    }));
+  }, [isPastLeave]);
+
   const handleDateChange = (field, value) => {
     if (field === "start_date" && minAllowedDate && value < minAllowedDate) {
       toast.error(`Start date cannot be earlier than ${minAllowedDate} (${noticeDays} day(s) notice required).`);
@@ -264,7 +274,7 @@ export function useLeaveOverviewForm({
     selectedLeaveTypeObj?.requiresHandover ||
     selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY"
   );
-  const isHandoverHidden = Boolean(isPastLeave);
+  const isHandoverHidden = false;
 
   const requiresAttachment = selectedLeaveTypeObj && (
     selectedLeaveTypeObj.requiresAttachment ||
@@ -281,7 +291,7 @@ export function useLeaveOverviewForm({
       : formData.start_date && formData.end_date) &&
     (!isAdmin || formData.employee_email) &&
     (!requiresAttachment || formData.attachment_url) &&
-    (isPastLeave || formData.relief_officer_id) &&
+    formData.relief_officer_id &&
     (!isHandoverCompulsory || (formData.handover_note?.trim() || formData.handover_note_url))
   );
 
@@ -312,7 +322,7 @@ export function useLeaveOverviewForm({
       return;
     }
 
-    if (!isPastLeave && !formData.relief_officer_id) {
+    if (!formData.relief_officer_id) {
       toast.error("Please select a Relief Officer from your department to cover during your leave.");
       return;
     }

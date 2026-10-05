@@ -14,7 +14,7 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
           <p className="max-w-md mx-auto mt-2 text-sm text-slate-500">
             {isAdmin
               ? "You haven't defined any leave types for your organization yet. Leave balances cannot be initialized until leave types are created."
-              : "Your organization hasn't configured leave policies yet."}
+              : "You do not have active leave entitlements, or leave requests will become available once your onboarding is approved and active."}
           </p>
           {isAdmin && (
             <Button variant="outline" className="mt-6" onClick={() => { window.location.href = PAGE_ROUTES.SETTINGS; }}>
@@ -30,13 +30,20 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {leaveBalances.length > 0
         ? leaveBalances.map((balance, index) => {
-            const type = leaveTypes.find((leaveType) => leaveType.id === balance.leaveTypeId) || {
-              name: "Unknown",
-            };
+            const balanceTypeId = String(balance.leaveTypeId?._id || balance.leaveTypeId || '');
+            const type = leaveTypes.find(
+              (lt) => String(lt._id || lt.id) === balanceTypeId
+            );
+            const leaveName =
+              type?.name ||
+              balance.leaveType ||
+              (typeof balance.leaveTypeId === 'object' && balance.leaveTypeId?.name) ||
+              'Leave';
+
             return (
-              <Card key={balance.id + index} className="border-slate-200">
+              <Card key={balance.id || balance._id || `balance-${index}`} className="border-slate-200">
                 <CardContent className="flex flex-col items-center justify-center p-4 text-center">
-                  <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
+                  <p className="text-sm font-medium uppercase text-slate-500">{leaveName}</p>
                   <p className="my-2 text-3xl font-bold text-blue-600">{balance.available}</p>
                   <p className="text-xs text-slate-400">
                     Entitlement: {balance.totalEntitled} | Used: {balance.used} | Pending:{" "}
@@ -47,7 +54,7 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
             );
           })
         : leaveTypes.map((type) => (
-            <Card key={type.id} className="border-slate-200">
+            <Card key={type.id || type._id} className="border-slate-200">
               <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
                 <p className="my-2 text-3xl font-bold text-slate-400">{type?.defaultDays}</p>

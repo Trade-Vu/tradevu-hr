@@ -189,6 +189,47 @@ export default function EmployeeHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          {canShowResendInvite && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-indigo-400/40 text-indigo-200 hover:bg-indigo-950/40 hover:text-white"
+              onClick={onResendInvite}
+              disabled={isResendingInvite}
+            >
+              <Mail className="w-4 h-4 mr-1.5 text-indigo-400" />
+              {isResendingInvite ? "Resending..." : "Resend Invite"}
+            </Button>
+          )}
+
+          {isSuperAdmin && !employee.isSuperAdmin && isEligibleForHr && !isOffboarded && (
+            <Button
+              size="sm"
+              variant={employee.isHrAdmin ? "outline" : "default"}
+              className={
+                employee.isHrAdmin
+                  ? "border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/30 hover:text-emerald-200"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              }
+              onClick={onReassignHrAdmin}
+            >
+              <ShieldCheck className="w-4 h-4 mr-1.5" />
+              {employee.isHrAdmin ? 'Reassign HR' : 'Reassign as HR'}
+            </Button>
+          )}
+
+          {isProbation && (isSuperAdmin || canManageInvites) && (
+            <Button
+              size="sm"
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium"
+              onClick={onReactivate}
+            >
+              <UserCheck className="w-4 h-4 mr-1.5" />
+              Confirm Employment
+            </Button>
+          )}
+
           {canManageInvites && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
