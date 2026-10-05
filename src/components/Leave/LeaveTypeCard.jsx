@@ -58,6 +58,34 @@ export default function LeaveTypeCard({
                       Confirmed Only
                     </Badge>
                   )}
+                  {Array.isArray(lt.applicableGenders) && lt.applicableGenders.length === 1 && (
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-medium border ${
+                        lt.applicableGenders[0] === 'FEMALE'
+                          ? 'bg-pink-50 text-pink-700 border-pink-200'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      }`}
+                    >
+                      {lt.applicableGenders[0] === 'FEMALE' ? 'Female Only' : 'Male Only'}
+                    </Badge>
+                  )}
+                  {Array.isArray(lt.employmentTypes) && lt.employmentTypes.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] font-medium border bg-amber-50 text-amber-700 border-amber-200"
+                    >
+                      {lt.employmentTypes.length} Types
+                    </Badge>
+                  )}
+                  {Array.isArray(lt.employeeClasses) && lt.employeeClasses.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] font-medium border bg-purple-50 text-purple-700 border-purple-200"
+                    >
+                      {lt.employeeClasses.length} Classes
+                    </Badge>
+                  )}
                 </div>
               </div>
 

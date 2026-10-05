@@ -46,6 +46,7 @@ const DEFAULT_FORM_DATA = {
   onlyConfirmed: false,
   employmentTypes: [],
   employeeClasses: [],
+  applicableGenders: [],
   daysExceptions: [],
 };
 
@@ -161,6 +162,7 @@ export default function SettingsLeaveTypes() {
       onlyConfirmed: Boolean(lt.onlyConfirmed),
       employmentTypes: Array.isArray(lt.employmentTypes) ? lt.employmentTypes : [],
       employeeClasses: Array.isArray(lt.employeeClasses) ? lt.employeeClasses : [],
+      applicableGenders: Array.isArray(lt.applicableGenders) ? lt.applicableGenders : [],
       daysExceptions: Array.isArray(lt.daysExceptions) ? lt.daysExceptions : [],
     });
     setEditingId(lt.id || lt._id);
@@ -225,6 +227,7 @@ export default function SettingsLeaveTypes() {
       onlyConfirmed: Boolean(formData.onlyConfirmed),
       employmentTypes: Array.isArray(formData.employmentTypes) ? formData.employmentTypes : [],
       employeeClasses: Array.isArray(formData.employeeClasses) ? formData.employeeClasses : [],
+      applicableGenders: Array.isArray(formData.applicableGenders) ? formData.applicableGenders : [],
       daysExceptions: Array.isArray(formData.daysExceptions) ? formData.daysExceptions : [],
     };
 
@@ -319,7 +322,7 @@ export default function SettingsLeaveTypes() {
           <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
             Create your organization's leave policies, quotas, and applicable workforce groups.
           </p>
-          <Button onClick={() => { resetForm(); setIsAdding(true); }} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => { resetForm(); setIsAdding(true); }}>
             <Plus className="w-4 h-4 mr-2" /> Create First Leave Type
           </Button>
         </div>

@@ -45,18 +45,6 @@ export default function Recruitment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-postings'] });
       setShowJobForm(false);
-      setJobFormData({
-        job_title: '',
-        department: '',
-        location: '',
-        employment_type: 'full_time',
-        salary_range: '',
-        description: '',
-        requirements: '',
-        responsibilities: '',
-        status: 'draft',
-        published_to: [],
-      });
     },
   });
 
