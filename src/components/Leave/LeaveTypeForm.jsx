@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import ApprovalStepsEditor from '@/components/approvals/ApprovalStepsEditor';
 import LeaveQuotaExceptionsEditor from './LeaveQuotaExceptionsEditor';
+import LeaveTargetingSection from './LeaveTargetingSection';
 import { DEFAULT_LEAVE_APPROVAL_STEPS } from '@/lib/approvalSteps';
 
 export default function LeaveTypeForm({
@@ -108,6 +109,12 @@ export default function LeaveTypeForm({
               defaultDays={formData.daysPerYear}
             />
           </div>
+
+          {/* Target Gender Section */}
+          <LeaveTargetingSection
+            formData={formData}
+            setFormData={setFormData}
+          />
 
           {/* Toggles Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 border rounded-lg border-slate-200/80 bg-slate-50/50">

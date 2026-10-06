@@ -47,7 +47,6 @@ export default function LeaveOverviewFormCard({
     applicantDeptName,
     selectableColleagues,
     isHandoverCompulsory,
-    isHandoverHidden,
     requiresAttachment,
     hasRequiredRequestData,
     handleDateChange,
@@ -71,7 +70,7 @@ export default function LeaveOverviewFormCard({
     onSuccess,
   });
 
-  const displayLeaveTypes = availableLeaveTypes?.length > 0 ? availableLeaveTypes : leaveTypes;
+  const displayLeaveTypes = applicantEmployee ? (availableLeaveTypes || []) : leaveTypes;
 
   const employeeClassificationLabel = React.useMemo(() => {
     if (!applicantEmployee) return null;
@@ -290,19 +289,17 @@ export default function LeaveOverviewFormCard({
             />
           </div>
 
-          {!isHandoverHidden && (
-            <LeaveHandoverFormSection
-              isCompulsory={isHandoverCompulsory}
-              departmentName={applicantDeptName}
-              reliefOfficerId={formData.relief_officer_id}
-              onReliefOfficerChange={(val) => setFormData((prev) => ({ ...prev, relief_officer_id: val }))}
-              colleagues={selectableColleagues}
-              handoverNote={formData.handover_note}
-              onHandoverNoteChange={(val) => setFormData((prev) => ({ ...prev, handover_note: val }))}
-              handoverNoteUrl={formData.handover_note_url}
-              onHandoverNoteUrlChange={(url) => setFormData((prev) => ({ ...prev, handover_note_url: url }))}
-            />
-          )}
+          <LeaveHandoverFormSection
+            isCompulsory={isHandoverCompulsory}
+            departmentName={applicantDeptName}
+            reliefOfficerId={formData.relief_officer_id}
+            onReliefOfficerChange={(val) => setFormData((prev) => ({ ...prev, relief_officer_id: val }))}
+            colleagues={selectableColleagues}
+            handoverNote={formData.handover_note}
+            onHandoverNoteChange={(val) => setFormData((prev) => ({ ...prev, handover_note: val }))}
+            handoverNoteUrl={formData.handover_note_url}
+            onHandoverNoteUrlChange={(url) => setFormData((prev) => ({ ...prev, handover_note_url: url }))}
+          />
 
           {(requiresAttachment || formData.attachment_url) && (
             <div className="space-y-2 p-3.5 bg-slate-50 border rounded-lg border-slate-200">

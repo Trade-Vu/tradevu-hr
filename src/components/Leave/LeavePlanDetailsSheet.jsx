@@ -82,15 +82,7 @@ export default function LeavePlanDetailsSheet({
   onReject,
   isReviewing = false
 }) {
-  if (!plan) return null;
-
-  const employee = plan.employeeId || {};
-  const fullName = employee.fullName || 'Employee';
-  const email = employee.email;
-  const jobTitle = employee.jobTitle;
-  const departmentName = employee.departmentId?.name || (typeof employee.departmentId === 'string' ? employee.departmentId : null);
-  const employeeCode = employee.employeeCode;
-  const plannedDates = useMemo(() => plan.plannedDates || [], [plan.plannedDates]);
+  const plannedDates = useMemo(() => plan?.plannedDates || [], [plan?.plannedDates]);
 
   const sortedDates = useMemo(() => {
     return [...plannedDates].sort((a, b) => new Date(a) - new Date(b));
@@ -103,6 +95,15 @@ export default function LeavePlanDetailsSheet({
   const monthlyBreakdown = useMemo(() => {
     return getMonthlyBreakdown(plannedDates);
   }, [plannedDates]);
+
+  if (!plan) return null;
+
+  const employee = plan.employeeId || {};
+  const fullName = employee.fullName || 'Employee';
+  const email = employee.email;
+  const jobTitle = employee.jobTitle;
+  const departmentName = employee.departmentId?.name || (typeof employee.departmentId === 'string' ? employee.departmentId : null);
+  const employeeCode = employee.employeeCode;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>

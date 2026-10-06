@@ -88,57 +88,81 @@ export function getEmployeeAllocatedLeaveDays(leaveType, employee) {
 }
 
 /**
- * Checks whether a leave type is applicable to an employee based on their
- * quota exceptions (0 days = ineligible) and legacy exclusion rules.
+ * Checks whether a leave type is applicable to an employee based on:
+ * 1. Active status gate: pre-active employees cannot see/request leave
+ * 2. Gender targeting (e.g. Female Only, Male Only)
+ * 3. Employment type & Employee class targeting (positive entitlement)
+ * 4. Quota exceptions: if allocated 0 days via exceptions, ineligible
+ * 5. Only confirmed: probationers excluded if true
  */
 export function isLeaveTypeApplicable(leaveType, employee) {
   if (!leaveType) return false;
 
+  const status = String(
+    employee?.employmentStatus || employee?.employment_status || ""
+  ).trim().toUpperCase();
+
+  // 1. Employees that are yet to be active should not see any leave type
+  const preActiveStatuses = [
+    'DRAFT',
+    'PENDING_APPROVAL',
+    'PENDING_ONBOARDING',
+    'ONGOING_ONBOARDING',
+    'PROBATION_PENDING',
+  ];
+  if (preActiveStatuses.includes(status)) {
+    return false;
+  }
+
+  // 2. Gender eligibility: if specified, employee's gender must match
+  const applicableGenders = Array.isArray(leaveType.applicableGenders)
+    ? leaveType.applicableGenders.map(g => String(g).trim().toUpperCase()).filter(Boolean)
+    : [];
+  if (applicableGenders.length > 0) {
+    const empGender = String(employee?.gender || "").trim().toUpperCase();
+    if (!empGender || !applicableGenders.includes(empGender)) {
+      return false;
+    }
+  }
+
+  // 3. If restricted to confirmed employees only (exclude probation):
+  if (leaveType.onlyConfirmed && status === "PROBATION") {
+    return false;
+  }
+
+  // 4. Positive entitlement logic for employment types:
+  // If configured, only employees matching one of the configured types can access
+  const allowedTypes = Array.isArray(leaveType.employmentTypes)
+    ? leaveType.employmentTypes.map(normalizeClassification).filter(Boolean)
+    : [];
+  const empType = normalizeClassification(
+    employee?.employmentType || employee?.employment_type || ""
+  );
+  if (allowedTypes.length > 0) {
+    if (!empType || !allowedTypes.includes(empType)) {
+      return false;
+    }
+  }
+
+  // 5. Positive entitlement logic for employee categories/classes:
+  // If configured, only employees matching one of the configured classes can access
+  const allowedClasses = Array.isArray(leaveType.employeeClasses)
+    ? leaveType.employeeClasses.map(normalizeClassification).filter(Boolean)
+    : [];
+  const empClass = normalizeClassification(
+    employee?.employeeClass || employee?.employee_class || ""
+  );
+  if (allowedClasses.length > 0) {
+    if (!empClass || !allowedClasses.includes(empClass)) {
+      return false;
+    }
+  }
+
+  // 6. Zero-days exception rule:
   // If the employee is specifically allocated 0 days via exceptions, they are ineligible.
   if (Array.isArray(leaveType.daysExceptions) && leaveType.daysExceptions.length > 0) {
     const allocated = getEmployeeAllocatedLeaveDays(leaveType, employee);
     if (allocated === 0) {
-      return false;
-    }
-  }
-
-  const empType = normalizeClassification(
-    employee?.employmentType || employee?.employment_type || ""
-  );
-  const empClass = normalizeClassification(
-    employee?.employeeClass || employee?.employee_class || ""
-  );
-
-  const excludedTypes = Array.isArray(leaveType.employmentTypes)
-    ? leaveType.employmentTypes.map(normalizeClassification).filter(Boolean)
-    : [];
-
-  const excludedClasses = Array.isArray(leaveType.employeeClasses)
-    ? leaveType.employeeClasses.map(normalizeClassification).filter(Boolean)
-    : [];
-
-  // If the leave type is restricted to confirmed employees only (exclude probation):
-  if (leaveType.onlyConfirmed) {
-    const status = String(
-      employee?.employmentStatus || employee?.employment_status || ""
-    ).trim().toUpperCase();
-    if (status === "PROBATION") {
-      return false;
-    }
-  }
-
-  // Exception logic for employment types:
-  // If an employee's employment type matches any of the configured exceptions, they are ineligible.
-  if (excludedTypes.length > 0 && empType) {
-    if (excludedTypes.includes(empType)) {
-      return false;
-    }
-  }
-
-  // Exception logic for employee categories/classes:
-  // If an employee's category/class matches any of the configured exceptions, they are ineligible.
-  if (excludedClasses.length > 0 && empClass) {
-    if (excludedClasses.includes(empClass)) {
       return false;
     }
   }
@@ -148,15 +172,12 @@ export function isLeaveTypeApplicable(leaveType, employee) {
 
 /**
  * Filters a list of leave types to only those applicable to the applicant employee.
- * If filtering produces an empty list, falls back to all leave types to prevent a broken form.
  */
 export function filterApplicableLeaveTypes(leaveTypes = [], employee = null) {
   if (!Array.isArray(leaveTypes) || leaveTypes.length === 0) return [];
+  if (!employee) return leaveTypes;
 
-  const applicable = leaveTypes.filter((lt) => isLeaveTypeApplicable(lt, employee));
-  if (applicable.length > 0) return applicable;
-
-  return leaveTypes;
+  return leaveTypes.filter((lt) => isLeaveTypeApplicable(lt, employee));
 }
 
 /**
