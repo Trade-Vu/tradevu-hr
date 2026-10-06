@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CompensationStructuresTab from "@/components/compensation/CompensationStructuresTab";
 import CompensationAssignmentsTab from "@/components/compensation/CompensationAssignmentsTab";
 import CreateStructureDialog from "@/components/compensation/CreateStructureDialog";
+import EditStructureDialog from "@/components/compensation/EditStructureDialog";
 import AssignStructureDialog from "@/components/compensation/AssignStructureDialog";
 
 const listFrom = (response) => (Array.isArray(response) ? response : response?.data || []);
@@ -17,6 +18,7 @@ export default function Compensation() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("structures");
   const [showStructureDialog, setShowStructureDialog] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [assignTarget, setAssignTarget] = useState(null);
 
@@ -65,6 +67,27 @@ export default function Compensation() {
     },
     onError: (err) =>
       toast.error(err?.response?.data?.message || err?.message || "Failed to create structure"),
+  });
+
+  const updateStructureMutation = useMutation({
+    mutationFn: ({ id, data }) => compensationApi.updateStructure(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["compensation-structures"] });
+      setEditTarget(null);
+      toast.success("Compensation structure updated successfully");
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update structure"),
+  });
+
+  const deleteStructureMutation = useMutation({
+    mutationFn: (id) => compensationApi.deleteStructure(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["compensation-structures"] });
+      toast.success("Compensation structure deleted successfully");
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || err?.message || "Failed to delete structure"),
   });
 
   const assignMutation = useMutation({
@@ -145,6 +168,14 @@ export default function Compensation() {
               structures={structures}
               isLoading={structuresLoading}
               onOpenCreateDialog={() => setShowStructureDialog(true)}
+              onEdit={(struct) => setEditTarget(struct)}
+              onDelete={(id) => deleteStructureMutation.mutate(id)}
+              onToggleStatus={(struct, status) =>
+                updateStructureMutation.mutate({
+                  id: struct._id || struct.id,
+                  data: { status },
+                })
+              }
             />
           </TabsContent>
 
@@ -164,6 +195,20 @@ export default function Compensation() {
           departments={departments}
           onSubmit={(form) => createStructureMutation.mutate(form)}
           isPending={createStructureMutation.isPending}
+        />
+
+        <EditStructureDialog
+          structure={editTarget}
+          open={!!editTarget}
+          onOpenChange={(open) => !open && setEditTarget(null)}
+          departments={departments}
+          onSubmit={(form) =>
+            updateStructureMutation.mutate({
+              id: editTarget._id || editTarget.id,
+              data: form,
+            })
+          }
+          isPending={updateStructureMutation.isPending}
         />
 
         <AssignStructureDialog
