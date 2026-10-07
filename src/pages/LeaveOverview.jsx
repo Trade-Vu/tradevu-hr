@@ -71,6 +71,7 @@ export default function LeaveOverview() {
           id: l._id || l.id,
           employee_email: emp.email || l.employee_email || (typeof emp === 'string' ? emp : ''),
           employee_name: emp.fullName || l.employee_name || (typeof emp === 'string' ? emp : 'Employee'),
+          department_name: emp.departmentId?.name || emp.department?.name || l.department_name || '',
           leave_type: typeName,
           start_date: l.startDate || l.start_date,
           end_date: l.endDate || l.end_date,
