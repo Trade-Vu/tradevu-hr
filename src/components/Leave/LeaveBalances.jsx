@@ -4,23 +4,55 @@ import { PAGE_ROUTES } from '@/constants/pageRoutes';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
-    if (leaveBalances.length === 0 && leaveTypes.length === 0) {
+export default function LeaveBalances({ leaveBalances = [], leaveTypes = [], isAdmin = false }) {
+  if (isAdmin) {
+    if (leaveTypes.length === 0) {
+      return (
+        <Card className="border-slate-200">
+          <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+            <Calendar className="w-12 h-12 mb-4 text-slate-300" />
+            <p className="text-lg font-medium text-slate-700">No Leave Types Configured</p>
+            <p className="max-w-md mx-auto mt-2 text-sm text-slate-500">
+              You haven't defined any leave types for your organization yet. Leave balances cannot be initialized until leave types are created.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-6"
+              onClick={() => { window.location.href = PAGE_ROUTES.SETTINGS_LEAVE_TYPES || PAGE_ROUTES.SETTINGS; }}
+            >
+              Configure Leave Types in Settings
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {leaveTypes.map((type) => (
+          <Card key={type.id || type._id} className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="flex flex-col items-center justify-center p-4 text-center">
+              <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
+              <p className="my-2 text-3xl font-bold text-slate-900">{type.defaultDays ?? 0}</p>
+              <p className="text-xs text-slate-400">
+                {type.isPaid ? 'Paid' : 'Unpaid'} • Configured Days
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (leaveBalances.length === 0 && leaveTypes.length === 0) {
     return (
       <Card className="border-slate-200">
         <CardContent className="flex flex-col items-center justify-center p-8 text-center">
           <Calendar className="w-12 h-12 mb-4 text-slate-300" />
           <p className="text-lg font-medium text-slate-700">No Leave Types Configured</p>
           <p className="max-w-md mx-auto mt-2 text-sm text-slate-500">
-            {isAdmin
-              ? "You haven't defined any leave types for your organization yet. Leave balances cannot be initialized until leave types are created."
-              : "You do not have active leave entitlements, or leave requests will become available once your onboarding is approved and active."}
+            You do not have active leave entitlements, or leave requests will become available once your onboarding is approved and active.
           </p>
-          {isAdmin && (
-            <Button variant="outline" className="mt-6" onClick={() => { window.location.href = PAGE_ROUTES.SETTINGS; }}>
-              Configure Leave Types in Settings
-            </Button>
-          )}
         </CardContent>
       </Card>
     );
@@ -41,7 +73,7 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
               'Leave';
 
             return (
-              <Card key={balance.id || balance._id || `balance-${index}`} className="border-slate-200">
+              <Card key={balance.id || balance._id || `balance-${index}`} className="border-slate-200 bg-white shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                   <p className="text-sm font-medium uppercase text-slate-500">{leaveName}</p>
                   <p className="my-2 text-3xl font-bold text-blue-600">{balance.available}</p>
@@ -54,10 +86,10 @@ export default function LeaveBalances({ leaveBalances, leaveTypes, isAdmin }) {
             );
           })
         : leaveTypes.map((type) => (
-            <Card key={type.id || type._id} className="border-slate-200">
+            <Card key={type.id || type._id} className="border-slate-200 bg-white shadow-sm">
               <CardContent className="flex flex-col items-center justify-center p-4 text-center">
                 <p className="text-sm font-medium uppercase text-slate-500">{type.name}</p>
-                <p className="my-2 text-3xl font-bold text-slate-400">{type?.defaultDays}</p>
+                <p className="my-2 text-3xl font-bold text-slate-400">{type?.defaultDays ?? 0}</p>
                 <p className="text-xs text-slate-400">{type?.code ?? "Balance not initialized"}</p>
               </CardContent>
             </Card>
