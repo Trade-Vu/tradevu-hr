@@ -2,7 +2,7 @@ import React from "react";
 import { Search, Grid, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 
 export default function EmployeeDirectoryFilters({
   searchTerm,
@@ -25,23 +25,13 @@ export default function EmployeeDirectoryFilters({
               className="w-full pl-10 transition-colors rounded-lg border-slate-200 bg-slate-50 focus:bg-white"
             />
           </div>
-          <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
-            <SelectTrigger className="w-full rounded-lg sm:w-40 border-slate-200 bg-slate-50 focus:bg-white">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="shadow-lg rounded-xl border-slate-100">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="PROBATION">Probation</SelectItem>
-              <SelectItem value="PENDING_ONBOARDING">Pending Onboarding</SelectItem>
-              <SelectItem value="ON_LEAVE">On Leave</SelectItem>
-              <SelectItem value="SUSPENDED">Suspended</SelectItem>
-              <SelectItem value="RESIGNED">Resigned</SelectItem>
-              <SelectItem value="TERMINATED">Terminated</SelectItem>
-              <SelectItem value="OFFBOARDED">Offboarded</SelectItem>
-              <SelectItem value="ARCHIVED">Archived</SelectItem>
-            </SelectContent>
-          </Select>
+          <FilterDropdown
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val)}
+            placeholder="Status"
+            showLeadingIcon={true}
+            triggerClassName="w-full sm:w-44"
+          />
         </div>
 
         <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg">

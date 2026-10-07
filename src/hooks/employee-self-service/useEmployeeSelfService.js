@@ -257,8 +257,13 @@ export default function useEmployeeSelfService() {
     onError: (error) => toast.error(`Failed to complete tasks: ${error.message}`),
   });
   const updateEmployeeMutation = useMutation({
-    mutationFn: ({ id, data }) =>
-      employeesApi.updateEmployee(id, {
+    mutationFn: ({ id, data }) => {
+      const editPrivate = (data.privateEmail || '').trim().toLowerCase();
+      const workEmail = (employee?.email || '').trim().toLowerCase();
+      if (editPrivate && editPrivate === workEmail) {
+        throw new Error("Private email cannot be the same as your work / login email");
+      }
+      return employeesApi.updateEmployee(id, {
         phone: data.phone,
         privateEmail: data.privateEmail,
         dateOfBirth: data.dateOfBirth,
@@ -267,13 +272,14 @@ export default function useEmployeeSelfService() {
         nationality: data.nationality,
         nationalId: data.nationalId,
         passportNumber: data.passportNumber,
-      }),
+      });
+    },
     onSuccess: () => {
       invalidate(["employee", employeeId]);
       setIsEditing(false);
       toast.success("Profile updated successfully");
     },
-    onError: (error) => toast.error(`Failed to update profile: ${error.message}`),
+    onError: (error) => toast.error(error.message || "Failed to update profile"),
   });
   const submitProfileMutation = useMutation({
     mutationFn: () => employeesApi.submitForReview(employeeId),
