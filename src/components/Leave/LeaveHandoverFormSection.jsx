@@ -21,6 +21,7 @@ export default function LeaveHandoverFormSection({
   onHandoverNoteUrlChange,
 }) {
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -38,8 +39,10 @@ export default function LeaveHandoverFormSection({
       console.error("Error uploading handover document:", error);
       toast.error("Failed to upload handover document. Please try again.");
       onHandoverNoteUrlChange("");
+    } finally {
+      if (e.target) e.target.value = "";
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   return (
@@ -111,6 +114,7 @@ export default function LeaveHandoverFormSection({
 
             <div>
               <input
+                ref={fileInputRef}
                 type="file"
                 id="handover-document"
                 onChange={handleFileUpload}
@@ -119,7 +123,7 @@ export default function LeaveHandoverFormSection({
               />
 
               {handoverNoteUrl ? (
-                <div className="flex items-center justify-between gap-2 p-1.5 px-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 h-8.5">
+                <div className="flex items-center justify-between gap-2 p-1.5 px-2.5 rounded-md bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 h-10">
                   <div className="flex items-center gap-1.5 truncate">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span className="font-medium truncate">Document attached</span>
@@ -138,7 +142,7 @@ export default function LeaveHandoverFormSection({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => document.getElementById("handover-document")?.click()}
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                   className="w-full bg-white hover:bg-slate-50 text-slate-700 border-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs h-10"
                 >
@@ -186,11 +190,14 @@ export default function LeaveHandoverFormSection({
                 {colleagues.length === 0 ? (
                   <SelectItem value="none" disabled>No colleagues found in department</SelectItem>
                 ) : (
-                  colleagues.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
-                      {col.full_name || col.fullName} {col.job_title ? `— ${col.job_title}` : ""}
-                    </SelectItem>
-                  ))
+                  colleagues.map((col) => {
+                    const jobTitle = col.job_title || col.jobTitle;
+                    return (
+                      <SelectItem key={col.id} value={col.id}>
+                        {col.full_name || col.fullName} {jobTitle ? `— ${jobTitle}` : ""}
+                      </SelectItem>
+                    );
+                  })
                 )}
               </SelectContent>
             </Select>
