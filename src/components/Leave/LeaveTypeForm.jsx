@@ -204,6 +204,28 @@ export default function LeaveTypeForm({
             )}
           </div>
 
+          {/* Relief Officer Requirement Switch */}
+          <div className="flex items-center justify-between p-3.5 border rounded-lg border-slate-200/80 bg-slate-50/50">
+            <div className="space-y-0.5">
+              <Label htmlFor="requires-relief-officer" className="text-sm font-medium text-slate-800 cursor-pointer">
+                Require Relief Officer
+              </Label>
+              <p className="text-xs text-slate-500">
+                When enabled, employees must designate a colleague as relief officer when requesting this leave.
+              </p>
+            </div>
+            <Switch
+              id="requires-relief-officer"
+              checked={formData.requiresReliefOfficer !== false}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  requiresReliefOfficer: checked,
+                }))
+              }
+            />
+          </div>
+
           {/* Handover Note Requirement Switch */}
           <div className="flex items-center justify-between p-3.5 border rounded-lg border-slate-200/80 bg-slate-50/50">
             <div className="space-y-0.5">
@@ -211,7 +233,7 @@ export default function LeaveTypeForm({
                 Require Handover Note
               </Label>
               <p className="text-xs text-slate-500">
-                When enabled, employees must provide a handover note or document. When disabled, handover notes are optional. (A relief officer is always required for all leave requests).
+                When enabled, employees must provide a handover note or document. When disabled, handover notes are optional.
               </p>
             </div>
             <Switch

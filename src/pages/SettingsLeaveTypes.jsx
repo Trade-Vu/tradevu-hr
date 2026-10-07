@@ -25,9 +25,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Calendar, Clock, CheckCircle2, FileText } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import LeaveTypeForm from '@/components/Leave/LeaveTypeForm';
 import LeaveTypeCard from '@/components/Leave/LeaveTypeCard';
+import LeaveTypesStatsOverview from '@/components/Leave/LeaveTypesStatsOverview';
 
 const DEFAULT_FORM_DATA = {
   name: '',
@@ -35,6 +36,7 @@ const DEFAULT_FORM_DATA = {
   daysPerYear: 10,
   isPaid: true,
   requiresApproval: true,
+  requiresReliefOfficer: true,
   requiresHandover: false,
   handoverRequirement: 'OPTIONAL',
   hasNoticePeriod: false,
@@ -151,6 +153,7 @@ export default function SettingsLeaveTypes() {
       daysPerYear: lt.defaultDays ?? lt.daysPerYear ?? 10,
       isPaid: lt.isPaid,
       requiresApproval: lt.requiresApproval,
+      requiresReliefOfficer: lt.requiresReliefOfficer !== false,
       requiresHandover,
       handoverRequirement: requiresHandover ? 'COMPULSORY' : 'OPTIONAL',
       hasNoticePeriod: hasNotice,
@@ -215,6 +218,7 @@ export default function SettingsLeaveTypes() {
       defaultDays: parseFloat(formData.daysPerYear) || 0,
       isPaid: formData.isPaid,
       requiresApproval: formData.requiresApproval,
+      requiresReliefOfficer: formData.requiresReliefOfficer !== false,
       requiresHandover: isHandoverRequired,
       handoverRequirement: isHandoverRequired ? 'COMPULSORY' : 'OPTIONAL',
       hasNoticePeriod: Boolean(formData.hasNoticePeriod),
@@ -238,10 +242,6 @@ export default function SettingsLeaveTypes() {
     }
   };
 
-  const paidCount = leaveTypes.filter(lt => lt.isPaid).length;
-  const noticeCount = leaveTypes.filter(lt => lt.hasNoticePeriod || (lt.noticePeriodDays > 0) || (lt.noticeDaysRequired > 0)).length;
-  const handoverCount = leaveTypes.filter(lt => lt.requiresHandover || lt.handoverRequirement === 'COMPULSORY').length;
-
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Top Header */}
@@ -263,47 +263,7 @@ export default function SettingsLeaveTypes() {
       </div>
 
       {/* Summary Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Calendar className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">{leaveTypes.length}</div>
-            <div className="text-xs text-slate-500 font-medium">Configured Types</div>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">{paidCount}</div>
-            <div className="text-xs text-slate-500 font-medium">Paid Types</div>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <Clock className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">{noticeCount}</div>
-            <div className="text-xs text-slate-500 font-medium">Notice Required</div>
-          </div>
-        </div>
-
-        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <FileText className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">{handoverCount}</div>
-            <div className="text-xs text-slate-500 font-medium">Handover Required</div>
-          </div>
-        </div>
-      </div>
+      <LeaveTypesStatsOverview leaveTypes={leaveTypes} />
 
       {/* Grid of Leave Types */}
       {isLoading ? (

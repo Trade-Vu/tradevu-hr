@@ -47,6 +47,7 @@ export default function LeaveOverviewFormCard({
     applicantDeptName,
     selectableColleagues,
     isHandoverCompulsory,
+    isReliefOfficerRequired,
     requiresAttachment,
     hasRequiredRequestData,
     handleDateChange,
@@ -308,6 +309,7 @@ export default function LeaveOverviewFormCard({
 
           <LeaveHandoverFormSection
             isCompulsory={isHandoverCompulsory}
+            requiresReliefOfficer={isReliefOfficerRequired}
             departmentName={applicantDeptName}
             reliefOfficerId={formData.relief_officer_id}
             onReliefOfficerChange={(val) => setFormData((prev) => ({ ...prev, relief_officer_id: val }))}

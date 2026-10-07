@@ -217,13 +217,15 @@ export function useLeaveOverviewForm({
     updateSelectedDates(formData.selectedDates.filter((d) => d !== date));
   };
 
+  const handleMutationSuccess = (message) => {
+    toast.success(message);
+    if (onSuccess) onSuccess();
+    if (onClose) onClose();
+  };
+
   const createLeaveMutation = useMutation({
     mutationFn: (data) => leaveApi.createRequest(buildLeaveRequestPayload(data, false, isAdmin, employees)),
-    onSuccess: () => {
-      toast.success("Leave request submitted successfully.");
-      if (onSuccess) onSuccess();
-      if (onClose) onClose();
-    },
+    onSuccess: () => handleMutationSuccess("Leave request submitted successfully."),
     onError: (error) => {
       console.error(error);
       toast.error(extractErrorMessage(error, "Failed to submit leave request."));
@@ -232,11 +234,7 @@ export function useLeaveOverviewForm({
 
   const logPastLeaveMutation = useMutation({
     mutationFn: (data) => leaveApi.createRequest(buildLeaveRequestPayload(data, true, isAdmin, employees)),
-    onSuccess: () => {
-      toast.success("Past leave successfully logged.");
-      if (onSuccess) onSuccess();
-      if (onClose) onClose();
-    },
+    onSuccess: () => handleMutationSuccess("Past leave successfully logged."),
     onError: (error) => {
       console.error(error);
       toast.error(extractErrorMessage(error, "Failed to log past leave."));
@@ -267,11 +265,11 @@ export function useLeaveOverviewForm({
     [employees, applicantEmployee]
   );
 
+  const isReliefOfficerRequired = selectedLeaveTypeObj?.requiresReliefOfficer !== false;
   const isHandoverCompulsory = Boolean(
     selectedLeaveTypeObj?.requiresHandover ||
     selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY"
   );
-  const isHandoverHidden = false;
 
   const requiresAttachment = selectedLeaveTypeObj && (
     selectedLeaveTypeObj.requiresAttachment ||
@@ -288,7 +286,7 @@ export function useLeaveOverviewForm({
       : formData.start_date && formData.end_date) &&
     (!isAdmin || formData.employee_email) &&
     (!requiresAttachment || formData.attachment_url) &&
-    formData.relief_officer_id &&
+    (!isReliefOfficerRequired || isPastLeave || formData.relief_officer_id) &&
     (!isHandoverCompulsory || (formData.handover_note?.trim() || formData.handover_note_url))
   );
 
@@ -319,7 +317,7 @@ export function useLeaveOverviewForm({
       return;
     }
 
-    if (!formData.relief_officer_id) {
+    if (!isPastLeave && isReliefOfficerRequired && !formData.relief_officer_id) {
       toast.error("Please select a Relief Officer from your department to cover during your leave.");
       return;
     }
@@ -376,7 +374,7 @@ export function useLeaveOverviewForm({
     applicantDeptName,
     selectableColleagues,
     isHandoverCompulsory,
-    isHandoverHidden,
+    isReliefOfficerRequired,
     requiresAttachment,
     hasRequiredRequestData,
     handleDateChange,
