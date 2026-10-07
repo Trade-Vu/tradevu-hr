@@ -126,7 +126,6 @@ export function useLeaveRequestDialogForm({
       setFormData((prev) => ({ ...prev, relief_officer_id: "" }));
     }
   }, [selectedType?.requiresReliefOfficer]);
-
   const selectedBalance = useMemo(() => {
     if (!formData.leave_type || !targetEmployeeBalances.length) return null;
     return targetEmployeeBalances.find((b) => String(b.leaveTypeId) === String(formData.leave_type)) || null;
