@@ -211,3 +211,60 @@ export function buildLeaveRequestPayload(data, isPast, isAdmin, employees = []) 
     selectedDates: data.useMultipleDates && data.selectedDates?.length > 0 ? data.selectedDates : undefined,
   };
 }
+
+/**
+ * Normalizes balance response payloads from the API into a consistent format.
+ */
+export function normalizeBalanceList(res) {
+  const item = Array.isArray(res) ? res : res?.data || res;
+  if (item && Array.isArray(item.balances)) {
+    return item.balances.map((balance) => ({
+      ...balance,
+      id: balance._id || balance.id,
+      leaveTypeId: String(balance.leaveTypeId?._id || balance.leaveTypeId || balance.leaveType || ''),
+      leaveType: balance.leaveTypeId?.name || balance.leaveType?.name || 'Leave',
+      totalEntitled: balance.allocated ?? balance.totalEntitled ?? 0,
+      used: balance.used ?? 0,
+      pending: balance.pending ?? 0,
+      available: balance.remaining ?? balance.available ?? 0,
+      carriedForward: balance.carryOver ?? balance.carriedForward ?? 0,
+    }));
+  }
+  return Array.isArray(item) ? item : [];
+}
+
+/**
+ * Resolves an applicant's department name and available colleague relief officers.
+ */
+export function resolveDepartmentAndColleagues(employees = [], targetEmployee = null) {
+  if (!targetEmployee || !Array.isArray(employees)) {
+    return { departmentName: '', colleagues: [] };
+  }
+
+  const targetId = String(targetEmployee.id || targetEmployee._id || '');
+  const targetEmail = String(targetEmployee.email || '').toLowerCase().trim();
+  const deptId = String(
+    targetEmployee.departmentId?._id || targetEmployee.departmentId?.id || targetEmployee.departmentId || ''
+  );
+  const departmentName = targetEmployee.departmentId?.name || targetEmployee.department?.name || '';
+
+  const isSelf = (e) => {
+    const id = String(e.id || e._id || '');
+    const email = String(e.email || '').toLowerCase().trim();
+    return (targetId && id === targetId) || (targetEmail && email === targetEmail);
+  };
+
+  const departmentColleagues = employees.filter((e) => {
+    if (isSelf(e)) return false;
+    const eDeptId = String(e.departmentId?._id || e.departmentId?.id || e.departmentId || '');
+    return deptId && eDeptId && deptId === eDeptId;
+  });
+
+  const colleagues = departmentColleagues.length > 0
+    ? departmentColleagues
+    : employees.filter((e) => !isSelf(e));
+
+  return { departmentName, colleagues };
+}
+
+

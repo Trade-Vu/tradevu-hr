@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { leaveApi } from "@/api";
 import { extractErrorMessage } from "@/lib/utils";
 import { calculateWorkingDays } from "@/lib/leaveDays";
@@ -10,6 +10,9 @@ import {
   findApplicantEmployee,
   filterApplicableLeaveTypes,
   buildLeaveRequestPayload,
+  getEmployeeAllocatedLeaveDays,
+  normalizeBalanceList,
+  resolveDepartmentAndColleagues,
 } from "./leaveEligibilityUtils";
 
 export function useLeaveOverviewForm({
@@ -52,6 +55,25 @@ export function useLeaveOverviewForm({
     return findApplicantEmployee(employees, targetEmail, user);
   }, [isAdmin, formData.employee_email, user, employees]);
 
+  const applicantEmployeeId = applicantEmployee?._id || applicantEmployee?.id;
+
+  // Query applicant employee's balances so admins see and validate against target employee data
+  const { data: targetApplicantBalances = [], isLoading: isLoadingApplicantBalances } = useQuery({
+    queryKey: ['leave-balances', applicantEmployeeId],
+    queryFn: async () => {
+      if (!applicantEmployeeId) return [];
+      const res = await leaveApi.getBalances(applicantEmployeeId);
+      return normalizeBalanceList(res);
+    },
+    enabled: Boolean(applicantEmployeeId),
+  });
+
+  const effectiveBalances = useMemo(() => {
+    if (targetApplicantBalances?.length > 0) return targetApplicantBalances;
+    if (!isAdmin && Array.isArray(leaveBalances) && leaveBalances.length > 0) return leaveBalances;
+    return targetApplicantBalances || [];
+  }, [targetApplicantBalances, leaveBalances, isAdmin]);
+
   // Dynamically filter leave types applicable to applicant's employee class & type
   const availableLeaveTypes = useMemo(() => {
     return filterApplicableLeaveTypes(leaveTypes, applicantEmployee);
@@ -71,15 +93,20 @@ export function useLeaveOverviewForm({
     return leaveTypes.find((t) => (t.id || t._id) === formData.leave_type);
   }, [leaveTypes, formData.leave_type]);
 
-  const hasNoticePeriod = !isPastLeave && Boolean(
-    selectedLeaveTypeObj?.hasNoticePeriod ||
-    (selectedLeaveTypeObj?.noticePeriodDays > 0) ||
-    (selectedLeaveTypeObj?.noticeDaysRequired > 0)
-  );
+  const selectedBalance = useMemo(() => {
+    if (!formData.leave_type || !effectiveBalances.length) return null;
+    return effectiveBalances.find((b) => String(b.leaveTypeId) === String(formData.leave_type)) || null;
+  }, [effectiveBalances, formData.leave_type]);
 
-  const noticeDays = hasNoticePeriod
+  const applicantAllocatedDays = useMemo(() => {
+    if (!selectedLeaveTypeObj) return 0;
+    return getEmployeeAllocatedLeaveDays(selectedLeaveTypeObj, applicantEmployee);
+  }, [selectedLeaveTypeObj, applicantEmployee]);
+
+  const noticeDays = !isPastLeave && (selectedLeaveTypeObj?.hasNoticePeriod || (selectedLeaveTypeObj?.noticePeriodDays > 0) || (selectedLeaveTypeObj?.noticeDaysRequired > 0))
     ? (selectedLeaveTypeObj.noticePeriodDays || selectedLeaveTypeObj.noticeDaysRequired || 0)
     : 0;
+  const hasNoticePeriod = noticeDays > 0;
 
   const minAllowedDate = useMemo(() => {
     if (isPastLeave) return undefined;
@@ -151,27 +178,30 @@ export function useLeaveOverviewForm({
   };
 
   const handleHalfDayToggle = (isHalf) => {
-    let tDays = 0;
-    let newEndDate = formData.end_date;
-    if (isHalf && !formData.useMultipleDates) {
-      newEndDate = formData.start_date;
-    }
-    if (formData.useMultipleDates) {
-      tDays = formData.selectedDates.length * (isHalf ? 0.5 : 1);
-    } else {
-      tDays = calculateDays(formData.start_date, newEndDate) * (isHalf ? 0.5 : 1);
-    }
-    setFormData((prev) => ({ ...prev, isHalfDay: isHalf, end_date: newEndDate, total_days: tDays }));
+    const newEnd = isHalf && !formData.useMultipleDates ? formData.start_date : formData.end_date;
+    const baseDays = formData.useMultipleDates
+      ? formData.selectedDates.length
+      : calculateDays(formData.start_date, newEnd);
+    setFormData((prev) => ({ ...prev, isHalfDay: isHalf, end_date: newEnd, total_days: isHalf ? baseDays * 0.5 : baseDays }));
   };
 
   const handleMultipleDatesToggle = (useMultiple) => {
-    let tDays = 0;
-    if (useMultiple) {
-      tDays = formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1);
-    } else {
-      tDays = calculateDays(formData.start_date, formData.end_date) * (formData.isHalfDay ? 0.5 : 1);
-    }
-    setFormData((prev) => ({ ...prev, useMultipleDates: useMultiple, total_days: tDays }));
+    const baseDays = useMultiple
+      ? formData.selectedDates.length
+      : calculateDays(formData.start_date, formData.end_date);
+    setFormData((prev) => ({ ...prev, useMultipleDates: useMultiple, total_days: prev.isHalfDay ? baseDays * 0.5 : baseDays }));
+  };
+
+  const updateSelectedDates = (newDates) => {
+    const workingDays = newDates.reduce(
+      (total, d) => total + calculateWorkingDays(d, d, publicHolidays),
+      0
+    );
+    setFormData((prev) => ({
+      ...prev,
+      selectedDates: newDates,
+      total_days: prev.isHalfDay ? workingDays * 0.5 : workingDays,
+    }));
   };
 
   const addSelectedDate = (date) => {
@@ -180,29 +210,11 @@ export function useLeaveOverviewForm({
       toast.error(`Date ${date} cannot be selected. This leave requires at least ${noticeDays} day(s) notice.`);
       return;
     }
-    const newDates = [...formData.selectedDates, date].sort();
-    const workingDays = newDates.reduce(
-      (total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays),
-      0
-    );
-    setFormData({
-      ...formData,
-      selectedDates: newDates,
-      total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays,
-    });
+    updateSelectedDates([...formData.selectedDates, date].sort());
   };
 
   const removeSelectedDate = (date) => {
-    const newDates = formData.selectedDates.filter((d) => d !== date);
-    const workingDays = newDates.reduce(
-      (total, selectedDate) => total + calculateWorkingDays(selectedDate, selectedDate, publicHolidays),
-      0
-    );
-    setFormData({
-      ...formData,
-      selectedDates: newDates,
-      total_days: formData.isHalfDay ? workingDays * 0.5 : workingDays,
-    });
+    updateSelectedDates(formData.selectedDates.filter((d) => d !== date));
   };
 
   const createLeaveMutation = useMutation({
@@ -250,25 +262,10 @@ export function useLeaveOverviewForm({
     setUploadingFile(false);
   };
 
-  const applicantDeptId = applicantEmployee?.departmentId?._id || applicantEmployee?.departmentId?.id || applicantEmployee?.departmentId;
-  const applicantDeptName = applicantEmployee?.departmentId?.name || applicantEmployee?.department?.name || "";
-
-  const departmentColleagues = employees.filter((e) => {
-    const empId = e.id || e._id;
-    const appId = applicantEmployee?.id || applicantEmployee?._id;
-    if (empId === appId || (e.email || "").toLowerCase() === (applicantEmployee?.email || "").toLowerCase()) return false;
-    const empDeptId = e.departmentId?._id || e.departmentId?.id || e.departmentId;
-    if (!applicantDeptId || !empDeptId) return false;
-    return empDeptId.toString() === applicantDeptId.toString();
-  });
-
-  const selectableColleagues = departmentColleagues.length > 0
-    ? departmentColleagues
-    : employees.filter((e) => {
-        const empId = e.id || e._id;
-        const appId = applicantEmployee?.id || applicantEmployee?._id;
-        return empId !== appId && (e.email || "").toLowerCase() !== (applicantEmployee?.email || "").toLowerCase();
-      });
+  const { departmentName: applicantDeptName, colleagues: selectableColleagues } = useMemo(
+    () => resolveDepartmentAndColleagues(employees, applicantEmployee),
+    [employees, applicantEmployee]
+  );
 
   const isHandoverCompulsory = Boolean(
     selectedLeaveTypeObj?.requiresHandover ||
@@ -332,18 +329,30 @@ export function useLeaveOverviewForm({
       return;
     }
 
-    const selectedBalance = leaveBalances.find((b) => b.leaveTypeId === formData.leave_type);
-    if (selectedBalance && formData.total_days > selectedBalance.available) {
-      toast.error(`You cannot request ${formData.total_days} days. You only have ${selectedBalance.available} available for this leave type.`);
+    // Enforce that Super Admin / Admin cannot override configured or available days
+    if (selectedBalance && typeof selectedBalance.available === 'number') {
+      if (formData.total_days > selectedBalance.available) {
+        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type.`);
+        return;
+      }
+    } else if (applicantAllocatedDays !== undefined && applicantAllocatedDays > 0) {
+      if (formData.total_days > applicantAllocatedDays) {
+        toast.error(`You cannot request ${formData.total_days} days. Policy allows a maximum of ${applicantAllocatedDays} day(s) for this leave type.`);
+        return;
+      }
+    }
+
+    if (applicantAllocatedDays === 0) {
+      toast.error(`This employee is not eligible for ${selectedLeaveTypeObj?.name || 'this leave type'} (0 days allocated).`);
       return;
     }
 
     if (isPastLeave) {
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      const startD = new Date(formData.useMultipleDates && formData.selectedDates.length > 0 ? formData.selectedDates[0] : formData.start_date);
-      const endD = new Date(formData.useMultipleDates && formData.selectedDates.length > 0 ? formData.selectedDates[formData.selectedDates.length - 1] : formData.end_date);
-      if (startD > todayEnd || endD > todayEnd) {
+      const todayEnd = new Date().setHours(23, 59, 59, 999);
+      const dates = formData.useMultipleDates && formData.selectedDates?.length > 0
+        ? formData.selectedDates
+        : [formData.start_date, formData.end_date];
+      if (dates.some((d) => d && new Date(d).getTime() > todayEnd)) {
         toast.error("Past leave dates cannot be in the future.");
         return;
       }
@@ -379,5 +388,8 @@ export function useLeaveOverviewForm({
     handleSubmit,
     availableLeaveTypes,
     applicantEmployee,
+    selectedBalance,
+    applicantAllocatedDays,
+    isLoadingApplicantBalances,
   };
 }

@@ -58,6 +58,8 @@ export default function LeaveOverviewFormCard({
     handleSubmit,
     availableLeaveTypes,
     applicantEmployee,
+    selectedBalance,
+    applicantAllocatedDays,
   } = useLeaveOverviewForm({
     user,
     isAdmin,
@@ -146,7 +148,7 @@ export default function LeaveOverviewFormCard({
                   {displayLeaveTypes.length > 0 ? (
                     displayLeaveTypes.map((type) => (
                       <SelectItem key={type.id || type._id} value={type.id || type._id}>
-                        {type.name} {type.defaultDays ? `(${type.defaultDays} days)` : ""}
+                        {type.name}
                       </SelectItem>
                     ))
                   ) : (
@@ -156,6 +158,21 @@ export default function LeaveOverviewFormCard({
                   )}
                 </SelectContent>
               </Select>
+
+              {formData.leave_type && (
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                    Policy: {applicantAllocatedDays ?? 0} days configured
+                  </span>
+                  {selectedBalance && typeof selectedBalance.available === "number" && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${
+                      selectedBalance.available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                    }`}>
+                      Available: {selectedBalance.available} days remaining
+                    </span>
+                  )}
+                </div>
+              )}
 
               {!isPastLeave && hasNoticePeriod && noticeDays > 0 && (
                 <div className="mt-2 p-2.5 bg-amber-50 rounded-lg border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">

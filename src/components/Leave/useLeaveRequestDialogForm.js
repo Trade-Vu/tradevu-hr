@@ -1,9 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { leaveApi } from "@/api";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { calculateWorkingDays } from "@/lib/leaveDays";
-import { filterApplicableLeaveTypes } from "./leaveEligibilityUtils";
+import {
+  filterApplicableLeaveTypes,
+  getEmployeeAllocatedLeaveDays,
+  normalizeBalanceList,
+} from "./leaveEligibilityUtils";
 
 export function useLeaveRequestDialogForm({
   open = false,
@@ -89,6 +95,17 @@ export function useLeaveRequestDialogForm({
     return employees.find((e) => (e.id || e._id) === formData.employee_id) || null;
   }, [employees, formData.employee_id]);
 
+  const targetEmployeeId = formData.employee_id;
+  const { data: targetEmployeeBalances = [] } = useQuery({
+    queryKey: ['leave-balances', targetEmployeeId],
+    queryFn: async () => {
+      if (!targetEmployeeId) return [];
+      const res = await leaveApi.getBalances(targetEmployeeId);
+      return normalizeBalanceList(res);
+    },
+    enabled: Boolean(open && targetEmployeeId),
+  });
+
   const availableLeaveTypes = useMemo(() => {
     return filterApplicableLeaveTypes(leaveTypes, targetEmployee);
   }, [leaveTypes, targetEmployee]);
@@ -103,6 +120,16 @@ export function useLeaveRequestDialogForm({
   }, [availableLeaveTypes]);
 
   const selectedType = leaveTypes.find((t) => (t.id || t._id) === formData.leave_type);
+
+  const selectedBalance = useMemo(() => {
+    if (!formData.leave_type || !targetEmployeeBalances.length) return null;
+    return targetEmployeeBalances.find((b) => String(b.leaveTypeId) === String(formData.leave_type)) || null;
+  }, [targetEmployeeBalances, formData.leave_type]);
+
+  const employeeAllocatedDays = useMemo(() => {
+    if (!selectedType) return 0;
+    return getEmployeeAllocatedLeaveDays(selectedType, targetEmployee);
+  }, [selectedType, targetEmployee]);
   const hasNoticePeriod = !editingLeave && Boolean(
     selectedType?.hasNoticePeriod ||
     (selectedType?.noticePeriodDays > 0) ||
@@ -212,5 +239,7 @@ export function useLeaveRequestDialogForm({
     handleDocUpload,
     availableLeaveTypes,
     targetEmployee,
+    selectedBalance,
+    employeeAllocatedDays,
   };
 }
