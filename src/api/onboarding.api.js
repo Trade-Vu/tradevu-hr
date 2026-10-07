@@ -13,6 +13,10 @@ export const onboardingApi = {
     return apiClient.get(`/onboarding/tasks/employee/${employeeId}`);
   },
 
+  createTask: async (dto) => {
+    return apiClient.post('/onboarding/tasks', dto);
+  },
+
   updateTask: async (id, dto) => {
     return apiClient.put(`/onboarding/tasks/${id}`, dto);
   },

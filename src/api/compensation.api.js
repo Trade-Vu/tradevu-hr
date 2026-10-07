@@ -17,6 +17,10 @@ export const compensationApi = {
     return apiClient.put(`/compensation/structures/${id}`, data);
   },
 
+  deleteStructure: async (id) => {
+    return apiClient.delete(`/compensation/structures/${id}`);
+  },
+
   assign: async (data) => {
     return apiClient.post('/compensation/assignments', data);
   },

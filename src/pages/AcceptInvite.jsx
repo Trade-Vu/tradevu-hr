@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const token = searchParams.get('token')?.trim() || '';
   const navigate = useNavigate();
 
   const [inviteDetails, setInviteDetails] = useState(null);
@@ -109,6 +109,7 @@ export default function AcceptInvite() {
       });
 
       if (data && data.token) {
+        localStorage.removeItem('tradevu_view_mode');
         localStorage.setItem('token', data.token);
         // No need to refresh AuthContext's user here: window.location.href below
         // is a full page navigation, which re-initializes the whole app (and

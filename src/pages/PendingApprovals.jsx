@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { UserCircle, CalendarRange, Building2, Inbox, AlertCircle } from 'lucide-react';
+import { UserCircle, CalendarRange, Building2, Inbox, AlertCircle, Receipt, Banknote } from 'lucide-react';
 import { extractErrorMessage } from '@/lib/utils';
 import EmployeeDetail from './EmployeeDetail';
 import UnifiedProfileReviewDialog from '@/components/UnifiedProfileReviewDialog';
@@ -14,6 +14,8 @@ import { containerVariants, itemVariants } from '@/components/approvals/Approval
 import UnifiedReviewsTab from '@/components/approvals/UnifiedReviewsTab';
 import LeaveApprovalsTab from '@/components/approvals/LeaveApprovalsTab';
 import DepartmentApprovalsTab from '@/components/approvals/DepartmentApprovalsTab';
+import ExpenseApprovalsTab from '@/components/approvals/ExpenseApprovalsTab';
+import PayrollApprovalsTab from '@/components/approvals/PayrollApprovalsTab';
 import ApprovalsOffboardDialog from '@/components/approvals/ApprovalsOffboardDialog';
 
 export default function PendingApprovals() {
@@ -104,6 +106,34 @@ export default function PendingApprovals() {
                 </span>
               )}
             </TabsTrigger>
+            {data.isAdmin && (
+              <TabsTrigger
+                value="expenses"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Expense Claims</span>
+                {data.pendingExpenses.length > 0 && (
+                  <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                    {data.pendingExpenses.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
+            {(data.isSuperAdmin || data.user?.role === 'FINANCE_ADMIN' || data.user?.role === 'HR_ADMIN') && (
+              <TabsTrigger
+                value="payroll"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+              >
+                <Banknote className="w-4 h-4" />
+                <span>Payroll Runs</span>
+                {data.pendingPayrollRuns.length > 0 && (
+                  <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-200/70 text-slate-700 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                    {data.pendingPayrollRuns.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             {data.isSuperAdmin && (
               <TabsTrigger
                 value="departments"
@@ -166,6 +196,26 @@ export default function PendingApprovals() {
                 onLeaveAction={setLeaveConfirmState}
                 isApprovingLeave={data.isApprovingLeave}
                 leaveAppVars={data.leaveAppVars}
+              />
+            </TabsContent>
+
+            <TabsContent value="expenses" className="m-0 focus-visible:outline-none">
+              <ExpenseApprovalsTab
+                expenses={data.pendingExpenses}
+                onApprove={(id) => data.approveExpense(id)}
+                onReject={(payload) => data.rejectExpense(payload)}
+                isApproving={data.isApprovingExpense}
+                isRejecting={data.isRejectingExpense}
+                canReview={data.isAdmin}
+              />
+            </TabsContent>
+
+            <TabsContent value="payroll" className="m-0 focus-visible:outline-none">
+              <PayrollApprovalsTab
+                payrollRuns={data.pendingPayrollRuns}
+                onApprove={(id) => data.approvePayrollRun(id)}
+                isApproving={data.isApprovingPayroll}
+                canApprove={data.isSuperAdmin || data.user?.role === 'FINANCE_ADMIN'}
               />
             </TabsContent>
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
+import { filterApplicableLeaveTypes } from "@/components/Leave/leaveEligibilityUtils";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { extractErrorMessage, getRefId } from "@/lib/utils";
@@ -16,6 +17,7 @@ import {
   expensesApi,
   notificationsApi,
 } from "@/api";
+import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
 
 // Banner-worthy notification types shown on the self-service dashboard - other types
 // (e.g. document/leave notifications) aren't rendered as dashboard banners.
@@ -92,11 +94,35 @@ export default function useEmployeeSelfService() {
     enabled: !!employee,
     initialData: [],
   });
-  const { data: leaveTypes = [] } = useLeaveTypes();
+  const empStatus = (employee?.employmentStatus || employee?.employment_status || "").toUpperCase();
+  const isPreActive = [
+    "DRAFT",
+    "PENDING_APPROVAL",
+    "PENDING_ONBOARDING",
+    "ONGOING_ONBOARDING",
+    "PROBATION_PENDING",
+  ].includes(empStatus);
+
+  const { data: rawLeaveTypes = [] } = useLeaveTypes(
+    {
+      employmentType: employee?.employmentType || employee?.employment_type,
+      employeeClass: employee?.employeeClass || employee?.employee_class,
+      gender: employee?.gender,
+      employmentStatus: empStatus,
+      employeeId: employee?.id,
+    },
+    { enabled: !!employee && !isPreActive }
+  );
+
+  const leaveTypes = useMemo(() => {
+    if (!employee || isPreActive) return [];
+    return filterApplicableLeaveTypes(rawLeaveTypes, employee);
+  }, [rawLeaveTypes, employee, isPreActive]);
+
   const { data: leaveBalances = [] } = useQuery({
     queryKey: ["my-leave-balances", employee?.id],
     queryFn: async () => {
-      if (!employee?.id) return [];
+      if (!employee?.id || isPreActive) return [];
       const response = await leaveApi.getBalances(employee.id);
       const normalized = Array.isArray(response) ? response : response?.data || response;
       if (normalized && Array.isArray(normalized.balances))
@@ -112,7 +138,7 @@ export default function useEmployeeSelfService() {
         }));
       return Array.isArray(normalized) ? normalized : [];
     },
-    enabled: !!employee?.id,
+    enabled: !!employee?.id && !isPreActive,
     initialData: [],
   });
   const { data: attendance = [] } = useQuery({
@@ -135,11 +161,8 @@ export default function useEmployeeSelfService() {
       listFrom(await onboardingApi.getMyTasks()).map((t) => ({
         ...t,
         id: t._id || t.id,
-        isCompleted:
-          t.status === "completed" ||
-          t.status === "DONE" ||
-          t.status === "approved" ||
-          !!t.isCompleted,
+        status: normalizeTaskStatus(t.status, Boolean(t.isCompleted)),
+        isCompleted: normalizeTaskStatus(t.status, Boolean(t.isCompleted)) === TASK_STATUSES.DONE,
       })),
     enabled: true,
   });
@@ -213,7 +236,7 @@ export default function useEmployeeSelfService() {
   });
   const toggleTaskMutation = useMutation({
     mutationFn: ({ taskId, isCompleted }) =>
-      onboardingApi.updateTask(taskId, { status: isCompleted ? "not_started" : "completed" }),
+      onboardingApi.updateTask(taskId, { status: isCompleted ? TASK_STATUSES.TODO : TASK_STATUSES.DONE }),
     onSuccess: () => {
       invalidate(["my-onboarding-tasks"]);
       invalidate(["onboarding-tasks"]);
@@ -223,7 +246,7 @@ export default function useEmployeeSelfService() {
   });
   const completeAllMutation = useMutation({
     mutationFn: async (ids) => {
-      for (const id of ids) await onboardingApi.updateTask(id, { status: "completed" });
+      for (const id of ids) await onboardingApi.updateTask(id, { status: TASK_STATUSES.DONE });
     },
     onSuccess: () => {
       invalidate(["my-onboarding-tasks", employee?.id]);

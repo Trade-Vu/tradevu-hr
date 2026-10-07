@@ -5,7 +5,7 @@ export const APPROVER_ROLE_OPTIONS = [
   { value: 'HEAD_OF_DEPARTMENT', label: 'Head of department' },
   { value: 'HR_ADMIN', label: 'HR admin' },
   { value: 'SUPER_ADMIN', label: 'Super admin' },
-  { value: 'OTHER', label: 'Other*' },
+  { value: 'OTHER', label: 'Other (Specific user)' },
 ];
 
 export const APPROVAL_STEP_SEQUENCE = [
@@ -26,6 +26,7 @@ export const FULL_LEAVE_APPROVAL_FLOW = [
 
 export const DEFAULT_LEAVE_APPROVAL_STEPS = [
   { order: 1, role: 'LINE_MANAGER' },
+  { order: 2, role: 'HR_ADMIN' },
 ];
 
 // Normalizes roles for backward compatibility with legacy values
@@ -44,13 +45,26 @@ export const getApprovalRoleLabel = (role) => {
   return APPROVER_ROLE_OPTIONS.find((option) => option.value === normalized)?.label || normalized.replace(/_/g, ' ');
 };
 
-/** Sorted by order and renumbered 1..n, with roles normalized. */
+/** Sorted by order and renumbered 1..n, with roles normalized and custom approver fields preserved. */
 export const normalizeApprovalSteps = (steps = []) =>
   [...(steps || [])]
     .filter((step) => step?.role)
     .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .map((step, index) => ({ order: index + 1, role: normalizeApprovalRole(step.role) }));
+    .map((step, index) => ({
+      order: index + 1,
+      role: normalizeApprovalRole(step.role),
+      ...(step.userId ? { userId: step.userId } : {}),
+      ...(step.employeeId ? { employeeId: step.employeeId } : {}),
+      ...(step.approverName ? { approverName: step.approverName } : {}),
+    }));
 
-/** "Line manager → Head of department → HR admin → Super admin → Other*" */
+/** "Line manager → HR admin" or "Line manager → Jane Doe (Custom) → HR admin" */
 export const formatApprovalChain = (steps = []) =>
-  normalizeApprovalSteps(steps).map((step) => getApprovalRoleLabel(step.role)).join(' → ');
+  normalizeApprovalSteps(steps)
+    .map((step) => {
+      if (step.role === 'OTHER' && step.approverName) {
+        return `${step.approverName} (Custom)`;
+      }
+      return getApprovalRoleLabel(step.role);
+    })
+    .join(' → ');

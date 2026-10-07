@@ -24,6 +24,91 @@ import {
 import { isEmployeeEligibleForHrAdmin } from "./employeeDetailUtils";
 import { isOnboardedStatus, isSeparatedStatus, PRE_ONBOARDING_STATUSES } from "@/lib/employmentStatus";
 
+const getStatusBadgeConfig = (statusUpper) => {
+  switch (statusUpper) {
+    case 'ACTIVE':
+      return {
+        label: 'Active',
+        className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        dotColor: 'bg-emerald-400',
+      };
+    case 'OFFBOARDED':
+      return {
+        label: 'Offboarded',
+        className: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        dotColor: 'bg-rose-400',
+      };
+    case 'TERMINATED':
+      return {
+        label: 'Terminated',
+        className: 'bg-red-500/15 text-red-300 border-red-500/30',
+        dotColor: 'bg-red-400',
+      };
+    case 'RESIGNED':
+      return {
+        label: 'Resigned',
+        className: 'bg-slate-500/20 text-slate-300 border-slate-600/40',
+        dotColor: 'bg-slate-400',
+      };
+    case 'SUSPENDED':
+      return {
+        label: 'Suspended',
+        className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        dotColor: 'bg-amber-400',
+      };
+    case 'PROBATION':
+      return {
+        label: 'Probation',
+        className: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+        dotColor: 'bg-purple-400',
+      };
+    case 'PENDING_ONBOARDING':
+      return {
+        label: 'Pending Onboarding',
+        className: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        dotColor: 'bg-blue-400',
+      };
+    case 'ONGOING_ONBOARDING':
+      return {
+        label: 'Ongoing Onboarding',
+        className: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+        dotColor: 'bg-indigo-400',
+      };
+    case 'PENDING_APPROVAL':
+      return {
+        label: 'Pending Approval',
+        className: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        dotColor: 'bg-sky-400',
+      };
+    case 'DRAFT':
+      return {
+        label: 'Draft',
+        className: 'bg-slate-500/20 text-slate-300 border-slate-600/40',
+        dotColor: 'bg-slate-400',
+      };
+    case 'ARCHIVED':
+      return {
+        label: 'Archived',
+        className: 'bg-zinc-500/20 text-zinc-300 border-zinc-600/40',
+        dotColor: 'bg-zinc-400',
+      };
+    default: {
+      const formatted = statusUpper
+        ? statusUpper
+            .toLowerCase()
+            .split('_')
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ')
+        : 'Active';
+      return {
+        label: formatted,
+        className: 'bg-slate-500/20 text-slate-300 border-slate-600/40',
+        dotColor: 'bg-slate-400',
+      };
+    }
+  }
+};
+
 export default function EmployeeHeader({
   employee,
   user,
@@ -46,6 +131,7 @@ export default function EmployeeHeader({
 
   const isUserActive = Boolean(employee?.userActive || employee?.isUserActive || employee?.isActive);
   const isFullyActive = isActive || (isUserActive && isOnboardedStatus(currentStatus));
+  const statusBadge = getStatusBadgeConfig(currentStatus);
 
   const isEligibleForHr = isEmployeeEligibleForHrAdmin(employee);
   const canManageInvites = ['HR_ADMIN', 'SUPER_ADMIN'].includes(user?.role) || Boolean(user?.isOrgOwner || user?.is_organization_owner);
@@ -73,6 +159,12 @@ export default function EmployeeHeader({
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-2xl font-bold tracking-tight text-white">{employee.full_name}</h2>
+              {statusBadge && (
+                <Badge className={`${statusBadge.className} border text-xs px-2.5 py-0.5 font-semibold flex items-center gap-1.5 shadow-sm`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dotColor}`} />
+                  {statusBadge.label}
+                </Badge>
+              )}
               {employee.isHrAdmin && (
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs px-2.5 py-0.5 font-semibold flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" /> HR Admin
@@ -126,6 +218,18 @@ export default function EmployeeHeader({
             </Button>
           )}
 
+          {isProbation && (isSuperAdmin || canManageInvites) && (
+            <Button
+              size="sm"
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-medium"
+              onClick={onReactivate}
+            >
+              <UserCheck className="w-4 h-4 mr-1.5" />
+              Confirm Employment
+            </Button>
+          )}
+
           {canManageInvites && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -171,7 +275,7 @@ export default function EmployeeHeader({
                             className="font-medium text-indigo-600 focus:text-indigo-700 focus:bg-indigo-50 cursor-pointer"
                           >
                             <ShieldCheck className="w-4 h-4 mr-2" />
-                            {employee.isHrAdmin ? 'Reassign HR Admin Role' : 'Reassign as HR Admin'}
+                            {employee.isHrAdmin ? 'Remove HR Admin' : 'Assign HR Admin'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                         </>

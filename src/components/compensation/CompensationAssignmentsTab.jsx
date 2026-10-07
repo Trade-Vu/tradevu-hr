@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ export default function CompensationAssignmentsTab({
   onAssign,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const filteredEmployees = useMemo(() => {
     if (!searchTerm.trim()) return employees;
@@ -42,6 +44,16 @@ export default function CompensationAssignmentsTab({
       );
     });
   }, [employees, assignmentByEmployeeId, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEmployees.slice(start, start + pageSize);
+  }, [filteredEmployees, currentPage, pageSize]);
 
   return (
     <div className="space-y-4">
@@ -100,7 +112,7 @@ export default function CompensationAssignmentsTab({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredEmployees.map((emp) => {
+                  paginatedEmployees.map((emp) => {
                     const empId = emp._id || emp.id;
                     const assignment = assignmentByEmployeeId[empId];
                     const structureName =
@@ -171,6 +183,41 @@ export default function CompensationAssignmentsTab({
               </TableBody>
             </Table>
           </div>
+
+          {filteredEmployees.length > 0 && (
+            <div className="px-4 py-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/70">
+              <span className="text-xs text-slate-500">
+                Showing <span className="font-semibold text-slate-800">{(currentPage - 1) * pageSize + 1}</span> to{" "}
+                <span className="font-semibold text-slate-800">
+                  {Math.min(currentPage * pageSize, filteredEmployees.length)}
+                </span>{" "}
+                of <span className="font-semibold text-slate-800">{filteredEmployees.length}</span> employees
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 px-2.5 text-xs bg-white"
+                >
+                  Previous
+                </Button>
+                <span className="text-xs font-medium px-2 text-slate-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 px-2.5 text-xs bg-white"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

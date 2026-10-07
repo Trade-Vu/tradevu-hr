@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
-import { approvalsApi } from '@/api';
+import { approvalsApi, payrollApi, expensesApi } from '@/api';
 import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin, isManager as checkIsManager } from '@/lib/roleUtils';
 import { extractErrorMessage, getRefId } from '@/lib/utils';
 import { isPendingLeaveStatus } from '@/lib/leaveStatus';
@@ -21,6 +21,8 @@ export function usePendingApprovalsData() {
     queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
     queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
+    queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
+    queryClient.invalidateQueries({ queryKey: ['expense-claims'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['departments'] });
     queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
@@ -201,6 +203,33 @@ export function usePendingApprovalsData() {
     }
   });
 
+  const { mutate: approvePayrollRun, isPending: isApprovingPayroll } = useMutation({
+    mutationFn: (runId) => payrollApi.approveRun(runId),
+    onSuccess: () => {
+      toast.success("Payroll run approved successfully!");
+      invalidate();
+    },
+    onError: handleError,
+  });
+
+  const { mutate: approveExpense, isPending: isApprovingExpense } = useMutation({
+    mutationFn: (expenseId) => expensesApi.approveExpense(expenseId),
+    onSuccess: () => {
+      toast.success("Expense claim approved!");
+      invalidate();
+    },
+    onError: handleError,
+  });
+
+  const { mutate: rejectExpense, isPending: isRejectingExpense } = useMutation({
+    mutationFn: ({ id, reason }) => expensesApi.rejectExpense(id, reason),
+    onSuccess: () => {
+      toast.success("Expense claim rejected!");
+      invalidate();
+    },
+    onError: handleError,
+  });
+
   // Filter out the logged in user so they don't approve their own profile/tasks
   const currentUserId = getRefId(user?.employeeId);
   const allEmployees = (data?.employees || []).filter(e => {
@@ -259,6 +288,8 @@ export function usePendingApprovalsData() {
   const pendingOffboardings = data?.allOffboardings?.filter(o => o.status?.toUpperCase() === 'PENDING') || [];
   const pendingProbations = data?.allProbationRequests?.filter(p => p.status?.toUpperCase() === 'PENDING') || [];
   const pendingDepartments = data?.departments?.filter(d => d.status?.toUpperCase() === 'PENDING') || [];
+  const pendingPayrollRuns = data?.payrollRuns || [];
+  const pendingExpenses = data?.expenses || [];
 
   // Group by Employee for Unified View
   const unifiedEmployeeIds = Array.from(new Set([
@@ -310,6 +341,8 @@ export function usePendingApprovalsData() {
     pendingOffboardings,
     pendingProbations,
     pendingDepartments,
+    pendingPayrollRuns,
+    pendingExpenses,
     unifiedEmployeeIds,
     totalEmployeeReviewsCount,
     getEmployeeName,
@@ -351,6 +384,12 @@ export function usePendingApprovalsData() {
     requestOffboarding,
     isRequestingOffboarding,
     approveDepartmentMutation,
+    approvePayrollRun,
+    isApprovingPayroll,
+    approveExpense,
+    isApprovingExpense,
+    rejectExpense,
+    isRejectingExpense,
     invalidate
   };
 }
