@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Calendar, FileText, Briefcase, Layers } from 'lucide-react';
+import { Edit, Trash2, Calendar, FileText, Briefcase, Layers, UserCheck, UserX } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatApprovalChain } from '@/lib/approvalSteps';
 import { toTitleCase } from '@/lib/utils';
@@ -19,6 +19,7 @@ export default function LeaveTypeCard({
   const hasNotice = Boolean(lt.hasNoticePeriod || (lt.noticePeriodDays > 0) || (lt.noticeDaysRequired > 0));
   const noticeDays = lt.noticePeriodDays || lt.noticeDaysRequired || 0;
   const isHandover = Boolean(lt.requiresHandover || lt.handoverRequirement === 'COMPULSORY');
+  const isReliefOfficerRequired = lt.requiresReliefOfficer !== false;
   const defaultDays = lt.defaultDays ?? lt.daysPerYear ?? 0;
 
   return (
@@ -132,6 +133,17 @@ export default function LeaveTypeCard({
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
                     <FileText className="w-3 h-3" />
                     Handover req.
+                  </span>
+                )}
+                {isReliefOfficerRequired ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    <UserCheck className="w-3 h-3" />
+                    Relief req.
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    <UserX className="w-3 h-3" />
+                    No relief
                   </span>
                 )}
               </div>

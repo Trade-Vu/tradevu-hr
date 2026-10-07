@@ -59,6 +59,7 @@ export default function LeaveRequestDialog({
   const isHandoverCompulsory = Boolean(
     selectedType?.requiresHandover || selectedType?.handoverRequirement === "COMPULSORY"
   );
+  const isReliefOfficerRequired = selectedType?.requiresReliefOfficer !== false;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -91,7 +92,7 @@ export default function LeaveRequestDialog({
       }
     }
 
-    if (!formData.relief_officer_id) {
+    if (isReliefOfficerRequired && !formData.relief_officer_id) {
       toast.error("Please select a Relief Officer from the department for this request.");
       return;
     }
@@ -212,15 +213,11 @@ export default function LeaveRequestDialog({
                 checked={formData.isHalfDay}
                 onChange={(e) => {
                   const isHalf = e.target.checked;
-                  let tDays = 0;
-                  let newEndDate = formData.end_date;
-                  if (isHalf && !formData.useMultipleDates) newEndDate = formData.start_date;
-                  if (formData.useMultipleDates) {
-                    tDays = formData.selectedDates.length * (isHalf ? 0.5 : 1);
-                  } else {
-                    tDays = calculateWorkingDays(formData.start_date, newEndDate, publicHolidays) * (isHalf ? 0.5 : 1);
-                  }
-                  setFormData({ ...formData, isHalfDay: isHalf, end_date: newEndDate, total_days: tDays });
+                  const newEnd = isHalf && !formData.useMultipleDates ? formData.start_date : formData.end_date;
+                  const tDays = formData.useMultipleDates
+                    ? formData.selectedDates.length * (isHalf ? 0.5 : 1)
+                    : calculateWorkingDays(formData.start_date, newEnd, publicHolidays) * (isHalf ? 0.5 : 1);
+                  setFormData({ ...formData, isHalfDay: isHalf, end_date: newEnd, total_days: tDays });
                 }}
                 className="rounded border-slate-300"
               />
@@ -234,12 +231,9 @@ export default function LeaveRequestDialog({
                 checked={formData.useMultipleDates}
                 onChange={(e) => {
                   const useMultiple = e.target.checked;
-                  let tDays = 0;
-                  if (useMultiple) {
-                    tDays = formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1);
-                  } else {
-                    tDays = calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays) * (formData.isHalfDay ? 0.5 : 1);
-                  }
+                  const tDays = useMultiple
+                    ? formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1)
+                    : calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays) * (formData.isHalfDay ? 0.5 : 1);
                   setFormData({ ...formData, useMultipleDates: useMultiple, total_days: tDays });
                 }}
                 className="rounded border-slate-300"
@@ -347,6 +341,7 @@ export default function LeaveRequestDialog({
 
           <LeaveHandoverFormSection
             isCompulsory={isHandoverCompulsory}
+            requiresReliefOfficer={isReliefOfficerRequired}
             departmentName={targetDeptName}
             reliefOfficerId={formData.relief_officer_id}
             onReliefOfficerChange={(val) => setFormData((prev) => ({ ...prev, relief_officer_id: val }))}
