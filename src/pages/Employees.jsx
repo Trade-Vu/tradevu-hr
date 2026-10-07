@@ -15,8 +15,9 @@ import EmployeeCard from "../components/employees/EmployeeCard";
 import EmployeeCardSkeleton from "../components/employees/EmployeeCardSkeleton";
 import EmployeeDirectoryFilters from "../components/employees/EmployeeDirectoryFilters";
 import EmployeesHeader from "../components/employees/EmployeesHeader";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import EmployeeDetail from "./EmployeeDetail";
+import EmployeesMetricsBar from "../components/employees/EmployeesMetricsBar";
+import EmployeeQuickPreviewSheet from "../components/dashboard/EmployeeQuickPreviewSheet";
+import EmployeePagination from "../components/employees/EmployeePagination";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -36,7 +37,17 @@ export default function Employees() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    window.scrollTo({ top: 120, behavior: 'smooth' });
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
 
   const handleOpenDetail = (empOrId) => {
     if (typeof empOrId === 'object' && empOrId !== null) {
@@ -89,6 +100,14 @@ export default function Employees() {
   useEffect(() => {
     setPage(1);
   }, [searchTerm, statusFilter]);
+
+  const { data: employeeStats = {}, isLoading: loadingStats } = useQuery({
+    queryKey: ['employeeStats'],
+    queryFn: async () => {
+      const res = await employeesApi.getStats();
+      return res?.data || res || {};
+    },
+  });
 
   const { data: templates = [] } = useQuery({
     queryKey: ['templates'],
@@ -238,6 +257,13 @@ export default function Employees() {
         </motion.div>
       ) : (
         <motion.div variants={itemVariants} className="space-y-6">
+          <EmployeesMetricsBar
+            stats={employeeStats}
+            currentFilter={statusFilter}
+            onSelectFilter={(newFilter) => setStatusFilter(newFilter)}
+            isLoading={loadingStats}
+          />
+
           <EmployeeDirectoryFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -291,31 +317,15 @@ export default function Employees() {
             </motion.div>
           )}
 
-          {paginatedData?.totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 mt-6 text-sm border-t border-slate-100">
-              <span className="text-slate-500">
-                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginatedData.totalCount)} of {paginatedData.totalCount} entries
-              </span>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setPage(p => Math.min(paginatedData.totalPages, p + 1))}
-                  disabled={page === paginatedData.totalPages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <EmployeePagination
+            currentPage={page}
+            totalPages={paginatedData?.totalPages || 1}
+            totalCount={paginatedData?.totalCount || 0}
+            limit={limit}
+            onPageChange={handlePageChange}
+            onLimitChange={handleLimitChange}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
         </motion.div>
       )}
 
@@ -333,19 +343,11 @@ export default function Employees() {
         onClose={() => setShowInviteDialog(false)}
       />
 
-      <Dialog open={!!selectedEmployeeId} onOpenChange={(open) => !open && handleCloseDetail()}>
-        <DialogContent className="max-w-6xl p-0 overflow-hidden bg-transparent border-0 shadow-2xl rounded-2xl" hideCloseButton>
-          <DialogTitle className="sr-only">Employee Detail</DialogTitle>
-          <DialogDescription className="sr-only">Detailed view of the selected employee's information.</DialogDescription>
-          {selectedEmployeeId && (
-            <EmployeeDetail 
-              employeeIdProp={selectedEmployeeId} 
-              employeeDetail={selectedEmployee}
-              onClose={handleCloseDetail} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      <EmployeeQuickPreviewSheet
+        employee={selectedEmployee}
+        isOpen={Boolean(selectedEmployeeId)}
+        onClose={handleCloseDetail}
+      />
     </motion.div>
   );
 }

@@ -1,9 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { leaveApi } from "@/api";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { calculateWorkingDays } from "@/lib/leaveDays";
-import { filterApplicableLeaveTypes } from "./leaveEligibilityUtils";
+import {
+  filterApplicableLeaveTypes,
+  getEmployeeAllocatedLeaveDays,
+  normalizeBalanceList,
+} from "./leaveEligibilityUtils";
 
 export function useLeaveRequestDialogForm({
   open = false,
@@ -33,7 +39,7 @@ export function useLeaveRequestDialogForm({
     if (!open) {
       setFormData({
         employee_id: "",
-        leave_type: leaveTypes[0]?.id || "",
+        leave_type: leaveTypes[0]?.id || leaveTypes[0]?._id || "",
         start_date: "",
         end_date: "",
         total_days: 0,
@@ -52,7 +58,7 @@ export function useLeaveRequestDialogForm({
     if (editingLeave) {
       setFormData({
         employee_id: editingLeave.employee_id || editingLeave.employeeId?._id || editingLeave.employeeId || "",
-        leave_type: editingLeave.leave_type || editingLeave.leaveTypeId?._id || editingLeave.leaveTypeId || (leaveTypes[0]?.id || ""),
+        leave_type: editingLeave.leave_type || editingLeave.leaveTypeId?._id || editingLeave.leaveTypeId || (leaveTypes[0]?.id || leaveTypes[0]?._id || ""),
         start_date: editingLeave.start_date ? new Date(editingLeave.start_date).toISOString().split("T")[0] : "",
         end_date: editingLeave.end_date ? new Date(editingLeave.end_date).toISOString().split("T")[0] : "",
         total_days: editingLeave.total_days || 0,
@@ -68,7 +74,7 @@ export function useLeaveRequestDialogForm({
     } else {
       setFormData({
         employee_id: "",
-        leave_type: leaveTypes[0]?.id || "",
+        leave_type: leaveTypes[0]?.id || leaveTypes[0]?._id || "",
         start_date: "",
         end_date: "",
         total_days: 0,
@@ -89,6 +95,17 @@ export function useLeaveRequestDialogForm({
     return employees.find((e) => (e.id || e._id) === formData.employee_id) || null;
   }, [employees, formData.employee_id]);
 
+  const targetEmployeeId = formData.employee_id;
+  const { data: targetEmployeeBalances = [] } = useQuery({
+    queryKey: ['leave-balances', targetEmployeeId],
+    queryFn: async () => {
+      if (!targetEmployeeId) return [];
+      const res = await leaveApi.getBalances(targetEmployeeId);
+      return normalizeBalanceList(res);
+    },
+    enabled: Boolean(open && targetEmployeeId),
+  });
+
   const availableLeaveTypes = useMemo(() => {
     return filterApplicableLeaveTypes(leaveTypes, targetEmployee);
   }, [leaveTypes, targetEmployee]);
@@ -103,6 +120,21 @@ export function useLeaveRequestDialogForm({
   }, [availableLeaveTypes]);
 
   const selectedType = leaveTypes.find((t) => (t.id || t._id) === formData.leave_type);
+
+  useEffect(() => {
+    if (selectedType && selectedType.requiresReliefOfficer === false && formData.relief_officer_id) {
+      setFormData((prev) => ({ ...prev, relief_officer_id: "" }));
+    }
+  }, [selectedType?.requiresReliefOfficer]);
+  const selectedBalance = useMemo(() => {
+    if (!formData.leave_type || !targetEmployeeBalances.length) return null;
+    return targetEmployeeBalances.find((b) => String(b.leaveTypeId) === String(formData.leave_type)) || null;
+  }, [targetEmployeeBalances, formData.leave_type]);
+
+  const employeeAllocatedDays = useMemo(() => {
+    if (!selectedType) return 0;
+    return getEmployeeAllocatedLeaveDays(selectedType, targetEmployee);
+  }, [selectedType, targetEmployee]);
   const hasNoticePeriod = !editingLeave && Boolean(
     selectedType?.hasNoticePeriod ||
     (selectedType?.noticePeriodDays > 0) ||
@@ -212,5 +244,7 @@ export function useLeaveRequestDialogForm({
     handleDocUpload,
     availableLeaveTypes,
     targetEmployee,
+    selectedBalance,
+    employeeAllocatedDays,
   };
 }

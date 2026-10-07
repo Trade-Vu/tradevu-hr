@@ -23,6 +23,7 @@ import { Upload, XCircle, Paperclip, Calendar } from "lucide-react";
 import { calculateWorkingDays } from "@/lib/leaveDays";
 import LeaveHandoverFormSection from "@/components/Leave/LeaveHandoverFormSection";
 import { useLeaveRequestDialogForm } from "@/components/Leave/useLeaveRequestDialogForm";
+import { resolveDepartmentAndColleagues } from "@/components/Leave/leaveEligibilityUtils";
 
 export default function LeaveRequestDialog({
   open = false,
@@ -44,8 +45,9 @@ export default function LeaveRequestDialog({
     minAllowedDate,
     addSelectedDate,
     removeSelectedDate,
-    handleDocUpload,
     availableLeaveTypes,
+    selectedBalance,
+    employeeAllocatedDays,
   } = useLeaveRequestDialogForm({
     open,
     editingLeave,
@@ -57,6 +59,7 @@ export default function LeaveRequestDialog({
   const isHandoverCompulsory = Boolean(
     selectedType?.requiresHandover || selectedType?.handoverRequirement === "COMPULSORY"
   );
+  const isReliefOfficerRequired = selectedType?.requiresReliefOfficer !== false;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -89,7 +92,7 @@ export default function LeaveRequestDialog({
       }
     }
 
-    if (!formData.relief_officer_id) {
+    if (isReliefOfficerRequired && !formData.relief_officer_id) {
       toast.error("Please select a Relief Officer from the department for this request.");
       return;
     }
@@ -99,22 +102,31 @@ export default function LeaveRequestDialog({
       return;
     }
 
+    if (selectedBalance && typeof selectedBalance.available === 'number') {
+      if (formData.total_days > selectedBalance.available) {
+        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type.`);
+        return;
+      }
+    } else if (employeeAllocatedDays !== undefined && employeeAllocatedDays > 0) {
+      if (formData.total_days > employeeAllocatedDays) {
+        toast.error(`You cannot request ${formData.total_days} days. Policy allows a maximum of ${employeeAllocatedDays} day(s) for this leave type.`);
+        return;
+      }
+    }
+
+    if (employeeAllocatedDays === 0) {
+      toast.error(`This employee is not eligible for ${selectedType?.name || 'this leave type'} (0 days allocated).`);
+      return;
+    }
+
     onSubmit(formData, null);
   };
 
-  const targetEmp = employees.find((e) => e.id === formData.employee_id || e._id === formData.employee_id);
-  const targetDeptId = targetEmp?.departmentId?._id || targetEmp?.departmentId?.id || targetEmp?.departmentId;
-  const targetDeptName = targetEmp?.departmentId?.name || targetEmp?.department?.name || "";
-  const deptColleagues = employees.filter((e) => {
-    const empId = e.id || e._id;
-    if (empId === formData.employee_id) return false;
-    const empDeptId = e.departmentId?._id || e.departmentId?.id || e.departmentId;
-    if (!targetDeptId || !empDeptId) return false;
-    return empDeptId.toString() === targetDeptId.toString();
-  });
-  const selectableCols = deptColleagues.length > 0
-    ? deptColleagues
-    : employees.filter((e) => (e.id || e._id) !== formData.employee_id);
+  const targetEmp = employees.find((e) => (e.id || e._id) === formData.employee_id);
+  const { departmentName: targetDeptName, colleagues: selectableCols } = React.useMemo(
+    () => resolveDepartmentAndColleagues(employees, targetEmp),
+    [employees, targetEmp]
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,12 +167,27 @@ export default function LeaveRequestDialog({
               </SelectTrigger>
               <SelectContent className="shadow-lg rounded-xl border-slate-100">
                 {(availableLeaveTypes?.length > 0 ? availableLeaveTypes : leaveTypes).map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name} {type.defaultDays ? `(${type.defaultDays} days)` : ""}
+                  <SelectItem key={type.id || type._id} value={type.id || type._id}>
+                    {type.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            {formData.leave_type && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                  Policy: {employeeAllocatedDays ?? 0} days configured
+                </span>
+                {selectedBalance && typeof selectedBalance.available === "number" && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${
+                    selectedBalance.available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                  }`}>
+                    Available: {selectedBalance.available} days remaining
+                  </span>
+                )}
+              </div>
+            )}
 
             {!editingLeave && hasNoticePeriod && noticeDays > 0 && (
               <div className="mt-2 p-2.5 bg-amber-50 rounded-lg border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">
@@ -186,15 +213,11 @@ export default function LeaveRequestDialog({
                 checked={formData.isHalfDay}
                 onChange={(e) => {
                   const isHalf = e.target.checked;
-                  let tDays = 0;
-                  let newEndDate = formData.end_date;
-                  if (isHalf && !formData.useMultipleDates) newEndDate = formData.start_date;
-                  if (formData.useMultipleDates) {
-                    tDays = formData.selectedDates.length * (isHalf ? 0.5 : 1);
-                  } else {
-                    tDays = calculateWorkingDays(formData.start_date, newEndDate, publicHolidays) * (isHalf ? 0.5 : 1);
-                  }
-                  setFormData({ ...formData, isHalfDay: isHalf, end_date: newEndDate, total_days: tDays });
+                  const newEnd = isHalf && !formData.useMultipleDates ? formData.start_date : formData.end_date;
+                  const tDays = formData.useMultipleDates
+                    ? formData.selectedDates.length * (isHalf ? 0.5 : 1)
+                    : calculateWorkingDays(formData.start_date, newEnd, publicHolidays) * (isHalf ? 0.5 : 1);
+                  setFormData({ ...formData, isHalfDay: isHalf, end_date: newEnd, total_days: tDays });
                 }}
                 className="rounded border-slate-300"
               />
@@ -208,12 +231,9 @@ export default function LeaveRequestDialog({
                 checked={formData.useMultipleDates}
                 onChange={(e) => {
                   const useMultiple = e.target.checked;
-                  let tDays = 0;
-                  if (useMultiple) {
-                    tDays = formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1);
-                  } else {
-                    tDays = calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays) * (formData.isHalfDay ? 0.5 : 1);
-                  }
+                  const tDays = useMultiple
+                    ? formData.selectedDates.length * (formData.isHalfDay ? 0.5 : 1)
+                    : calculateWorkingDays(formData.start_date, formData.end_date, publicHolidays) * (formData.isHalfDay ? 0.5 : 1);
                   setFormData({ ...formData, useMultipleDates: useMultiple, total_days: tDays });
                 }}
                 className="rounded border-slate-300"
@@ -321,6 +341,7 @@ export default function LeaveRequestDialog({
 
           <LeaveHandoverFormSection
             isCompulsory={isHandoverCompulsory}
+            requiresReliefOfficer={isReliefOfficerRequired}
             departmentName={targetDeptName}
             reliefOfficerId={formData.relief_officer_id}
             onReliefOfficerChange={(val) => setFormData((prev) => ({ ...prev, relief_officer_id: val }))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowLeft, Edit, Save, X, Mail } from "lucide-react";
@@ -30,7 +30,9 @@ export { isEmployeeEligibleForHrAdmin };
 
 export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose }) {
   const { id: routeId } = useParams();
-  const employeeId = employeeIdProp || routeId;
+  const [searchParams] = useSearchParams();
+  const queryId = searchParams.get('id');
+  const employeeId = employeeIdProp || routeId || queryId;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -44,36 +46,17 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   const [selectedDocHistory, setSelectedDocHistory] = useState(null);
 
   const {
-    employee,
-    isLoading,
-    isError,
-    error,
-    departments,
-    employeeClasses,
-    employees,
-    attendance,
-    shifts,
-    leaveRequests,
-    employeeLeaveBalances,
-    salaryHistory,
-    evaluations,
-    documents,
-    assets,
-    leaveTypes,
-    updateEmployeeMutation,
-    requestCompensationUpdateMutation,
-    suspendEmployeeMutation,
-    requestPromotionMutation,
-    requestOffboardingMutation,
-    requestProbationMutation,
-    reactivateEmployeeMutation,
-    reassignHrMutation,
-    createDocumentMutation,
-    replaceDocumentVersionMutation,
-    approveDocumentMutation,
-    rejectDocumentMutation,
-    deleteDocumentMutation,
-    unassignAssetMutation,
+    employee, isLoading, isError, error,
+    departments, employeeClasses, employees,
+    attendance, shifts, leaveRequests, employeeLeaveBalances,
+    salaryHistory, evaluations, documents, assets, leaveTypes,
+    updateEmployeeMutation, requestCompensationUpdateMutation,
+    suspendEmployeeMutation, requestPromotionMutation,
+    requestOffboardingMutation, requestProbationMutation,
+    reactivateEmployeeMutation, reassignHrMutation,
+    createDocumentMutation, replaceDocumentVersionMutation,
+    approveDocumentMutation, rejectDocumentMutation,
+    deleteDocumentMutation, unassignAssetMutation,
   } = useEmployeeDetailData(employeeId, employeeDetail);
 
   const { data: documentHistory = [] } = useQuery({
@@ -148,10 +131,21 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
 
   const hasChanges = Object.keys(dirtyPayload).length > 0;
 
+  const isPrivateSameAsWork = useMemo(() => {
+    if (!isEditing || !employee?.email) return false;
+    const priv = (editData.private_email || editData.privateEmail || '').trim().toLowerCase();
+    const work = employee.email.trim().toLowerCase();
+    return Boolean(priv && work && priv === work);
+  }, [isEditing, employee?.email, editData.private_email, editData.privateEmail]);
+
   const handleSave = () => {
     if (!hasChanges) {
       toast.info("No changes were made.");
       setIsEditing(false);
+      return;
+    }
+    if (isPrivateSameAsWork) {
+      toast.error("Private email cannot be the same as the employee's work email");
       return;
     }
     updateEmployeeMutation.mutate({ id: employee.id, data: editData, original: employee }, {
@@ -162,7 +156,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+        <div className="w-16 h-16 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -170,11 +164,11 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
   if (isError || !employee) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="p-8 text-center bg-white border border-red-200 shadow rounded-xl">
+        <div className="p-8 text-center bg-white border border-red-200 shadow rounded-xl max-w-md mx-auto">
           <h2 className="mb-2 text-xl font-semibold text-red-600">
             {isError ? "Error Loading Employee" : "Employee Not Found"}
           </h2>
-          <p className="mb-4 text-slate-600">{error?.message || "The employee you're looking for doesn't exist or you don't have access."}</p>
+          <p className="mb-4 text-sm text-slate-600">{error?.message || "The employee you're looking for doesn't exist or you don't have access."}</p>
           <Button onClick={() => isError ? window.location.reload() : navigate(PAGE_ROUTES.EMPLOYEES)}>
             {isError ? "Try Again" : "Return to Employees"}
           </Button>
@@ -270,7 +264,7 @@ export default function EmployeeDetail({ employeeIdProp, employeeDetail, onClose
                     ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm font-medium" 
                     : ""
                 }`}
-                disabled={updateEmployeeMutation.isPending}
+                disabled={updateEmployeeMutation.isPending || (isEditing && isPrivateSameAsWork)}
               >
                 {isEditing ? (
                   <>
