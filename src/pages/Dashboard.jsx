@@ -43,6 +43,7 @@ export default function Dashboard() {
     activeEmployees,
     pendingProfilesCount,
     totalPendingApprovals,
+    payrollEnrolledCount,
   } = useDashboardData();
 
   if (isLoadingAuth || loadingEmployees || (canLoadDashboard && !employees)) {
@@ -112,6 +113,7 @@ export default function Dashboard() {
         activeEmployees={activeEmployees}
         onLeaveTodayCount={onLeaveToday.length}
         latestPayrollRun={latestPayrollRun}
+        payrollEnrolledCount={payrollEnrolledCount}
         totalPendingApprovals={totalPendingApprovals}
         isLoading={loadingEmployees}
       />

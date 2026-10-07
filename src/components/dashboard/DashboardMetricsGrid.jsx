@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Calendar, DollarSign, Clock, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { Users, Calendar, DollarSign, Clock, ArrowUpRight } from 'lucide-react';
 import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Link } from 'react-router-dom';
 import { PAGE_ROUTES } from '@/constants/pageRoutes';
@@ -9,6 +9,7 @@ export default function DashboardMetricsGrid({
   activeEmployees = 0,
   onLeaveTodayCount = 0,
   latestPayrollRun = null,
+  payrollEnrolledCount = 0,
   totalPendingApprovals = 0,
   isLoading = false,
 }) {
@@ -22,11 +23,15 @@ export default function DashboardMetricsGrid({
     );
   }
 
-  const payrollStatusLabel = latestPayrollRun
-    ? latestPayrollRun.status?.toUpperCase() || 'ACTIVE'
-    : 'UP TO DATE';
+  const effectivePayrollCount =
+    payrollEnrolledCount ||
+    latestPayrollRun?.employeeCount ||
+    activeEmployees ||
+    0;
 
-  const payrollRunName = latestPayrollRun?.title || latestPayrollRun?.period || 'Current Cycle';
+  const payrollSubtext = latestPayrollRun
+    ? 'Enrolled in current cycle'
+    : 'Active payroll roster';
 
   const metrics = [
     {
@@ -48,9 +53,9 @@ export default function DashboardMetricsGrid({
       href: PAGE_ROUTES.LEAVE_MANAGEMENT,
     },
     {
-      title: 'Payroll Cycle',
-      value: payrollStatusLabel,
-      subtext: payrollRunName,
+      title: 'Employees on Payroll',
+      value: effectivePayrollCount,
+      subtext: payrollSubtext,
       icon: DollarSign,
       trend: 'Automated tax calc',
       color: 'emerald',

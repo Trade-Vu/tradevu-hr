@@ -40,7 +40,7 @@ export default function WorkforceOverviewCard({
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-base sm:text-lg font-semibold tracking-tight text-slate-900 font-heading">
-              Workforce Roster
+              Workforce
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Instant personnel lookup and profile inspections

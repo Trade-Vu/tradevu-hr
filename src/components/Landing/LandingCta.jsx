@@ -26,7 +26,7 @@ export default function LandingCta() {
                   size="lg" 
                   className="w-full sm:w-auto h-12 px-7 bg-primary-100 text-white hover:bg-primary-100/90 rounded-xl font-medium text-base shadow-md transition-colors"
                 >
-                  Start your free trial
+                  Get Started
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>

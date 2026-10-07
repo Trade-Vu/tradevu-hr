@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { employeesApi, approvalsApi, leaveApi, payrollApi, onboardingApi } from '@/api';
+import { employeesApi, approvalsApi, leaveApi, payrollApi, onboardingApi, compensationApi } from '@/api';
 import { isEmployee, isAdmin } from '@/lib/roleUtils';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -111,6 +111,21 @@ export function useDashboardData() {
     enabled: canLoadDashboard,
   });
 
+  // 6. Compensation Assignments (Employees enrolled in payroll structures)
+  const { data: compensationAssignments = [] } = useQuery({
+    queryKey: ['compensation-assignments-dashboard'],
+    queryFn: async () => {
+      try {
+        const res = await compensationApi.getAssignments();
+        const list = Array.isArray(res) ? res : res?.data || [];
+        return Array.isArray(list) ? list : [];
+      } catch (err) {
+        return [];
+      }
+    },
+    enabled: canLoadDashboard,
+  });
+
   // Derived: Who is Out of Office Today?
   const onLeaveToday = useMemo(() => {
     const today = new Date();
@@ -150,6 +165,20 @@ export function useDashboardData() {
     return Math.max(rawTotal, pendingProfilesCount);
   }, [pendingCounts, pendingProfilesCount]);
 
+  const payrollEnrolledCount = useMemo(() => {
+    if (
+      latestPayrollRun &&
+      typeof latestPayrollRun.employeeCount === 'number' &&
+      latestPayrollRun.employeeCount > 0
+    ) {
+      return latestPayrollRun.employeeCount;
+    }
+    if (compensationAssignments.length > 0) {
+      return compensationAssignments.length;
+    }
+    return activeEmployees;
+  }, [latestPayrollRun, compensationAssignments, activeEmployees]);
+
   return {
     user,
     isLoadingAuth,
@@ -174,5 +203,6 @@ export function useDashboardData() {
     activeEmployees,
     pendingProfilesCount,
     totalPendingApprovals,
+    payrollEnrolledCount,
   };
 }

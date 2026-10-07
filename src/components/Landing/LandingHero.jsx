@@ -37,7 +37,7 @@ export default function LandingHero() {
                 size="lg" 
                 className="w-full sm:w-auto h-12 px-7 bg-primary-100 hover:bg-primary-100/90 text-white rounded-xl font-medium text-base shadow-md shadow-primary-100/20 transition-all hover:shadow-lg"
               >
-                Start your free trial
+                Get Started
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
