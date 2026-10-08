@@ -45,6 +45,7 @@ export default function LeaveRequestDialog({
     minAllowedDate,
     addSelectedDate,
     removeSelectedDate,
+    handleDocUpload,
     availableLeaveTypes,
     selectedBalance,
     employeeAllocatedDays,
