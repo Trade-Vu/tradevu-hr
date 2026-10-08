@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import LeaveTypeForm from '@/components/Leave/LeaveTypeForm';
 import LeaveTypeCard from '@/components/Leave/LeaveTypeCard';
 import LeaveTypesStatsOverview from '@/components/Leave/LeaveTypesStatsOverview';
