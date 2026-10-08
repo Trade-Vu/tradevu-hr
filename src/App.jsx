@@ -135,6 +135,14 @@ const AuthenticatedApp = () => {
             }
           />
         ))}
+        <Route
+          path="/employeedetail/:id"
+          element={
+            <RouteGuard pageKey="EmployeeDetail">
+              <Pages.EmployeeDetail />
+            </RouteGuard>
+          }
+        />
         {Object.entries(Pages).map(([path]) => (
           <Route key={`orig-${path}`} path={`/${path}`} element={<Navigate to={`/${path.toLowerCase()}`} replace />} />
         ))}

@@ -152,7 +152,21 @@ export default function PersonalTab({
                 value={editData.private_email || ''}
                 onChange={(e) => setEditData(prev => ({ ...prev, private_email: e.target.value }))}
                 placeholder="personal@email.com"
+                className={
+                  editData.private_email &&
+                  employee?.email &&
+                  editData.private_email.trim().toLowerCase() === employee.email.trim().toLowerCase()
+                    ? 'border-rose-400 focus-visible:ring-rose-400 bg-rose-50/20'
+                    : ''
+                }
               />
+              {editData.private_email &&
+                employee?.email &&
+                editData.private_email.trim().toLowerCase() === employee.email.trim().toLowerCase() && (
+                  <p className="text-xs font-medium text-rose-500">
+                    Private email cannot be the same as the work/signup email ({employee.email}).
+                  </p>
+                )}
             </div>
           ) : employee.private_email ? (
             <PremiumField

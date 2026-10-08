@@ -53,8 +53,9 @@ export default function AllLeaveRequests() {
         leaveRequests: list.map(l => ({
           ...l,
           id: l._id || l.id,
-          employee_name: l.employeeId?.fullName || l.employeeId || 'Employee',
+          employee_name: l.employeeId?.fullName || l.employeeId?.name || l.employee_name || 'Employee',
           employee_email: l.employeeId?.email || l.employee_email || '',
+          department_name: l.employeeId?.departmentId?.name || l.employeeId?.department?.name || l.department_name || '',
           leave_type: l.leaveTypeId?.name || 'Annual Leave',
           start_date: l.startDate || l.start_date,
           end_date: l.endDate || l.end_date,

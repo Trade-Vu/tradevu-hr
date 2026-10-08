@@ -154,11 +154,22 @@ export default function ProfileCompletionWizard() {
     file: null
   });
 
+  const workEmail = (user?.email || employeeDataObj?.employee?.email || '').trim().toLowerCase();
+  const isPrivateEmailSameAsWork = Boolean(
+    formData.privateEmail &&
+    workEmail &&
+    formData.privateEmail.trim().toLowerCase() === workEmail
+  );
+
   const handleNext = () => {
     // Validate step 1: personal info
     if (step === 1) {
       if (!formData.phone || !formData.privateEmail || !formData.dateOfBirth || !formData.gender || !formData.maritalStatus || !formData.nationality) {
         toast.error("Please fill in all personal information fields");
+        return;
+      }
+      if (isPrivateEmailSameAsWork) {
+        toast.error("Private email cannot be the same as your work / login email");
         return;
       }
       setStep(2);
@@ -316,14 +327,31 @@ export default function ProfileCompletionWizard() {
             
             {step === 1 && (
               <div className="grid gap-4 md:grid-cols-1">
-                <div className="space-y-2">
-                  <Label>Private Email <span className="text-red-500">*</span></Label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Private Email <span className="text-red-500">*</span></Label>
+                    {workEmail && (
+                      <span className="text-[11px] text-slate-400">
+                        Work email: <span className="font-mono text-slate-600 font-medium">{workEmail}</span>
+                      </span>
+                    )}
+                  </div>
                   <Input 
                     type="email" 
                     value={formData.privateEmail} 
                     onChange={e => setFormData(p => ({...p, privateEmail: e.target.value}))} 
-                    placeholder="you@example.com"
+                    placeholder="you@personal-domain.com"
+                    className={isPrivateEmailSameAsWork ? 'border-rose-400 focus-visible:ring-rose-400 bg-rose-50/20' : ''}
                   />
+                  {isPrivateEmailSameAsWork ? (
+                    <p className="text-xs text-rose-500 font-medium mt-1">
+                      Private email cannot be the same as your work / login email ({workEmail}). Please provide a personal email.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Must be your personal email address (e.g. Gmail, Yahoo, iCloud), different from your organization work email.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Phone Number <span className="text-red-500">*</span></Label>
