@@ -28,7 +28,7 @@ export default function BulkImportDialog({ open, onClose, onImport, isImporting,
   const downloadTemplate = () => {
     const csvContent = `full_name,email,job_title,department,start_date,basic_salary
 John Doe,john@example.com,Software Engineer,Engineering,2024-01-15,120000
-Jane Smith,jane@example.com,Head of People,People Operation,2024-02-01,95000`;
+Jane Smith,jane@example.com,Head of People,People Operations,2024-02-01,95000`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
