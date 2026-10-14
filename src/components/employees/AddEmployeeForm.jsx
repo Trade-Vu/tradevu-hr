@@ -26,7 +26,8 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
       const res = await employeesApi.getAllEmployees();
       return Array.isArray(res) ? res : res?.data || [];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const allEmployees = useMemo(() => {
@@ -36,7 +37,12 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
       fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email,
       jobTitle: emp.jobTitle || emp.job_title || '',
       departmentId: emp.departmentId?._id || emp.departmentId?.id || emp.departmentId,
+      departmentName: emp.departmentId?.name || emp.department_name || '',
+      employeeClass: String(emp.employeeClass || emp.employee_class || '').toUpperCase(),
       status: (emp.employmentStatus || emp.status || '').toUpperCase(),
+      role: String(emp.role || emp.systemRole || '').toUpperCase(),
+      isSuperAdmin: Boolean(emp.isSuperAdmin || emp.role === 'SUPER_ADMIN' || emp.systemRole === 'SUPER_ADMIN'),
+      isHrAdmin: Boolean(emp.isHrAdmin || emp.role === 'HR_ADMIN' || emp.systemRole === 'HR_ADMIN'),
     }));
   }, [rawEmployees]);
 
@@ -89,15 +95,34 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
   }, [selectedDepartment, allEmployees]);
 
   const managerOptions = useMemo(() => {
-    if (!formData.department_id) return [];
+    const deptHeadIds = new Set(
+      departments
+        .map(d => {
+          const m = d.managerId;
+          return m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
+        })
+        .filter(Boolean)
+    );
 
-    const headId = selectedDeptHead?.id;
     const eligible = allEmployees.filter(emp => {
-      const empDeptId = emp.departmentId ? String(emp.departmentId) : '';
-      const isSameDept = empDeptId && empDeptId === String(formData.department_id);
-      const isHead = headId && emp.id === headId;
       const isInactive = ['TERMINATED', 'OFFBOARDED', 'ARCHIVED'].includes(emp.status);
-      return (isSameDept || isHead) && !isInactive;
+      if (isInactive) return false;
+
+      const isHOD = deptHeadIds.has(emp.id);
+      const isClassManager = emp.employeeClass && /MANAGER/i.test(emp.employeeClass);
+      const isTitleManager =
+        emp.jobTitle &&
+        /(manager|lead|director|head|supervisor|chief|vp|president|ceo|coo|cto)/i.test(emp.jobTitle);
+      const isManagerRole =
+        emp.role === 'MANAGER' ||
+        emp.role === 'SUPER_ADMIN' ||
+        emp.role === 'HR_ADMIN' ||
+        emp.isSuperAdmin ||
+        emp.isHrAdmin ||
+        isClassManager ||
+        isTitleManager;
+
+      return isHOD || isManagerRole;
     });
 
     if (selectedDeptHead && !eligible.some(e => e.id === selectedDeptHead.id)) {
@@ -105,36 +130,36 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
     }
 
     return eligible.map(emp => {
-      const isHead = headId && emp.id === headId;
+      const deptObj = departments.find(d => String(d.id || d._id) === String(emp.departmentId));
+      const deptName = emp.departmentName || deptObj?.name || (emp.isSuperAdmin ? 'Executive' : 'General');
+
+      const isHOD = departments.some(d => {
+        const m = d.managerId;
+        const headId = m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
+        return headId === emp.id;
+      });
+
       let label = emp.fullName;
-      if (emp.jobTitle) label += ` (${emp.jobTitle})`;
-      if (isHead) label += ` - Head of Dept`;
+      if (emp.jobTitle) {
+        label += ` — ${emp.jobTitle}`;
+      }
+      label += ` • ${deptName}`;
+      if (isHOD) {
+        label += ` (Head of Dept)`;
+      }
+
       return {
         value: emp.id,
         label,
       };
     });
-  }, [allEmployees, formData.department_id, selectedDeptHead]);
+  }, [allEmployees, departments, selectedDeptHead]);
 
   const handleDepartmentChange = (deptId) => {
-    setFormData(prev => {
-      const newDept = departments.find(d => String(d.id || d._id) === String(deptId));
-      const head = newDept?.managerId;
-      const headId = head ? String(head._id || head.id || (typeof head === 'string' ? head : '')) : null;
-
-      const isValidManager = allEmployees.some(emp => {
-        const empDeptId = emp.departmentId ? String(emp.departmentId) : '';
-        const isSameDept = empDeptId && empDeptId === String(deptId);
-        const isHead = headId && emp.id === headId;
-        return (isSameDept || isHead) && emp.id === String(prev.manager_id);
-      });
-
-      return {
-        ...prev,
-        department_id: deptId,
-        manager_id: isValidManager ? prev.manager_id : "",
-      };
-    });
+    setFormData(prev => ({
+      ...prev,
+      department_id: deptId,
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -253,27 +278,21 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                 <Select
                   value={formData.manager_id || 'none'}
                   onValueChange={(value) => handleChange("manager_id", value === 'none' ? '' : value)}
-                  disabled={!formData.department_id || loadingEmployees}
+                  disabled={loadingEmployees}
                 >
                   <SelectTrigger id="manager_id">
                     <SelectValue
                       placeholder={
-                        !formData.department_id
-                          ? "Select department first"
-                          : loadingEmployees
-                            ? "Loading managers..."
-                            : managerOptions.length === 0
-                              ? "No employees in this department yet"
-                              : "Select manager (optional)"
+                        loadingEmployees
+                          ? "Loading managers..."
+                          : managerOptions.length === 0
+                            ? "No managers found"
+                            : "Select manager (optional)"
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">
-                      {formData.department_id && selectedDeptHead
-                        ? `Default: ${selectedDeptHead.fullName} (Dept Head)`
-                        : "No direct manager"}
-                    </SelectItem>
+                    <SelectItem value="none">No manager selected</SelectItem>
                     {managerOptions.map((mgr) => (
                       <SelectItem key={mgr.value} value={mgr.value}>
                         {mgr.label}
@@ -281,11 +300,6 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
                     ))}
                   </SelectContent>
                 </Select>
-                {formData.department_id && managerOptions.length === 0 && !loadingEmployees && (
-                  <p className="text-xs text-slate-500">
-                    This department currently has no existing members. You can leave this blank.
-                  </p>
-                )}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between h-5">

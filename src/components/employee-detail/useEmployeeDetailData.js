@@ -267,7 +267,11 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
       effectiveDate: input.effectiveDate || undefined,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['employee', employeeId]);
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['allEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       toast.success("Promotion updated successfully.");
     },
     onError: (err) => toast.error(extractErrorMessage(err, "Failed to update promotion."))
