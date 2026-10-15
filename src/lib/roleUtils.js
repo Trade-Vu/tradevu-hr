@@ -62,23 +62,25 @@ export const isInAdminMode = (user, viewMode) => {
 /**
  * Checks whether an employee record qualifies to be a "Reports To (Manager)".
  * Requirements:
- * 1. Must have an active user account (userActive is true).
- * 2. Must not be in DRAFT, PENDING_APPROVAL, PENDING_ONBOARDING, ONGOING_ONBOARDING,
- *    SUSPENDED, or separated employment statuses.
- * 3. Must have "Manager" in their role or job title, OR be the CEO (SUPER_ADMIN, Org Owner, or CEO title).
+ * 1. Must NOT be the organization owner (organization owners are not listed as managers to report to).
+ * 2. Must not be in DRAFT, PENDING_APPROVAL, ONGOING_ONBOARDING, SUSPENDED, or separated employment statuses.
+ *    (PENDING_ONBOARDING managers are allowed).
+ * 3. Must have an active user account (or be in PENDING_ONBOARDING).
+ * 4. Must have "Manager" in their role, employee class, or job title (or non-owner CEO).
  */
 export const isEligibleManager = (emp) => {
   if (!emp) return false;
 
-  // 1. Active user account requirement (having an active user account is sufficient)
-  const isUserActive = Boolean(emp.userActive ?? emp.isUserActive);
-  if (!isUserActive) return false;
+  // 1. Exclude the organization owner
+  if (Boolean(emp.isOrgOwner || emp.is_organization_owner)) return false;
 
-  // 2. Disallowed employment statuses
+  const status = String(emp.employmentStatus || emp.status || '').toUpperCase();
+  const isPendingOnboarding = status === 'PENDING_ONBOARDING';
+
+  // 2. Disallowed employment statuses (PENDING_ONBOARDING is explicitly allowed)
   const disallowedStatuses = new Set([
     'DRAFT',
     'PENDING_APPROVAL',
-    'PENDING_ONBOARDING',
     'ONGOING_ONBOARDING',
     'SUSPENDED',
     'TERMINATED',
@@ -86,17 +88,19 @@ export const isEligibleManager = (emp) => {
     'OFFBOARDED',
     'ARCHIVED',
   ]);
-  const status = String(emp.employmentStatus || emp.status || '').toUpperCase();
   if (disallowedStatuses.has(status)) return false;
 
-  // 3. Must have "Manager" in role or job title, OR be CEO
+  // 3. Active user account requirement (active user account is sufficient; PENDING_ONBOARDING is permitted)
+  const isUserActive = Boolean(emp.userActive ?? emp.isUserActive);
+  if (!isUserActive && !isPendingOnboarding) return false;
+
+  // 4. Must have "Manager" in role, employee class, or job title, OR non-owner CEO
   const role = String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase();
   const jobTitle = String(emp.jobTitle || emp.job_title || '').trim();
   const empClass = String(emp.employeeClass || emp.employee_class || '').toUpperCase();
 
   const isCEO =
-    role === 'SUPER_ADMIN' ||
-    Boolean(emp.isSuperAdmin || emp.isOrgOwner || emp.is_organization_owner) ||
+    ((role === 'SUPER_ADMIN' || emp.isSuperAdmin) && !emp.isOrgOwner) ||
     /\bceo\b/i.test(jobTitle) ||
     /chief executive officer/i.test(jobTitle);
 
