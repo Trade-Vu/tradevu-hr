@@ -17,7 +17,7 @@ import {
   renderStatusHistoryBadge,
   isEmployeeEligibleForHrAdmin
 } from "../employeeDetailUtils";
-import { isEligibleManager } from "@/lib/roleUtils";
+import { isEligibleManager, formatManagerOption } from "@/lib/roleUtils";
 
 const EMPLOYMENT_STATUS_OPTIONS = [
   { value: "DRAFT", label: "Draft" },
@@ -132,21 +132,20 @@ export default function JobDataTab({
 
   const managerOptions = useMemo(() => {
     const empSelfId = String(employee.id || employee._id);
+    const currentMgrId = String(editData?.manager_id || employee?.manager_id || employee?.managerId || '');
 
-    const filtered = employees.filter(e => {
+    const filtered = employees.filter((e) => {
       const eId = String(e.id || e._id);
       if (eId === empSelfId) return false;
-      return isEligibleManager(e);
+      if (currentMgrId && eId === currentMgrId) return true;
+      return isEligibleManager(e, employeeClasses);
     });
 
     return [
-      { value: "NONE", label: "No Manager" },
-      ...filtered.map(emp => ({
-        value: emp.id || emp._id,
-        label: `${emp.full_name || emp.fullName} - ${emp.job_title || emp.jobTitle || 'Manager'}`
-      }))
+      { value: "NONE", label: "No manager selected" },
+      ...filtered.map((emp) => formatManagerOption(emp, departments)),
     ];
-  }, [employees, employee.id, employee._id]);
+  }, [employees, employee.id, employee._id, employee.manager_id, employee.managerId, editData?.manager_id, employeeClasses, departments]);
 
   const readOnlyFields = [
     { icon: Briefcase, label: "Job Title", value: employee.job_title },
@@ -315,7 +314,7 @@ export default function JobDataTab({
           <FormSelect
             label="Reports To (Manager)"
             placeholder="Select manager"
-            value={editData.manager_id}
+            value={editData.manager_id || 'NONE'}
             onValueChange={(value) => setEditData(prev => ({ ...prev, manager_id: value === 'NONE' ? '' : value }))}
             options={managerOptions}
           />

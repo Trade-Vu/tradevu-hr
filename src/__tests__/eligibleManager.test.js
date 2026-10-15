@@ -1,19 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { isEligibleManager } from '@/lib/roleUtils';
+import { isEligibleManager, formatManagerOption } from '@/lib/roleUtils';
 
 describe('isEligibleManager', () => {
   const baseActiveManager = {
     userActive: true,
     status: 'ACTIVE',
     role: 'MANAGER',
+    employeeClass: 'MANAGER',
     jobTitle: 'General Manager',
   };
 
-  it('allows active manager with MANAGER role', () => {
+  it('allows active manager with managerial employee class', () => {
     expect(isEligibleManager(baseActiveManager)).toBe(true);
   });
 
-  it('allows active user with Manager in job title even if role is EMPLOYEE', () => {
+  it('rejects active user with Manager in job title if role is EMPLOYEE and class is not manager', () => {
     expect(
       isEligibleManager({
         userActive: true,
@@ -21,7 +22,7 @@ describe('isEligibleManager', () => {
         role: 'EMPLOYEE',
         jobTitle: 'Engineering Manager',
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isEligibleManager({
         isUserActive: true,
@@ -29,10 +30,10 @@ describe('isEligibleManager', () => {
         role: 'EMPLOYEE',
         jobTitle: 'Product Manager',
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('allows CEO via SUPER_ADMIN role (when not org owner) or CEO title', () => {
+  it('allows CEO via SUPER_ADMIN role (when not org owner) but rejects EMPLOYEE role with CEO title', () => {
     expect(
       isEligibleManager({
         userActive: true,
@@ -49,7 +50,7 @@ describe('isEligibleManager', () => {
         role: 'EMPLOYEE',
         jobTitle: 'CEO',
       })
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       isEligibleManager({
@@ -58,7 +59,7 @@ describe('isEligibleManager', () => {
         role: 'EMPLOYEE',
         jobTitle: 'Chief Executive Officer',
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('strictly excludes organisation owner from manager eligibility', () => {
@@ -210,7 +211,7 @@ describe('isEligibleManager', () => {
     ).toBe(false);
   });
 
-  it('allows employee with non-manager class if their job title explicitly has Manager or they are CEO', () => {
+  it('rejects employee with non-manager class even if job title has Manager, but allows SUPER_ADMIN (CEO)', () => {
     expect(
       isEligibleManager({
         userActive: true,
@@ -219,7 +220,7 @@ describe('isEligibleManager', () => {
         jobTitle: 'Engineering Manager',
         employeeClass: 'TEAM MEMBER',
       })
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       isEligibleManager({
@@ -230,5 +231,110 @@ describe('isEligibleManager', () => {
         employeeClass: 'TEAM MEMBER',
       })
     ).toBe(true);
+  });
+
+  it('allows employee with custom class if classConfigs specifies canManage: true', () => {
+    const customClasses = [
+      { name: 'TEAM LEAD', value: 'TEAM LEAD', canManage: true },
+      { name: 'PRINCIPAL', value: 'PRINCIPAL', canManage: false },
+    ];
+
+    expect(
+      isEligibleManager(
+        {
+          userActive: true,
+          status: 'ACTIVE',
+          role: 'EMPLOYEE',
+          employeeClass: 'TEAM LEAD',
+        },
+        customClasses
+      )
+    ).toBe(true);
+
+    expect(
+      isEligibleManager(
+        {
+          userActive: true,
+          status: 'ACTIVE',
+          role: 'EMPLOYEE',
+          employeeClass: 'PRINCIPAL',
+        },
+        customClasses
+      )
+    ).toBe(false);
+  });
+
+  it('strictly rejects user if they have no employeeClass assigned (even with MANAGER role)', () => {
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        employeeClass: '',
+        jobTitle: 'General Manager',
+      })
+    ).toBe(false);
+
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        jobTitle: 'General Manager',
+      })
+    ).toBe(false);
+  });
+
+  describe('formatManagerOption', () => {
+    const departments = [
+      { id: 'dept-eng', name: 'Engineering', managerId: 'mgr-1' },
+      { id: 'dept-sales', name: 'Sales', managerId: { id: 'mgr-2' } },
+    ];
+
+    it('formats label with full name, job title, and department', () => {
+      const option = formatManagerOption(
+        {
+          id: 'mgr-3',
+          fullName: 'Alice Smith',
+          jobTitle: 'Engineering Manager',
+          departmentId: 'dept-eng',
+        },
+        departments
+      );
+
+      expect(option).toEqual({
+        value: 'mgr-3',
+        label: 'Alice Smith — Engineering Manager • Engineering',
+      });
+    });
+
+    it('appends (Head of Dept) when managerId matches department head', () => {
+      const option = formatManagerOption(
+        {
+          id: 'mgr-1',
+          fullName: 'Bob Johnson',
+          jobTitle: 'VP of Engineering',
+          departmentId: 'dept-eng',
+        },
+        departments
+      );
+
+      expect(option).toEqual({
+        value: 'mgr-1',
+        label: 'Bob Johnson — VP of Engineering • Engineering (Head of Dept)',
+      });
+    });
+
+    it('handles missing job title and empty departments fallback', () => {
+      const option = formatManagerOption({
+        _id: 'emp-99',
+        fullName: 'Charlie Brown',
+      });
+
+      expect(option).toEqual({
+        value: 'emp-99',
+        label: 'Charlie Brown • General',
+      });
+    });
   });
 });

@@ -66,9 +66,10 @@ export const isInAdminMode = (user, viewMode) => {
  * 2. Must not be in DRAFT, PENDING_APPROVAL, ONGOING_ONBOARDING, SUSPENDED, or separated employment statuses.
  *    (PENDING_ONBOARDING managers are allowed).
  * 3. Must have an active user account (or be in PENDING_ONBOARDING).
- * 4. Must have "Manager" in their role, employee class, or job title (or non-owner CEO).
+ * 4. Must have an assigned employee class with permission canManage: true (or non-owner Super Admin / CEO).
+ *    Job title is not used for eligibility filtering.
  */
-export const isEligibleManager = (emp) => {
+export const isEligibleManager = (emp, classConfigs = null) => {
   if (!emp) return false;
 
   // 1. Exclude the organization owner
@@ -94,28 +95,70 @@ export const isEligibleManager = (emp) => {
   const isUserActive = Boolean(emp.userActive ?? emp.isUserActive);
   if (!isUserActive && !isPendingOnboarding) return false;
 
-  // 4. Must have "Manager" in role, employee class, or job title, OR non-owner CEO
+  // 4. Must have managerial employee class with canManage: true, OR non-owner Super Admin / CEO
   const role = String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase();
-  const jobTitle = String(emp.jobTitle || emp.job_title || '').trim();
   const empClass = String(emp.employeeClass || emp.employee_class || '').toUpperCase();
 
-  const isCEO =
-    ((role === 'SUPER_ADMIN' || emp.isSuperAdmin) && !emp.isOrgOwner) ||
-    /\bceo\b/i.test(jobTitle) ||
-    /chief executive officer/i.test(jobTitle);
+  const isSuperAdminOrCEO = (role === 'SUPER_ADMIN' || emp.isSuperAdmin) && !emp.isOrgOwner;
+  if (isSuperAdminOrCEO) return true;
 
-  if (isCEO) return true;
+  // Check if class config explicitly grants canManage
+  let hasClassCanManage = false;
+  if (Array.isArray(classConfigs) && empClass) {
+    const matched = classConfigs.find(
+      (c) => String(c.value || c.name || '').toUpperCase() === empClass
+    );
+    if (matched && typeof matched.canManage === 'boolean') {
+      hasClassCanManage = matched.canManage;
+    } else {
+      hasClassCanManage = /MANAGER/i.test(empClass);
+    }
+  } else {
+    hasClassCanManage = Boolean(emp.canManage ?? /MANAGER/i.test(empClass));
+  }
 
-  // If the employee class is explicitly a non-manager class (e.g. TEAM MEMBER) and job title doesn't have manager,
-  // they are not eligible even if a stale User.role of MANAGER exists.
-  const hasManagerTitle = /\bmanager\b/i.test(jobTitle);
-  const hasManagerClass = /MANAGER/i.test(empClass);
-
-  if (empClass && !hasManagerClass && !hasManagerTitle) {
+  // Only users with an assigned employee class that has the permission of canManage
+  // (or non-owner CEO / Super Admin handled above) can be selected as manager.
+  if (!empClass || !hasClassCanManage) {
     return false;
   }
 
-  const hasManagerInRole = role.includes('MANAGER') || hasManagerTitle || hasManagerClass;
+  return true;
+};
 
-  return hasManagerInRole;
+/**
+ * Formats an employee option for manager dropdown selects.
+ * Output: Name — Job Title • Department [(Head of Dept)]
+ */
+export const formatManagerOption = (emp, departments = []) => {
+  if (!emp) return { value: '', label: '' };
+  const empId = String(emp.id || emp._id || '');
+  const empDeptId = String(emp.departmentId || emp.department_id || '');
+  const deptObj = departments.find((d) => String(d.id || d._id || '') === empDeptId);
+  const deptName =
+    emp.departmentName ||
+    emp.department_name ||
+    deptObj?.name ||
+    (emp.isSuperAdmin ? 'Executive' : 'General');
+
+  const isHOD = departments.some((d) => {
+    const m = d.managerId;
+    const headId = m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
+    return headId === empId;
+  });
+
+  let label = emp.fullName || emp.full_name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
+  const jobTitle = emp.jobTitle || emp.job_title;
+  if (jobTitle) {
+    label += ` — ${jobTitle}`;
+  }
+  label += ` • ${deptName}`;
+  if (isHOD) {
+    label += ` (Head of Dept)`;
+  }
+
+  return {
+    value: empId,
+    label,
+  };
 };
