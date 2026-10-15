@@ -8,6 +8,7 @@ import { UserPlus, Mail, Briefcase, Calendar, FileText, UserCheck } from "lucide
 import { useQuery } from '@tanstack/react-query';
 import { organizationsApi, employeesApi } from '@/api';
 import { normalizeEmployeeClasses } from '@/lib/formOptions';
+import { isEligibleManager } from '@/lib/roleUtils';
 import { toast } from 'sonner';
 
 export default function AddEmployeeForm({ templates = [], departments = [], onSubmit, onCancel, isSubmitting }) {
@@ -40,9 +41,14 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
       departmentName: emp.departmentId?.name || emp.department_name || '',
       employeeClass: String(emp.employeeClass || emp.employee_class || '').toUpperCase(),
       status: (emp.employmentStatus || emp.status || '').toUpperCase(),
-      role: String(emp.role || emp.systemRole || '').toUpperCase(),
+      employmentStatus: (emp.employmentStatus || emp.status || '').toUpperCase(),
+      role: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
+      systemRole: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
       isSuperAdmin: Boolean(emp.isSuperAdmin || emp.role === 'SUPER_ADMIN' || emp.systemRole === 'SUPER_ADMIN'),
       isHrAdmin: Boolean(emp.isHrAdmin || emp.role === 'HR_ADMIN' || emp.systemRole === 'HR_ADMIN'),
+      userActive: Boolean(emp.userActive ?? emp.isUserActive),
+      isUserActive: Boolean(emp.userActive ?? emp.isUserActive),
+      isOrgOwner: Boolean(emp.isOrgOwner),
     }));
   }, [rawEmployees]);
 
@@ -72,62 +78,8 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
     formData.employeeClass
   );
 
-  const selectedDepartment = useMemo(() => {
-    if (!formData.department_id) return null;
-    return departments.find(d => String(d.id || d._id) === String(formData.department_id)) || null;
-  }, [departments, formData.department_id]);
-
-  const selectedDeptHead = useMemo(() => {
-    if (!selectedDepartment?.managerId) return null;
-    const head = selectedDepartment.managerId;
-    const headId = String(head._id || head.id || (typeof head === 'string' ? head : ''));
-    if (!headId) return null;
-    const existing = allEmployees.find(e => e.id === headId);
-    if (existing) return existing;
-    if (typeof head === 'object') {
-      return {
-        id: headId,
-        fullName: head.fullName || head.name || 'Department Head',
-        jobTitle: head.jobTitle || 'Department Head',
-      };
-    }
-    return null;
-  }, [selectedDepartment, allEmployees]);
-
   const managerOptions = useMemo(() => {
-    const deptHeadIds = new Set(
-      departments
-        .map(d => {
-          const m = d.managerId;
-          return m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
-        })
-        .filter(Boolean)
-    );
-
-    const eligible = allEmployees.filter(emp => {
-      const isInactive = ['TERMINATED', 'OFFBOARDED', 'ARCHIVED'].includes(emp.status);
-      if (isInactive) return false;
-
-      const isHOD = deptHeadIds.has(emp.id);
-      const isClassManager = emp.employeeClass && /MANAGER/i.test(emp.employeeClass);
-      const isTitleManager =
-        emp.jobTitle &&
-        /(manager|lead|director|head|supervisor|chief|vp|president|ceo|coo|cto)/i.test(emp.jobTitle);
-      const isManagerRole =
-        emp.role === 'MANAGER' ||
-        emp.role === 'SUPER_ADMIN' ||
-        emp.role === 'HR_ADMIN' ||
-        emp.isSuperAdmin ||
-        emp.isHrAdmin ||
-        isClassManager ||
-        isTitleManager;
-
-      return isHOD || isManagerRole;
-    });
-
-    if (selectedDeptHead && !eligible.some(e => e.id === selectedDeptHead.id)) {
-      eligible.push(selectedDeptHead);
-    }
+    const eligible = allEmployees.filter(isEligibleManager);
 
     return eligible.map(emp => {
       const deptObj = departments.find(d => String(d.id || d._id) === String(emp.departmentId));
@@ -153,7 +105,7 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
         label,
       };
     });
-  }, [allEmployees, departments, selectedDeptHead]);
+  }, [allEmployees, departments]);
 
   const handleDepartmentChange = (deptId) => {
     setFormData(prev => ({
