@@ -153,4 +153,48 @@ describe('isEligibleManager', () => {
       })
     ).toBe(false);
   });
+
+  it('rejects employee with non-manager class (e.g. TEAM MEMBER) and non-manager title even if role is MANAGER', () => {
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        jobTitle: 'Developer',
+        employeeClass: 'TEAM MEMBER',
+      })
+    ).toBe(false);
+
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        jobTitle: 'Senior Software Engineer',
+        employeeClass: 'TEAM MEMBER',
+      })
+    ).toBe(false);
+  });
+
+  it('allows employee with non-manager class if their job title explicitly has Manager or they are CEO', () => {
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        jobTitle: 'Engineering Manager',
+        employeeClass: 'TEAM MEMBER',
+      })
+    ).toBe(true);
+
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'SUPER_ADMIN',
+        jobTitle: 'Founder',
+        employeeClass: 'TEAM MEMBER',
+      })
+    ).toBe(true);
+  });
 });

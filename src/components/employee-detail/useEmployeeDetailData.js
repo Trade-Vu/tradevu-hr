@@ -73,7 +73,7 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
         role: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
         systemRole: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
         isSuperAdmin: Boolean(emp.isSuperAdmin || emp.role === 'SUPER_ADMIN' || emp.systemRole === 'SUPER_ADMIN'),
-        isOrgOwner: Boolean(emp.isOrgOwner),
+        employeeClass: String(emp.employeeClass || emp.employee_class || '').toUpperCase(),
         isEligibleForHrAdmin: isEmployeeEligibleForHrAdmin(emp),
         isHrAdmin: Boolean(emp.isHrAdmin || emp.role === 'HR_ADMIN' || emp.systemRole === 'HR_ADMIN'),
       }));

@@ -92,13 +92,26 @@ export const isEligibleManager = (emp) => {
   // 3. Must have "Manager" in role or job title, OR be CEO
   const role = String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase();
   const jobTitle = String(emp.jobTitle || emp.job_title || '').trim();
+  const empClass = String(emp.employeeClass || emp.employee_class || '').toUpperCase();
 
-  const hasManagerInRole = role.includes('MANAGER') || /\bmanager\b/i.test(jobTitle);
   const isCEO =
     role === 'SUPER_ADMIN' ||
     Boolean(emp.isSuperAdmin || emp.isOrgOwner || emp.is_organization_owner) ||
     /\bceo\b/i.test(jobTitle) ||
     /chief executive officer/i.test(jobTitle);
 
-  return hasManagerInRole || isCEO;
+  if (isCEO) return true;
+
+  // If the employee class is explicitly a non-manager class (e.g. TEAM MEMBER) and job title doesn't have manager,
+  // they are not eligible even if a stale User.role of MANAGER exists.
+  const hasManagerTitle = /\bmanager\b/i.test(jobTitle);
+  const hasManagerClass = /MANAGER/i.test(empClass);
+
+  if (empClass && !hasManagerClass && !hasManagerTitle) {
+    return false;
+  }
+
+  const hasManagerInRole = role.includes('MANAGER') || hasManagerTitle || hasManagerClass;
+
+  return hasManagerInRole;
 };
