@@ -61,10 +61,19 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
         ...emp,
         id: emp._id || emp.id,
         full_name: emp.fullName || emp.full_name,
+        fullName: emp.fullName || emp.full_name,
         job_title: emp.jobTitle || emp.job_title,
+        jobTitle: emp.jobTitle || emp.job_title,
         employment_status: emp.employmentStatus || emp.employment_status,
+        employmentStatus: emp.employmentStatus || emp.employment_status,
         onboarding_status: emp.onboardingStatus || emp.onboarding_status,
         onboarding_progress: emp.onboardingProgress ?? emp.onboarding_progress ?? 0,
+        userActive: Boolean(emp.userActive ?? emp.isUserActive),
+        isUserActive: Boolean(emp.userActive ?? emp.isUserActive),
+        role: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
+        systemRole: String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase(),
+        isSuperAdmin: Boolean(emp.isSuperAdmin || emp.role === 'SUPER_ADMIN' || emp.systemRole === 'SUPER_ADMIN'),
+        employeeClass: String(emp.employeeClass || emp.employee_class || '').toUpperCase(),
         isEligibleForHrAdmin: isEmployeeEligibleForHrAdmin(emp),
         isHrAdmin: Boolean(emp.isHrAdmin || emp.role === 'HR_ADMIN' || emp.systemRole === 'HR_ADMIN'),
       }));
@@ -267,7 +276,11 @@ export function useEmployeeDetailData(employeeId, employeeDetail) {
       effectiveDate: input.effectiveDate || undefined,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['employee', employeeId]);
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['allEmployees'] });
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       toast.success("Promotion updated successfully.");
     },
     onError: (err) => toast.error(extractErrorMessage(err, "Failed to update promotion."))
