@@ -72,7 +72,8 @@ export default function Employees() {
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
 
       const res = await employeesApi.getEmployees(params);
-      const list = Array.isArray(res) ? res : res?.data || [];
+      const rawList = Array.isArray(res) ? res : res?.data || [];
+      const list = rawList.filter(emp => !emp.isOrgOwner && !emp.is_organization_owner);
       const meta = res?.meta || {};
 
       return {

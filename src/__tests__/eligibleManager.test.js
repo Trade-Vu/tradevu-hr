@@ -32,22 +32,13 @@ describe('isEligibleManager', () => {
     ).toBe(true);
   });
 
-  it('allows CEO via SUPER_ADMIN role or isOrgOwner or CEO title', () => {
+  it('allows CEO via SUPER_ADMIN role (when not org owner) or CEO title', () => {
     expect(
       isEligibleManager({
         userActive: true,
         status: 'ACTIVE',
         role: 'SUPER_ADMIN',
         jobTitle: 'Managing Partner',
-      })
-    ).toBe(true);
-
-    expect(
-      isEligibleManager({
-        userActive: true,
-        status: 'ACTIVE',
-        role: 'EMPLOYEE',
-        isOrgOwner: true,
       })
     ).toBe(true);
 
@@ -70,7 +61,51 @@ describe('isEligibleManager', () => {
     ).toBe(true);
   });
 
-  it('rejects users without active user account', () => {
+  it('strictly excludes organisation owner from manager eligibility', () => {
+    expect(
+      isEligibleManager({
+        ...baseActiveManager,
+        isOrgOwner: true,
+      })
+    ).toBe(false);
+
+    expect(
+      isEligibleManager({
+        ...baseActiveManager,
+        is_organization_owner: true,
+      })
+    ).toBe(false);
+
+    expect(
+      isEligibleManager({
+        userActive: true,
+        status: 'ACTIVE',
+        role: 'SUPER_ADMIN',
+        jobTitle: 'Chief Executive Officer',
+        isOrgOwner: true,
+      })
+    ).toBe(false);
+  });
+
+  it('allows managers in PENDING_ONBOARDING status even if user account is not yet active', () => {
+    expect(
+      isEligibleManager({
+        ...baseActiveManager,
+        status: 'PENDING_ONBOARDING',
+        userActive: false,
+      })
+    ).toBe(true);
+
+    expect(
+      isEligibleManager({
+        ...baseActiveManager,
+        employmentStatus: 'pending_onboarding',
+        userActive: false,
+      })
+    ).toBe(true);
+  });
+
+  it('rejects users without active user account (when not in PENDING_ONBOARDING)', () => {
     expect(
       isEligibleManager({
         ...baseActiveManager,
@@ -91,7 +126,6 @@ describe('isEligibleManager', () => {
   it.each([
     'DRAFT',
     'PENDING_APPROVAL',
-    'PENDING_ONBOARDING',
     'ONGOING_ONBOARDING',
     'SUSPENDED',
     'TERMINATED',
@@ -99,7 +133,7 @@ describe('isEligibleManager', () => {
     'OFFBOARDED',
     'ARCHIVED',
     'draft',
-    'pending_onboarding',
+    'ongoing_onboarding',
     'suspended',
   ])('rejects disallowed status: %s', (status) => {
     expect(
