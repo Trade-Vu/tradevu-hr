@@ -14,13 +14,13 @@ const DEFAULT_EMPLOYMENT_TYPES = [
 ];
 
 const DEFAULT_EMPLOYEE_CLASSES = [
-  'INTERN',
-  'TEAM MEMBER',
-  'MID LEVEL TEAM MEMBER',
-  'MID LEVEL MANAGER',
-  'MANAGER',
-  'SENIOR MANAGER',
-  'EXECUTIVE MANAGER',
+  { name: 'INTERN', canManage: false, canApproveLeave: false },
+  { name: 'TEAM MEMBER', canManage: false, canApproveLeave: false },
+  { name: 'MID LEVEL TEAM MEMBER', canManage: false, canApproveLeave: false },
+  { name: 'MID LEVEL MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'SENIOR MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'EXECUTIVE MANAGER', canManage: true, canApproveLeave: true },
 ];
 
 const OLD_LEGACY_CLASSES = [
@@ -58,15 +58,22 @@ export default function SettingsClasses() {
 
     // Load Employment Classes
     if (Array.isArray(data.employeeClasses) && data.employeeClasses.length > 0) {
-      const isLegacyDefault =
-        data.employeeClasses.length === OLD_LEGACY_CLASSES.length &&
-        data.employeeClasses.every((c, i) => c.toUpperCase() === OLD_LEGACY_CLASSES[i]);
-
-      if (isLegacyDefault) {
-        setClasses(DEFAULT_EMPLOYEE_CLASSES);
-      } else {
-        setClasses(data.employeeClasses.map((c) => c.toUpperCase()));
-      }
+      setClasses(
+        data.employeeClasses.map((c) => {
+          if (typeof c === 'string') {
+            const upper = c.toUpperCase();
+            const isMgr = /MANAGER/i.test(upper);
+            return { name: upper, canManage: isMgr, canApproveLeave: isMgr };
+          }
+          const name = String(c?.name || c?.value || '').toUpperCase();
+          const isMgr = /MANAGER/i.test(name);
+          return {
+            name,
+            canManage: typeof c?.canManage === 'boolean' ? c.canManage : isMgr,
+            canApproveLeave: typeof c?.canApproveLeave === 'boolean' ? c.canApproveLeave : isMgr,
+          };
+        })
+      );
     } else {
       setClasses(DEFAULT_EMPLOYEE_CLASSES);
     }
@@ -88,8 +95,21 @@ export default function SettingsClasses() {
 
   const updateClassesMutation = useMutation({
     mutationFn: async (newClasses) => {
-      const upperClasses = newClasses.map((c) => c.toUpperCase());
-      return await organizationsApi.updateMyOrganization({ employeeClasses: upperClasses });
+      const payloadClasses = newClasses.map((c) => {
+        if (typeof c === 'string') {
+          const upper = c.toUpperCase();
+          const isMgr = /MANAGER/i.test(upper);
+          return { name: upper, canManage: isMgr, canApproveLeave: isMgr };
+        }
+        const name = String(c?.name || c?.value || '').toUpperCase();
+        const isMgr = /MANAGER/i.test(name);
+        return {
+          name,
+          canManage: typeof c?.canManage === 'boolean' ? c.canManage : isMgr,
+          canApproveLeave: typeof c?.canApproveLeave === 'boolean' ? c.canApproveLeave : isMgr,
+        };
+      });
+      return await organizationsApi.updateMyOrganization({ employeeClasses: payloadClasses });
     },
     onSuccess: () => {
       toast.success('Employment classes updated successfully');
@@ -183,6 +203,7 @@ export default function SettingsClasses() {
             description="Establish seniority ranks and workforce tiers (e.g., Intern, Team Member, Manager, Senior Manager, Executive Manager)."
             icon={Layers}
             items={classes}
+            hasPermissions={true}
             onSave={handleSaveClasses}
             isSaving={updateClassesMutation.isPending}
             defaultItems={DEFAULT_EMPLOYEE_CLASSES}

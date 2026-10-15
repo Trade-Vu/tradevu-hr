@@ -14,13 +14,13 @@ export const DEFAULT_EMPLOYMENT_TYPES = [
 ];
 
 export const DEFAULT_EMPLOYEE_CLASSES = [
-  'INTERN',
-  'TEAM MEMBER',
-  'MID LEVEL TEAM MEMBER',
-  'MID LEVEL MANAGER',
-  'MANAGER',
-  'SENIOR MANAGER',
-  'EXECUTIVE MANAGER',
+  { name: 'INTERN', canManage: false, canApproveLeave: false },
+  { name: 'TEAM MEMBER', canManage: false, canApproveLeave: false },
+  { name: 'MID LEVEL TEAM MEMBER', canManage: false, canApproveLeave: false },
+  { name: 'MID LEVEL MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'SENIOR MANAGER', canManage: true, canApproveLeave: true },
+  { name: 'EXECUTIVE MANAGER', canManage: true, canApproveLeave: true },
 ];
 
 export const normalizeEmploymentType = (employmentType) => {
@@ -37,10 +37,25 @@ export const normalizeEmploymentTypes = (types, fallback = DEFAULT_EMPLOYMENT_TY
 };
 
 export const normalizeEmployeeClass = (employeeClass) => {
-  const value = String(employeeClass?.value || employeeClass || '').toUpperCase();
+  if (typeof employeeClass === 'object' && employeeClass !== null) {
+    const value = String(employeeClass.value || employeeClass.name || '').toUpperCase();
+    const isMgr = /MANAGER/i.test(value);
+    return {
+      value,
+      name: value,
+      label: employeeClass.label || toTitleCase(value),
+      canManage: typeof employeeClass.canManage === 'boolean' ? employeeClass.canManage : isMgr,
+      canApproveLeave: typeof employeeClass.canApproveLeave === 'boolean' ? employeeClass.canApproveLeave : isMgr,
+    };
+  }
+  const value = String(employeeClass || '').toUpperCase();
+  const isMgr = /MANAGER/i.test(value);
   return {
     value,
+    name: value,
     label: toTitleCase(value),
+    canManage: isMgr,
+    canApproveLeave: isMgr,
   };
 };
 

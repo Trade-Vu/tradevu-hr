@@ -8,7 +8,7 @@ import { UserPlus, Mail, Briefcase, Calendar, FileText, UserCheck } from "lucide
 import { useQuery } from '@tanstack/react-query';
 import { organizationsApi, employeesApi } from '@/api';
 import { normalizeEmployeeClasses } from '@/lib/formOptions';
-import { isEligibleManager } from '@/lib/roleUtils';
+import { isEligibleManager, formatManagerOption } from '@/lib/roleUtils';
 import { toast } from 'sonner';
 
 export default function AddEmployeeForm({ templates = [], departments = [], onSubmit, onCancel, isSubmitting }) {
@@ -79,33 +79,9 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
   );
 
   const managerOptions = useMemo(() => {
-    const eligible = allEmployees.filter(isEligibleManager);
-
-    return eligible.map(emp => {
-      const deptObj = departments.find(d => String(d.id || d._id) === String(emp.departmentId));
-      const deptName = emp.departmentName || deptObj?.name || (emp.isSuperAdmin ? 'Executive' : 'General');
-
-      const isHOD = departments.some(d => {
-        const m = d.managerId;
-        const headId = m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
-        return headId === emp.id;
-      });
-
-      let label = emp.fullName;
-      if (emp.jobTitle) {
-        label += ` — ${emp.jobTitle}`;
-      }
-      label += ` • ${deptName}`;
-      if (isHOD) {
-        label += ` (Head of Dept)`;
-      }
-
-      return {
-        value: emp.id,
-        label,
-      };
-    });
-  }, [allEmployees, departments]);
+    const eligible = allEmployees.filter((emp) => isEligibleManager(emp, employeeClasses));
+    return eligible.map((emp) => formatManagerOption(emp, departments));
+  }, [allEmployees, departments, employeeClasses]);
 
   const handleDepartmentChange = (deptId) => {
     setFormData(prev => ({

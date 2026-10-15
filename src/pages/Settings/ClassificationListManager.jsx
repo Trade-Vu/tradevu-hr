@@ -3,10 +3,34 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Edit, X, Check, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Edit, X, Check, RefreshCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toTitleCase } from '@/lib/utils';
 import { toast } from 'sonner';
+
+const getItemName = (item) => {
+  if (typeof item === 'object' && item !== null) {
+    return String(item.name || item.value || '').toUpperCase();
+  }
+  return String(item || '').toUpperCase();
+};
+
+const getItemPermissions = (item) => {
+  if (typeof item === 'object' && item !== null) {
+    const name = String(item.name || item.value || '').toUpperCase();
+    const isMgr = /MANAGER/i.test(name);
+    return {
+      canManage: typeof item.canManage === 'boolean' ? item.canManage : isMgr,
+      canApproveLeave: typeof item.canApproveLeave === 'boolean' ? item.canApproveLeave : isMgr,
+    };
+  }
+  const name = String(item || '').toUpperCase();
+  const isMgr = /MANAGER/i.test(name);
+  return {
+    canManage: isMgr,
+    canApproveLeave: isMgr,
+  };
+};
 
 export default function ClassificationListManager({
   title,
@@ -18,19 +42,31 @@ export default function ClassificationListManager({
   isSaving = false,
   defaultItems = [],
   placeholder = 'e.g. Full Time',
+  hasPermissions = false,
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [inputValue, setInputValue] = useState('');
+  const [canManage, setCanManage] = useState(false);
+  const [canApproveLeave, setCanApproveLeave] = useState(false);
 
   const handleStartAdd = () => {
     setIsAdding(true);
     setEditingIndex(null);
     setInputValue('');
+    setCanManage(false);
+    setCanApproveLeave(false);
   };
 
   const handleStartEdit = (index) => {
-    setInputValue(toTitleCase(items[index]));
+    const it = items[index];
+    const name = getItemName(it);
+    setInputValue(toTitleCase(name));
+    if (hasPermissions) {
+      const perms = getItemPermissions(it);
+      setCanManage(perms.canManage);
+      setCanApproveLeave(perms.canApproveLeave);
+    }
     setEditingIndex(index);
     setIsAdding(true);
   };
@@ -39,6 +75,8 @@ export default function ClassificationListManager({
     setIsAdding(false);
     setEditingIndex(null);
     setInputValue('');
+    setCanManage(false);
+    setCanApproveLeave(false);
   };
 
   const handleSubmit = () => {
@@ -51,18 +89,22 @@ export default function ClassificationListManager({
     const upperTrimmed = trimmed.toUpperCase();
     let updated = [...items];
 
+    const newItem = hasPermissions
+      ? { name: upperTrimmed, canManage, canApproveLeave }
+      : upperTrimmed;
+
     if (editingIndex !== null) {
-      if (updated.some((item, i) => i !== editingIndex && item.toUpperCase() === upperTrimmed)) {
+      if (updated.some((it, i) => i !== editingIndex && getItemName(it) === upperTrimmed)) {
         toast.error(`${itemLabel} "${trimmed}" already exists`);
         return;
       }
-      updated[editingIndex] = upperTrimmed;
+      updated[editingIndex] = newItem;
     } else {
-      if (updated.some((item) => item.toUpperCase() === upperTrimmed)) {
+      if (updated.some((it) => getItemName(it) === upperTrimmed)) {
         toast.error(`${itemLabel} "${trimmed}" already exists`);
         return;
       }
-      updated.push(upperTrimmed);
+      updated.push(newItem);
     }
 
     onSave(updated, () => {
@@ -71,7 +113,7 @@ export default function ClassificationListManager({
   };
 
   const handleDelete = (index) => {
-    const itemToDelete = toTitleCase(items[index]);
+    const itemToDelete = toTitleCase(getItemName(items[index]));
     const updated = items.filter((_, i) => i !== index);
     onSave(updated, () => {
       toast.info(`Removed ${itemToDelete}`);
@@ -127,7 +169,7 @@ export default function ClassificationListManager({
               {editingIndex !== null ? `Edit ${itemLabel}` : `Add New ${itemLabel}`}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
               <div className="space-y-1.5 flex-1">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
@@ -163,64 +205,142 @@ export default function ClassificationListManager({
                 </Button>
               </div>
             </div>
+
+            {hasPermissions && (
+              <div className="pt-3 border-t border-slate-200/80 space-y-2.5">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  Tier Permissions
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      canManage
+                        ? 'bg-blue-50/70 border-blue-200 text-blue-900 shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={canManage}
+                      onChange={(e) => setCanManage(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium block">Can Manage</span>
+                      <span className="text-xs text-slate-500 block">
+                        Allows employees in this class to be assigned as direct managers.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      canApproveLeave
+                        ? 'bg-blue-50/70 border-blue-200 text-blue-900 shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={canApproveLeave}
+                      onChange={(e) => setCanApproveLeave(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="text-sm font-medium block">Can Approve Leave</span>
+                      <span className="text-xs text-slate-500 block">
+                        Authorizes employees in this class to approve leave requests.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Card className="group hover:shadow-md hover:border-blue-200 transition-all duration-200 bg-white">
-              <CardContent className="p-5">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex items-center gap-3">
-                    {Icon && (
-                      <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Icon className="w-4 h-4" />
+        {items.map((item, idx) => {
+          const name = getItemName(item);
+          const perms = hasPermissions ? getItemPermissions(item) : null;
+
+          return (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <Card className="group hover:shadow-md hover:border-blue-200 transition-all duration-200 bg-white">
+                <CardContent className="p-5">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-3">
+                      {Icon && (
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-semibold text-slate-800 text-base leading-snug">
+                          {toTitleCase(name)}
+                        </h4>
+                        <span className="text-xs text-slate-400 font-mono">
+                          {name}
+                        </span>
                       </div>
-                    )}
-                    <div>
-                      <h4 className="font-semibold text-slate-800 text-base leading-snug">
-                        {toTitleCase(item)}
-                      </h4>
-                      <span className="text-xs text-slate-400 font-mono">
-                        {item.toUpperCase()}
-                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartEdit(idx)}
+                        disabled={isSaving}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(idx)}
+                        disabled={isSaving}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleStartEdit(idx)}
-                      disabled={isSaving}
-                      className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                      title="Edit"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(idx)}
-                      disabled={isSaving}
-                      className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                  {hasPermissions && perms && (
+                    <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
+                      {perms.canManage ? (
+                        <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 text-[11px] font-medium flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                          Can Manage
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-slate-400 border-slate-200 text-[11px] font-normal">
+                          No Direct Reports
+                        </Badge>
+                      )}
+
+                      {perms.canApproveLeave && (
+                        <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 text-[11px] font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                          Can Approve Leave
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {items.length === 0 && !isAdding && (
