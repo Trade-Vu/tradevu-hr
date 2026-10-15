@@ -66,7 +66,7 @@ export const isInAdminMode = (user, viewMode) => {
  * 2. Must not be in DRAFT, PENDING_APPROVAL, ONGOING_ONBOARDING, SUSPENDED, or separated employment statuses.
  *    (PENDING_ONBOARDING managers are allowed).
  * 3. Must have an active user account (or be in PENDING_ONBOARDING).
- * 4. Must have Manager role or managerial employee class (or non-owner Super Admin / CEO).
+ * 4. Must have an assigned employee class with permission canManage: true (or non-owner Super Admin / CEO).
  *    Job title is not used for eligibility filtering.
  */
 export const isEligibleManager = (emp, classConfigs = null) => {
@@ -95,7 +95,7 @@ export const isEligibleManager = (emp, classConfigs = null) => {
   const isUserActive = Boolean(emp.userActive ?? emp.isUserActive);
   if (!isUserActive && !isPendingOnboarding) return false;
 
-  // 4. Must have managerial role or employee class, OR non-owner Super Admin / CEO
+  // 4. Must have managerial employee class with canManage: true, OR non-owner Super Admin / CEO
   const role = String(emp.role || emp.systemRole || emp.userRole || '').toUpperCase();
   const empClass = String(emp.employeeClass || emp.employee_class || '').toUpperCase();
 
