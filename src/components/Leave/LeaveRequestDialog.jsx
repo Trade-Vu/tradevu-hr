@@ -22,6 +22,7 @@ import {
 import { Upload, XCircle, Paperclip, Calendar } from "lucide-react";
 import { calculateWorkingDays } from "@/lib/leaveDays";
 import LeaveHandoverFormSection from "@/components/Leave/LeaveHandoverFormSection";
+import LeaveBalanceIndicator from "@/components/Leave/LeaveBalanceIndicator";
 import { useLeaveRequestDialogForm } from "@/components/Leave/useLeaveRequestDialogForm";
 import { resolveDepartmentAndColleagues } from "@/components/Leave/leaveEligibilityUtils";
 
@@ -45,9 +46,11 @@ export default function LeaveRequestDialog({
     minAllowedDate,
     addSelectedDate,
     removeSelectedDate,
+    handleDocUpload,
     availableLeaveTypes,
     selectedBalance,
     employeeAllocatedDays,
+    isDocRequired,
   } = useLeaveRequestDialogForm({
     open,
     editingLeave,
@@ -102,9 +105,17 @@ export default function LeaveRequestDialog({
       return;
     }
 
+    if (isDocRequired && !formData.attachment_url) {
+      toast.error(`A supporting document is required for ${selectedType?.name || 'this request'}.`);
+      return;
+    }
+
     if (selectedBalance && typeof selectedBalance.available === 'number') {
       if (formData.total_days > selectedBalance.available) {
-        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type.`);
+        const pendingNote = selectedBalance.pending > 0
+          ? ` (${selectedBalance.pending} day(s) currently pending approval)`
+          : "";
+        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type${pendingNote}.`);
         return;
       }
     } else if (employeeAllocatedDays !== undefined && employeeAllocatedDays > 0) {
@@ -175,18 +186,10 @@ export default function LeaveRequestDialog({
             </Select>
 
             {formData.leave_type && (
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                  Policy: {employeeAllocatedDays ?? 0} days configured
-                </span>
-                {selectedBalance && typeof selectedBalance.available === "number" && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${
-                    selectedBalance.available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                  }`}>
-                    Available: {selectedBalance.available} days remaining
-                  </span>
-                )}
-              </div>
+              <LeaveBalanceIndicator
+                allocatedDays={employeeAllocatedDays}
+                selectedBalance={selectedBalance}
+              />
             )}
 
             {!editingLeave && hasNoticePeriod && noticeDays > 0 && (
@@ -352,22 +355,63 @@ export default function LeaveRequestDialog({
             onHandoverNoteUrlChange={(val) => setFormData((prev) => ({ ...prev, handover_note_url: val }))}
           />
 
-          <div className="space-y-2">
-            <Label>Supporting Document</Label>
-            <div className="flex items-center gap-3">
-              <input type="file" id="dialogDocUpload" onChange={handleDocUpload} className="hidden" />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById("dialogDocUpload")?.click()}
-                disabled={uploadingDoc}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {uploadingDoc ? "Uploading..." : "Upload Document"}
-              </Button>
-              {formData.attachment_url && (
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <Paperclip className="w-4 h-4" /> Attached
+          <div className="p-4 space-y-3 bg-slate-50/70 border rounded-xl border-slate-200/90">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-bold text-slate-800">Supporting Document</Label>
+                {isDocRequired ? (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-rose-700 bg-rose-50 border-rose-200">
+                    Required *
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] font-normal text-slate-500 bg-slate-100">
+                    Optional
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              {isDocRequired
+                ? "A supporting document (e.g. medical report, certificate, or official letter) is required for this leave type."
+                : "Attach any relevant supporting document or note for this leave request."}
+            </p>
+
+            <div className="pt-0.5">
+              <input type="file" id="dialogDocUpload" onChange={handleDocUpload} className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
+              {formData.attachment_url ? (
+                <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2 truncate">
+                    <Paperclip className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-medium truncate">Document attached</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, attachment_url: "" }))}
+                    className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                    title="Remove attached document"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("dialogDocUpload")?.click()}
+                    disabled={uploadingDoc}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs h-9"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    {uploadingDoc ? "Uploading..." : "Upload Document"}
+                  </Button>
+                  {isDocRequired && (
+                    <span className="text-xs text-rose-600 font-medium">
+                      Document is required for this leave type
+                    </span>
+                  )}
                 </div>
               )}
             </div>

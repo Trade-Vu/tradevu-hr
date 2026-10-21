@@ -5,7 +5,7 @@ import { leaveApi, approvalsApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { toast } from "sonner";
-import { extractErrorMessage } from "@/lib/utils";
+import { extractErrorMessage, getRefId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Plane, Plus } from "lucide-react";
 import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
@@ -146,6 +146,18 @@ export default function AllLeaveRequests() {
     setShowForm(true);
   };
 
+  const isOwnRequest = (leave) => {
+    const requestEmployeeId = getRefId(leave.employeeId) || getRefId(leave.employee_id);
+    const currentEmployeeId = getRefId(user?.employeeId) || getRefId(user?.employee);
+    const requestEmail = String(leave.employee_email || leave.employeeId?.email || '').toLowerCase();
+    const currentEmail = String(user?.email || '').toLowerCase();
+
+    return Boolean(
+      (requestEmployeeId && currentEmployeeId && requestEmployeeId === currentEmployeeId) ||
+      (requestEmail && currentEmail && requestEmail === currentEmail)
+    );
+  };
+
   const handleFormSubmit = (formData, currentEditingLeave) => {
     if (currentEditingLeave) {
       updateLeaveMutation.mutate({ id: currentEditingLeave.id, data: formData, oldData: currentEditingLeave });
@@ -155,6 +167,10 @@ export default function AllLeaveRequests() {
   };
 
   const handleApprove = (leave) => {
+    if (isOwnRequest(leave)) {
+      toast.error('You cannot approve your own leave request.');
+      return;
+    }
     updateLeaveMutation.mutate({
       id: leave.id,
       data: { status: 'approved' },
@@ -163,6 +179,10 @@ export default function AllLeaveRequests() {
   };
 
   const handleReject = (leave, reason) => {
+    if (isOwnRequest(leave)) {
+      toast.error('You cannot reject your own leave request.');
+      return;
+    }
     updateLeaveMutation.mutate({
       id: leave.id,
       data: { status: 'rejected', reason },
@@ -229,6 +249,7 @@ export default function AllLeaveRequests() {
           onPageChange={setPage}
           onEdit={handleEdit}
           onRequestAction={(leave, action) => setConfirmState({ leave, action })}
+          canTakeAction={(leave) => !isOwnRequest(leave)}
           itemVariants={itemVariants}
         />
       </div>

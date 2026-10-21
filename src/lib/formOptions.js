@@ -31,6 +31,9 @@ export const normalizeEmploymentType = (employmentType) => {
   };
 };
 
+export const formatEmploymentType = (employmentType) =>
+  normalizeEmploymentType(employmentType).label;
+
 export const normalizeEmploymentTypes = (types, fallback = DEFAULT_EMPLOYMENT_TYPES) => {
   const source = Array.isArray(types) && types.length > 0 ? types : fallback;
   return source.map(normalizeEmploymentType).filter((option) => option.value);

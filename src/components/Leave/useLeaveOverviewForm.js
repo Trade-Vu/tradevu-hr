@@ -13,6 +13,7 @@ import {
   getEmployeeAllocatedLeaveDays,
   normalizeBalanceList,
   resolveDepartmentAndColleagues,
+  isSupportingDocRequired,
 } from "./leaveEligibilityUtils";
 
 export function useLeaveOverviewForm({
@@ -271,11 +272,14 @@ export function useLeaveOverviewForm({
     selectedLeaveTypeObj?.handoverRequirement === "COMPULSORY"
   );
 
-  const requiresAttachment = selectedLeaveTypeObj && (
-    selectedLeaveTypeObj.requiresAttachment ||
-    selectedLeaveTypeObj.name === "Study Leave" || 
-    (selectedLeaveTypeObj.name === "Sick Leave" && formData.total_days > 2)
-  );
+  const requiresAttachment = useMemo(() => {
+    if (!selectedLeaveTypeObj) return false;
+    return Boolean(
+      isSupportingDocRequired(selectedLeaveTypeObj, formData.total_days, isPastLeave) ||
+      selectedLeaveTypeObj.name === "Study Leave" ||
+      (selectedLeaveTypeObj.name === "Sick Leave" && formData.total_days > 2)
+    );
+  }, [selectedLeaveTypeObj, formData.total_days, isPastLeave]);
 
   const hasRequiredRequestData = Boolean(
     formData.leave_type &&
@@ -330,7 +334,10 @@ export function useLeaveOverviewForm({
     // Enforce that Super Admin / Admin cannot override configured or available days
     if (selectedBalance && typeof selectedBalance.available === 'number') {
       if (formData.total_days > selectedBalance.available) {
-        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type.`);
+        const pendingNote = selectedBalance.pending > 0
+          ? ` (${selectedBalance.pending} day(s) currently pending approval)`
+          : "";
+        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type${pendingNote}.`);
         return;
       }
     } else if (applicantAllocatedDays !== undefined && applicantAllocatedDays > 0) {

@@ -25,6 +25,7 @@ export default function LeaveApprovalCard({
   managerApproved = false,
   safeDate = (d) => (d ? new Date(d) : new Date()),
   showStatusBadge = false,
+  canTakeAction = true,
 }) {
   const isPendingStatus = isPendingLeaveStatus(request.status);
   const employeeName =
@@ -140,7 +141,11 @@ export default function LeaveApprovalCard({
         {/* Action Buttons */}
         {isPendingStatus && (
           <div className="flex items-center gap-2 pt-1 sm:pt-0 self-end sm:self-auto">
-            {managerApproved ? (
+            {!canTakeAction ? (
+              <span className="px-2.5 py-1 text-xs font-medium text-slate-500 rounded-lg bg-slate-100">
+                You submitted this request
+              </span>
+            ) : managerApproved ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>Approved by Manager</span>

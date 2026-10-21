@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Upload, Paperclip, XCircle, Calendar, Briefcase } from "lucide-react";
 import LeaveHandoverFormSection from "@/components/Leave/LeaveHandoverFormSection";
+import LeaveBalanceIndicator from "@/components/Leave/LeaveBalanceIndicator";
 import { useLeaveOverviewForm } from "@/components/Leave/useLeaveOverviewForm";
+import { formatEmploymentType } from "@/lib/formOptions";
 
 export default function LeaveOverviewFormCard({
   isOpen = true,
@@ -78,11 +80,13 @@ export default function LeaveOverviewFormCard({
   const employeeClassificationLabel = React.useMemo(() => {
     if (!applicantEmployee) return null;
     const parts = [
-      applicantEmployee.employmentType || applicantEmployee.employment_type,
+      formatEmploymentType(applicantEmployee.employmentType || applicantEmployee.employment_type),
       applicantEmployee.employeeClass || applicantEmployee.employee_class,
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(" • ") : null;
   }, [applicantEmployee]);
+
+    console.log({ employeeClassificationLabel, applicantEmployee });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
@@ -106,10 +110,12 @@ export default function LeaveOverviewFormCard({
           </DialogDescription>
         </DialogHeader>
 
-        <form id="leave-request-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+        <form id="leave-request-form" onSubmit={handleSubmit} className="flex-1 px-6 py-5 space-y-6 overflow-y-auto">
           {isAdmin && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-slate-700">{isPastLeave ? "Log for" : "Apply For"} *</Label>
+              <Label className="text-sm font-medium text-slate-700">
+                {isPastLeave ? "Log for" : "Apply For"} <span className="text-rose-600">*</span>
+              </Label>
               <Select 
                 value={formData.employee_email} 
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, employee_email: value }))}
@@ -131,7 +137,9 @@ export default function LeaveOverviewFormCard({
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-slate-700">Leave Type *</Label>
+                <Label className="text-sm font-medium text-slate-700">
+                  Leave Type <span className="text-rose-600">*</span>
+                </Label>
                 {displayLeaveTypes.length > 0 && (
                   <span className="text-xs text-slate-400">
                     {displayLeaveTypes.length} applicable
@@ -161,18 +169,10 @@ export default function LeaveOverviewFormCard({
               </Select>
 
               {formData.leave_type && (
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                    Policy: {applicantAllocatedDays ?? 0} days configured
-                  </span>
-                  {selectedBalance && typeof selectedBalance.available === "number" && (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${
-                      selectedBalance.available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                    }`}>
-                      Available: {selectedBalance.available} days remaining
-                    </span>
-                  )}
-                </div>
+                <LeaveBalanceIndicator
+                  allocatedDays={applicantAllocatedDays}
+                  selectedBalance={selectedBalance}
+                />
               )}
 
               {!isPastLeave && hasNoticePeriod && noticeDays > 0 && (
@@ -191,16 +191,16 @@ export default function LeaveOverviewFormCard({
               )}
             </div>
 
-            <div className="space-y-4 pt-1">
+            <div className="pt-1 space-y-4">
               <div className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
                   id="isHalfDay" 
                   checked={formData.isHalfDay} 
                   onChange={(e) => handleHalfDayToggle(e.target.checked)} 
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                 />
-                <Label htmlFor="isHalfDay" className="cursor-pointer text-sm text-slate-700">
+                <Label htmlFor="isHalfDay" className="text-sm cursor-pointer text-slate-700">
                   Half-Day Request (0.5 day)
                 </Label>
               </div>
@@ -211,9 +211,9 @@ export default function LeaveOverviewFormCard({
                   id="useMultipleDates" 
                   checked={formData.useMultipleDates} 
                   onChange={(e) => handleMultipleDatesToggle(e.target.checked)} 
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                 />
-                <Label htmlFor="useMultipleDates" className="cursor-pointer text-sm text-slate-700">
+                <Label htmlFor="useMultipleDates" className="text-sm cursor-pointer text-slate-700">
                   Multiple Non-Continuous Dates
                 </Label>
               </div>
@@ -222,7 +222,9 @@ export default function LeaveOverviewFormCard({
             {!formData.useMultipleDates ? (
               <>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">Start Date *</Label>
+                  <Label className="text-sm font-medium text-slate-700">
+                    Start Date <span className="text-rose-600">*</span>
+                  </Label>
                   <Input 
                     type="date" 
                     value={formData.start_date}
@@ -241,7 +243,9 @@ export default function LeaveOverviewFormCard({
 
                 {!formData.isHalfDay && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">End Date *</Label>
+                    <Label className="text-sm font-medium text-slate-700">
+                      End Date <span className="text-rose-600">*</span>
+                    </Label>
                     <Input 
                       type="date" 
                       value={formData.end_date}
@@ -283,7 +287,7 @@ export default function LeaveOverviewFormCard({
                     </Badge>
                   ))}
                     {formData.selectedDates.length === 0 && (
-                      <span className="text-xs text-slate-400 italic">No dates added yet</span>
+                      <span className="text-xs italic text-slate-400">No dates added yet</span>
                     )}
                 </div>
               </div>
@@ -291,12 +295,14 @@ export default function LeaveOverviewFormCard({
 
             <div className="col-span-1 space-y-2 md:col-span-2">
               <Label className="text-sm font-medium text-slate-700">Total Working Days</Label>
-              <Input type="number" value={formData.total_days} disabled className="bg-slate-50 font-semibold" />
+              <Input type="number" value={formData.total_days} disabled className="font-semibold bg-slate-50" />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-700">Reason *</Label>
+            <Label className="text-sm font-medium text-slate-700">
+              Reason <span className="text-rose-600">*</span>
+            </Label>
             <Textarea
               value={formData.reason}
               onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))}
@@ -320,45 +326,79 @@ export default function LeaveOverviewFormCard({
             onHandoverNoteUrlChange={(url) => setFormData((prev) => ({ ...prev, handover_note_url: url }))}
           />
 
-          {(requiresAttachment || formData.attachment_url) && (
-            <div className="space-y-2 p-3.5 bg-slate-50 border rounded-lg border-slate-200">
-              <Label className="text-sm font-medium text-slate-700">
-                Supporting Document {requiresAttachment ? "* (Required)" : "(Optional)"}
-              </Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="file"
-                  id="attachment"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById("attachment")?.click()}
-                  disabled={uploadingFile}
-                  className="bg-white"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploadingFile ? "Uploading..." : "Upload Document"}
-                </Button>
-                {formData.attachment_url && (
-                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
-                    <Paperclip className="w-4 h-4" />
-                    Document attached
-                  </div>
-                )}
-                {requiresAttachment && !formData.attachment_url && (
-                  <span className="text-xs text-red-500">
-                    Document is required for this leave type.
-                  </span>
+          <div className="p-4 space-y-3 bg-slate-50/70 border rounded-xl border-slate-200/90">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-bold text-slate-800">Supporting Document</Label>
+                {requiresAttachment ? (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-rose-700 bg-rose-50 border-rose-200">
+                    Required *
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] font-normal text-slate-500 bg-slate-100">
+                    Optional
+                  </Badge>
                 )}
               </div>
             </div>
-          )}
+
+            <p className="text-xs text-slate-500">
+              {isPastLeave && requiresAttachment
+                ? "Supporting documentation (medical certificate, doctor's report, or formal verification) is required when logging past leave."
+                : requiresAttachment
+                ? "A supporting document (medical report, certificate, or official letter) is required for this leave type."
+                : "Attach any relevant supporting document or note for your leave record."}
+            </p>
+
+            <div className="pt-0.5">
+              <input
+                type="file"
+                id="attachment"
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              />
+
+              {formData.attachment_url ? (
+                <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2 truncate">
+                    <Paperclip className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-medium truncate">Document attached</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, attachment_url: "" }))}
+                    className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                    title="Remove attached document"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("attachment")?.click()}
+                    disabled={uploadingFile}
+                    className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs h-9"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    {uploadingFile ? "Uploading..." : "Upload Document"}
+                  </Button>
+                  {requiresAttachment && (
+                    <span className="text-xs text-rose-600 font-medium">
+                      {isPastLeave ? "Required for logging past leave" : "Required for this leave type"}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </form>
 
-        <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">
+        <DialogFooter className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>

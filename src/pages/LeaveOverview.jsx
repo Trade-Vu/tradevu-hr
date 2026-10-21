@@ -198,9 +198,21 @@ export default function LeaveOverview() {
     return new Date();
   };
 
-  const myRequests = leaveRequests.filter(r => r.employee_email === user?.email);
+  const isOwnLeaveRequest = (request) => {
+    const requestEmployeeId = getRefId(request.employeeId) || getRefId(request.employee_id);
+    const currentEmployeeId = getRefId(user?.employeeId) || getRefId(user?.employee);
+    const requestEmail = String(request.employee_email || request.employeeId?.email || '').toLowerCase();
+    const currentEmail = String(user?.email || '').toLowerCase();
+
+    return Boolean(
+      (requestEmployeeId && currentEmployeeId && requestEmployeeId === currentEmployeeId) ||
+      (requestEmail && currentEmail && requestEmail === currentEmail)
+    );
+  };
+
+  const myRequests = leaveRequests.filter(isOwnLeaveRequest);
   const pendingApprovals = leaveRequests.filter(r => {
-    if (r.employee_email === user?.email) return false;
+    if (isOwnLeaveRequest(r)) return false;
     if (!isPendingLeaveStatus(r.status)) return false;
     if (isManager && !isAdmin) {
       const hasManagerApproved = (r.approvers || r.approvalHistory || []).some(

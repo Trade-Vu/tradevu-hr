@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Calendar, FileText, Briefcase, Layers, UserCheck, UserX } from 'lucide-react';
+import { Edit, Trash2, Calendar, FileText, Briefcase, Layers, UserCheck, UserX, Paperclip } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatApprovalChain } from '@/lib/approvalSteps';
 import { toTitleCase } from '@/lib/utils';
@@ -133,6 +133,12 @@ export default function LeaveTypeCard({
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
                     <FileText className="w-3 h-3" />
                     Handover req.
+                  </span>
+                )}
+                {lt.requiresAttachment && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    <Paperclip className="w-3 h-3" />
+                    {lt.attachmentMinDays > 0 ? `Doc req. (>${lt.attachmentMinDays}d)` : 'Doc req.'}
                   </span>
                 )}
                 {isReliefOfficerRequired ? (

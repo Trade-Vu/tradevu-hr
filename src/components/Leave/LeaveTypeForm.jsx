@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import ApprovalStepsEditor from '@/components/approvals/ApprovalStepsEditor';
 import LeaveQuotaExceptionsEditor from './LeaveQuotaExceptionsEditor';
 import LeaveTargetingSection from './LeaveTargetingSection';
+import LeaveDocumentRequirementSection from './LeaveDocumentRequirementSection';
 import { DEFAULT_LEAVE_APPROVAL_STEPS } from '@/lib/approvalSteps';
 
 export default function LeaveTypeForm({
@@ -248,6 +249,9 @@ export default function LeaveTypeForm({
               }
             />
           </div>
+
+          {/* Supporting Document Requirement Section */}
+          <LeaveDocumentRequirementSection formData={formData} setFormData={setFormData} />
 
           {/* Approval Flow */}
           {formData.requiresApproval ? (
