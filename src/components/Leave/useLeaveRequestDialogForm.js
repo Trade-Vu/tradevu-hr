@@ -9,6 +9,7 @@ import {
   filterApplicableLeaveTypes,
   getEmployeeAllocatedLeaveDays,
   normalizeBalanceList,
+  isSupportingDocRequired,
 } from "./leaveEligibilityUtils";
 
 export function useLeaveRequestDialogForm({
@@ -231,6 +232,10 @@ export function useLeaveRequestDialogForm({
     setUploadingDoc(false);
   };
 
+  const isDocRequired = useMemo(() => {
+    return isSupportingDocRequired(selectedType, formData.total_days, false);
+  }, [selectedType, formData.total_days]);
+
   return {
     formData,
     setFormData,
@@ -246,5 +251,6 @@ export function useLeaveRequestDialogForm({
     targetEmployee,
     selectedBalance,
     employeeAllocatedDays,
+    isDocRequired,
   };
 }

@@ -245,13 +245,13 @@ export const generateHandoverTemplateHtml = () => {
 };
 
 /**
- * Triggers a browser download of the official Leave Handover Note template PDF
- * sourced directly from public/Leave Handover Note.pdf.
+ * Triggers a browser download of the official Leave Handover Note template DOCX
+ * sourced directly from public/Leave Handover Note.docx.
  */
 export const downloadHandoverTemplate = async () => {
   const basePath = import.meta.env.BASE_URL || '/';
-  const filePath = `${basePath.endsWith('/') ? basePath : `${basePath}/`}Leave Handover Note.pdf`;
-  const fileName = 'Leave Handover Note.pdf';
+  const filePath = `${basePath.endsWith('/') ? basePath : `${basePath}/`}Leave Handover Note.docx`;
+  const fileName = 'Leave Handover Note.docx';
 
   try {
     const response = await fetch(filePath);
@@ -268,7 +268,7 @@ export const downloadHandoverTemplate = async () => {
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    console.error('Error downloading handover template PDF, falling back to direct link:', error);
+    console.error('Error downloading handover template DOCX, falling back to direct link:', error);
     const link = document.createElement('a');
     link.href = filePath;
     link.download = fileName;

@@ -267,4 +267,16 @@ export function resolveDepartmentAndColleagues(employees = [], targetEmployee = 
   return { departmentName, colleagues };
 }
 
+/**
+ * Evaluates whether a supporting document is required based on the leave type's configuration,
+ * total requested days, and whether this is a past/retrospective leave request.
+ */
+export function isSupportingDocRequired(leaveType, totalDays = 0, isPastLeave = false) {
+  if (!leaveType?.requiresAttachment) return false;
+  const minDays = Number(leaveType.attachmentMinDays) || 0;
+  const requireForPast = leaveType.attachmentRequiredForPastLeave !== false;
 
+  if (isPastLeave && requireForPast) return true;
+  if (minDays === 0) return true;
+  return Number(totalDays) > minDays;
+}
