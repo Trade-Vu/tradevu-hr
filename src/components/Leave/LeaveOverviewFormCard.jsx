@@ -63,6 +63,8 @@ export default function LeaveOverviewFormCard({
     applicantEmployee,
     selectedBalance,
     applicantAllocatedDays,
+    maxAllowedDays,
+    exceedsBalance,
   } = useLeaveOverviewForm({
     user,
     isAdmin,
@@ -85,8 +87,6 @@ export default function LeaveOverviewFormCard({
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(" • ") : null;
   }, [applicantEmployee]);
-
-    console.log({ employeeClassificationLabel, applicantEmployee });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
@@ -293,9 +293,26 @@ export default function LeaveOverviewFormCard({
               </div>
             )}
 
-            <div className="col-span-1 space-y-2 md:col-span-2">
-              <Label className="text-sm font-medium text-slate-700">Total Working Days</Label>
-              <Input type="number" value={formData.total_days} disabled className="font-semibold bg-slate-50" />
+            <div className="col-span-1 space-y-1.5 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-slate-700">Total Working Days</Label>
+                {maxAllowedDays !== null && (
+                  <span className={`text-xs ${exceedsBalance ? "text-rose-600 font-semibold" : "text-slate-500"}`}>
+                    Available: <strong className="font-semibold">{maxAllowedDays} day(s)</strong>
+                  </span>
+                )}
+              </div>
+              <Input
+                type="number"
+                value={formData.total_days}
+                disabled
+                className={`font-semibold bg-slate-50 ${exceedsBalance ? "border-rose-400 text-rose-700 bg-rose-50/50" : ""}`}
+              />
+              {exceedsBalance && (
+                <p className="text-xs font-medium text-rose-600 flex items-center gap-1">
+                  Requested {formData.total_days} day(s) exceeds available limit of {maxAllowedDays ?? 0} day(s).
+                </p>
+              )}
             </div>
           </div>
 
@@ -343,9 +360,7 @@ export default function LeaveOverviewFormCard({
             </div>
 
             <p className="text-xs text-slate-500">
-              {isPastLeave && requiresAttachment
-                ? "Supporting documentation (medical certificate, doctor's report, or formal verification) is required when logging past leave."
-                : requiresAttachment
+              {requiresAttachment
                 ? "A supporting document (medical report, certificate, or official letter) is required for this leave type."
                 : "Attach any relevant supporting document or note for your leave record."}
             </p>
@@ -389,7 +404,7 @@ export default function LeaveOverviewFormCard({
                   </Button>
                   {requiresAttachment && (
                     <span className="text-xs text-rose-600 font-medium">
-                      {isPastLeave ? "Required for logging past leave" : "Required for this leave type"}
+                      Required for this leave request
                     </span>
                   )}
                 </div>
@@ -406,7 +421,7 @@ export default function LeaveOverviewFormCard({
             form="leave-request-form"
             type="submit"
             isLoading={isSubmitting}
-            disabled={!hasRequiredRequestData || isSubmitting}
+            disabled={!hasRequiredRequestData || exceedsBalance || isSubmitting}
           >
             {isPastLeave
               ? (isSubmitting ? "Logging Past Leave..." : "Log Past Leave")
