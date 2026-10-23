@@ -104,6 +104,16 @@ export function useLeaveOverviewForm({
     return getEmployeeAllocatedLeaveDays(selectedLeaveTypeObj, applicantEmployee);
   }, [selectedLeaveTypeObj, applicantEmployee]);
 
+  const maxAllowedDays = useMemo(() => {
+    if (typeof selectedBalance?.available === 'number') return selectedBalance.available;
+    return (applicantAllocatedDays !== undefined && applicantAllocatedDays > 0) ? applicantAllocatedDays : null;
+  }, [selectedBalance, applicantAllocatedDays]);
+
+  const exceedsBalance = useMemo(() => {
+    if (applicantAllocatedDays === 0) return true;
+    return maxAllowedDays !== null && formData.total_days > maxAllowedDays;
+  }, [maxAllowedDays, formData.total_days, applicantAllocatedDays]);
+
   const noticeDays = !isPastLeave && (selectedLeaveTypeObj?.hasNoticePeriod || (selectedLeaveTypeObj?.noticePeriodDays > 0) || (selectedLeaveTypeObj?.noticeDaysRequired > 0))
     ? (selectedLeaveTypeObj.noticePeriodDays || selectedLeaveTypeObj.noticeDaysRequired || 0)
     : 0;
@@ -274,17 +284,14 @@ export function useLeaveOverviewForm({
 
   const requiresAttachment = useMemo(() => {
     if (!selectedLeaveTypeObj) return false;
-    return Boolean(
-      isSupportingDocRequired(selectedLeaveTypeObj, formData.total_days, isPastLeave) ||
-      selectedLeaveTypeObj.name === "Study Leave" ||
-      (selectedLeaveTypeObj.name === "Sick Leave" && formData.total_days > 2)
-    );
-  }, [selectedLeaveTypeObj, formData.total_days, isPastLeave]);
+    return Boolean(isSupportingDocRequired(selectedLeaveTypeObj, formData.total_days));
+  }, [selectedLeaveTypeObj, formData.total_days]);
 
   const hasRequiredRequestData = Boolean(
     formData.leave_type &&
     formData.reason.trim() &&
     formData.total_days > 0 &&
+    !exceedsBalance &&
     (formData.useMultipleDates
       ? formData.selectedDates.length > 0
       : formData.start_date && formData.end_date) &&
@@ -302,17 +309,12 @@ export function useLeaveOverviewForm({
     }
 
     if (!isPastLeave && noticeDays > 0 && minAllowedDate) {
-      if (formData.useMultipleDates) {
-        const invalidDate = formData.selectedDates.find((d) => d < minAllowedDate);
-        if (invalidDate) {
-          toast.error(`Date ${invalidDate} is within the ${noticeDays}-day notice period. Earliest date allowed is ${minAllowedDate}.`);
-          return;
-        }
-      } else {
-        if (formData.start_date < minAllowedDate) {
-          toast.error(`Start date cannot be earlier than ${minAllowedDate} due to the ${noticeDays}-day notice period.`);
-          return;
-        }
+      const invalidDate = formData.useMultipleDates
+        ? formData.selectedDates.find((d) => d < minAllowedDate)
+        : (formData.start_date < minAllowedDate ? formData.start_date : null);
+      if (invalidDate) {
+        toast.error(`Date ${invalidDate} is within the ${noticeDays}-day notice period. Earliest date allowed is ${minAllowedDate}.`);
+        return;
       }
     }
 
@@ -331,24 +333,16 @@ export function useLeaveOverviewForm({
       return;
     }
 
-    // Enforce that Super Admin / Admin cannot override configured or available days
-    if (selectedBalance && typeof selectedBalance.available === 'number') {
-      if (formData.total_days > selectedBalance.available) {
-        const pendingNote = selectedBalance.pending > 0
-          ? ` (${selectedBalance.pending} day(s) currently pending approval)`
-          : "";
-        toast.error(`You cannot request ${formData.total_days} days. This employee only has ${selectedBalance.available} day(s) available for this leave type${pendingNote}.`);
-        return;
-      }
-    } else if (applicantAllocatedDays !== undefined && applicantAllocatedDays > 0) {
-      if (formData.total_days > applicantAllocatedDays) {
-        toast.error(`You cannot request ${formData.total_days} days. Policy allows a maximum of ${applicantAllocatedDays} day(s) for this leave type.`);
-        return;
-      }
-    }
-
     if (applicantAllocatedDays === 0) {
       toast.error(`This employee is not eligible for ${selectedLeaveTypeObj?.name || 'this leave type'} (0 days allocated).`);
+      return;
+    }
+
+    if (exceedsBalance && maxAllowedDays !== null) {
+      const pendingNote = selectedBalance?.pending > 0
+        ? ` (${selectedBalance.pending} day(s) currently pending approval)`
+        : "";
+      toast.error(`You cannot request ${formData.total_days} days. Policy allows a maximum of ${maxAllowedDays} day(s)${pendingNote}.`);
       return;
     }
 
@@ -395,6 +389,8 @@ export function useLeaveOverviewForm({
     applicantEmployee,
     selectedBalance,
     applicantAllocatedDays,
+    maxAllowedDays,
+    exceedsBalance,
     isLoadingApplicantBalances,
   };
 }

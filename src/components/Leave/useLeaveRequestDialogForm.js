@@ -18,6 +18,7 @@ export function useLeaveRequestDialogForm({
   employees = [],
   leaveTypes = [],
   publicHolidays = [],
+  isPastLeave = false,
 }) {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [formData, setFormData] = useState({
@@ -233,8 +234,18 @@ export function useLeaveRequestDialogForm({
   };
 
   const isDocRequired = useMemo(() => {
-    return isSupportingDocRequired(selectedType, formData.total_days, false);
+    return isSupportingDocRequired(selectedType, formData.total_days);
   }, [selectedType, formData.total_days]);
+
+  const maxAllowedDays = useMemo(() => {
+    if (typeof selectedBalance?.available === 'number') return selectedBalance.available;
+    return (employeeAllocatedDays !== undefined && employeeAllocatedDays > 0) ? employeeAllocatedDays : null;
+  }, [selectedBalance, employeeAllocatedDays]);
+
+  const exceedsBalance = useMemo(() => {
+    if (employeeAllocatedDays === 0) return true;
+    return maxAllowedDays !== null && formData.total_days > maxAllowedDays;
+  }, [maxAllowedDays, formData.total_days, employeeAllocatedDays]);
 
   return {
     formData,
@@ -251,6 +262,8 @@ export function useLeaveRequestDialogForm({
     targetEmployee,
     selectedBalance,
     employeeAllocatedDays,
+    maxAllowedDays,
+    exceedsBalance,
     isDocRequired,
   };
 }

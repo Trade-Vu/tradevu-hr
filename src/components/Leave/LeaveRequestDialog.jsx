@@ -35,6 +35,7 @@ export default function LeaveRequestDialog({
   publicHolidays = [],
   onSubmit,
   isSubmitting = false,
+  isPastLeave = false,
 }) {
   const {
     formData,
@@ -50,6 +51,8 @@ export default function LeaveRequestDialog({
     availableLeaveTypes,
     selectedBalance,
     employeeAllocatedDays,
+    maxAllowedDays,
+    exceedsBalance,
     isDocRequired,
   } = useLeaveRequestDialogForm({
     open,
@@ -57,6 +60,7 @@ export default function LeaveRequestDialog({
     employees,
     leaveTypes,
     publicHolidays,
+    isPastLeave,
   });
 
   const isHandoverCompulsory = Boolean(
@@ -326,9 +330,26 @@ export default function LeaveRequestDialog({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Total Working Days</Label>
-            <Input type="number" value={formData.total_days} disabled className="bg-slate-50" />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Total Working Days</Label>
+              {maxAllowedDays !== null && (
+                <span className={`text-xs ${exceedsBalance ? "text-rose-600 font-semibold" : "text-slate-500"}`}>
+                  Available: <strong className="font-semibold">{maxAllowedDays} day(s)</strong>
+                </span>
+              )}
+            </div>
+            <Input
+              type="number"
+              value={formData.total_days}
+              disabled
+              className={`bg-slate-50 ${exceedsBalance ? "border-rose-400 text-rose-700 bg-rose-50/50" : ""}`}
+            />
+            {exceedsBalance && (
+              <p className="text-xs font-medium text-rose-600 flex items-center gap-1">
+                Requested {formData.total_days} day(s) exceeds available limit of {maxAllowedDays ?? 0} day(s).
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -421,7 +442,7 @@ export default function LeaveRequestDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || exceedsBalance || formData.total_days <= 0}>
               {isSubmitting ? "Submitting..." : editingLeave ? "Update Request" : "Submit Request"}
             </Button>
           </div>

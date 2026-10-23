@@ -208,7 +208,7 @@ export default function AllLeaveRequests() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="min-h-screen p-4 bg-gradient-to-br from-slate-50 to-indigo-50/30 md:p-8"
+      className="min-h-screen p-4"
     >
       <div className="mx-auto space-y-8 max-w-7xl">
         <motion.div variants={itemVariants} className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
