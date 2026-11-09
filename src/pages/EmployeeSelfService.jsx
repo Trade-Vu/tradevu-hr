@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
+import { User, ArrowLeft, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { payrollApi } from "@/api";
@@ -10,17 +10,14 @@ import { isSuperAdmin } from "@/lib/roleUtils";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import EmployeeSelfServiceAlerts from "@/components/employee-self-service/EmployeeSelfServiceAlerts";
-import EmployeeSelfServiceQuickStats from "@/components/employee-self-service/EmployeeSelfServiceQuickStats";
+import EmployeeDashboardHeader from "@/components/employee-self-service/EmployeeDashboardHeader";
 import EmployeeSelfServiceTabs from "@/components/employee-self-service/EmployeeSelfServiceTabs";
 import useEmployeeSelfService from "@/hooks/employee-self-service/useEmployeeSelfService";
 import { getSortedStatusHistory } from "@/components/employee-self-service/employeeSelfServiceUtils.jsx";
-import OnboardingTab from "@/components/employee-self-service/tabs/OnboardingTab";
+import OverviewTab from "@/components/employee-self-service/tabs/OverviewTab";
 import ProfileTab from "@/components/employee-self-service/tabs/ProfileTab";
 import PayslipsTab from "@/components/employee-self-service/tabs/PayslipsTab";
-import LeaveTab from "@/components/employee-self-service/tabs/LeaveTab";
-import AttendanceTab from "@/components/employee-self-service/tabs/AttendanceTab";
 import AssetsTab from "@/components/employee-self-service/tabs/AssetsTab";
-import ExpensesTab from "@/components/employee-self-service/tabs/ExpensesTab";
 import DocumentsTab from "@/components/employee-self-service/tabs/DocumentsTab";
 import JobHistoryTab from "@/components/employee-self-service/tabs/JobHistoryTab";
 
@@ -31,9 +28,77 @@ const itemVariants = {
 
 export default function EmployeeSelfService() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isLoadingAuth } = useAuth();
   const service = useEmployeeSelfService();
-  const [activeTab, setActiveTab] = useState("profile");
+
+  const dossierTabs = ["profile", "documents", "payslips", "assets", "job-history"];
+  const validTabs = ["overview", ...dossierTabs];
+
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    validTabs.includes(tabParam) ? tabParam : "overview"
+  );
+
+  useEffect(() => {
+    const current = searchParams.get("tab");
+    // Seamless redirect for workflow tabs that live in dedicated sidebar pages
+    if (current === "leave") {
+      navigate(PAGE_ROUTES.LEAVE_MANAGEMENT, { replace: true });
+      return;
+    }
+    if (current === "expenses") {
+      navigate(PAGE_ROUTES.EXPENSES, { replace: true });
+      return;
+    }
+    if (current === "attendance") {
+      navigate(PAGE_ROUTES.ATTENDANCE, { replace: true });
+      return;
+    }
+    if (current === "onboarding") {
+      navigate(PAGE_ROUTES.TASK_MANAGER, { replace: true });
+      return;
+    }
+    if (current && validTabs.includes(current) && current !== activeTab) {
+      setActiveTab(current);
+    } else if (!current && activeTab !== "overview") {
+      setActiveTab("overview");
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (newTab) => {
+    if (newTab === "leave") {
+      navigate(PAGE_ROUTES.LEAVE_MANAGEMENT);
+      return;
+    }
+    if (newTab === "expenses") {
+      navigate(PAGE_ROUTES.EXPENSES);
+      return;
+    }
+    if (newTab === "attendance") {
+      navigate(PAGE_ROUTES.ATTENDANCE);
+      return;
+    }
+    if (newTab === "onboarding") {
+      navigate(PAGE_ROUTES.TASK_MANAGER);
+      return;
+    }
+
+    setActiveTab(newTab);
+    setSearchParams(
+      (prev) => {
+        const updated = new URLSearchParams(prev);
+        if (newTab === "overview") {
+          updated.delete("tab");
+        } else {
+          updated.set("tab", newTab);
+        }
+        return updated;
+      },
+      { replace: true }
+    );
+  };
+
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const { employee, employeeId, isLoadingEmployee, leaveTypes, leaveBalances, attendance, myTasks, documents } =
     service;
@@ -130,13 +195,14 @@ export default function EmployeeSelfService() {
     <div className="relative min-h-screen p-8 -m-4 md:-m-8">
       <motion.div className="mx-auto space-y-8 max-w-7xl" initial="hidden" animate="visible">
         <motion.div variants={itemVariants}>
-          <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 border rounded-full shadow-sm bg-white/80 border-slate-200/60">
-            <User className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-medium text-slate-700">Employee Self-Service</span>
-          </div>
-          <p className="text-lg text-slate-600">
-            Manage your profile, view documents, and track your information
-          </p>
+          <EmployeeDashboardHeader
+            user={user}
+            employee={employee}
+            pendingTasksCount={service.pendingTasksCount}
+            isDraft={isDraft}
+            isPendingApproval={isPendingApproval}
+            onNavigateTab={handleTabChange}
+          />
         </motion.div>
         <EmployeeSelfServiceAlerts
           pendingTasksCount={service.pendingTasksCount}
@@ -152,111 +218,118 @@ export default function EmployeeSelfService() {
           onViewTasks={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
           onCompleteAll={service.handleCompleteAll}
           onSubmitForReview={submitForReview}
-          onOpenOnboarding={() => setActiveTab("onboarding")}
+          onOpenOnboarding={() => handleTabChange("onboarding")}
           notifications={service.dashboardNotifications}
           onDismissNotification={(id) => service.markNotificationReadMutation.mutate(id)}
         />
         <motion.div variants={itemVariants}>
-          <EmployeeSelfServiceQuickStats
-            stats={[
-              {
-                key: "leave",
-                value: totalLeaveRemaining,
-                label: "Leave Days Remaining",
-                clickable: true,
-              },
-              {
-                key: "attendance",
-                value: monthAttendance.filter((item) => item.status === "present").length,
-                label: "Days Present This Month",
-              },
-              { key: "assets", value: service.assets.length, label: "Assigned Assets" },
-              {
-                key: "expenses",
-                value: service.expenses.filter((item) => item.status === "pending").length,
-                label: "Pending Expenses",
-              },
-            ]}
-            onLeaveClick={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
-          />
-        </motion.div>
-        <motion.div variants={itemVariants}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <div className="overflow-x-auto hidden-scrollbar">
-              <EmployeeSelfServiceTabs pendingTasksCount={service.pendingTasksCount} />
+          {activeTab === "overview" ? (
+            <OverviewTab
+              employee={employee}
+              totalLeaveRemaining={totalLeaveRemaining}
+              monthAttendance={monthAttendance}
+              latestPayroll={service.payrolls?.[0] || null}
+              pendingTasksCount={service.pendingTasksCount}
+              leaveRequests={service.leaveRequests}
+              expenses={service.expenses}
+              payrolls={service.payrolls}
+              onNavigateTab={handleTabChange}
+              onDownloadPayslip={downloadPayslip}
+              isLoading={isLoadingEmployee}
+            />
+          ) : (
+            <div className="space-y-6">
+              {/* Dossier Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs">
+                <div>
+                  <button
+                    onClick={() => handleTabChange("overview")}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-2 cursor-pointer group"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+                    <span>Back to Overview Dashboard</span>
+                  </button>
+                  <h2 className="text-xl sm:text-2xl font-bold font-heading text-slate-900 tracking-tight">
+                    My Profile & Records
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Manage your personal information, employment documents, payslips, and company assets.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTabChange("overview")}
+                    className="text-xs h-9 rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50 gap-1.5 font-medium cursor-pointer"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Dashboard</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Dossier Tabs */}
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+                <div className="overflow-x-auto hidden-scrollbar">
+                  <EmployeeSelfServiceTabs />
+                </div>
+
+                <TabsContent value="profile" className="mt-0 outline-none">
+                  <ProfileTab
+                    employee={employee}
+                    isDraft={isDraft}
+                    isPendingApproval={isPendingApproval}
+                    isEditing={isEditing}
+                    editData={editData}
+                    isSaving={service.updateEmployeeMutation.isPending}
+                    isSubmitting={service.submitProfileMutation.isPending}
+                    onEdit={() => setIsEditing(true)}
+                    onCancel={() => {
+                      setEditData(employee);
+                      setIsEditing(false);
+                    }}
+                    onChange={(key, value) => setEditData((old) => ({ ...old, [key]: value }))}
+                    onSave={service.handleSave}
+                    onSubmit={submitForReview}
+                  />
+                </TabsContent>
+
+                <TabsContent value="documents" className="mt-0 outline-none">
+                  <DocumentsTab
+                    documents={documents}
+                    employeeId={employeeId}
+                    isOpen={service.isUploadOpen}
+                    onOpenChange={service.setIsUploadOpen}
+                    uploadData={uploadData}
+                    setUploadData={service.setUploadData}
+                    isUploading={service.isUploadingToCloudinary}
+                    isPending={service.uploadDocumentMutation.isPending}
+                    onUpload={uploadDocument}
+                    uploadingDocId={service.uploadingDocId}
+                    onFulfill={service.handleFulfillDocument}
+                  />
+                </TabsContent>
+
+                <TabsContent value="payslips" className="mt-0 outline-none">
+                  <PayslipsTab
+                    payrolls={service.payrolls}
+                    isDownloading={isGeneratingPdf}
+                    onDownload={downloadPayslip}
+                  />
+                </TabsContent>
+
+                <TabsContent value="assets" className="mt-0 outline-none">
+                  <AssetsTab assets={service.assets} />
+                </TabsContent>
+
+                <TabsContent value="job-history" className="mt-0 outline-none">
+                  <JobHistoryTab employee={employee} statusHistory={statusHistory} />
+                </TabsContent>
+              </Tabs>
             </div>
-            <TabsContent value="onboarding">
-              <OnboardingTab
-                tasks={myTasks}
-                pendingTasksCount={service.pendingTasksCount}
-                isCompleting={service.completeAllMutation.isPending}
-                onCompleteAll={service.handleCompleteAll}
-                onOpenTaskManager={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
-                onToggleTask={service.toggleTaskMutation.mutate}
-              />
-            </TabsContent>
-            <TabsContent value="profile">
-              <ProfileTab
-                employee={employee}
-                isDraft={isDraft}
-                isPendingApproval={isPendingApproval}
-                isEditing={isEditing}
-                editData={editData}
-                isSaving={service.updateEmployeeMutation.isPending}
-                isSubmitting={service.submitProfileMutation.isPending}
-                onEdit={() => setIsEditing(true)}
-                onCancel={() => {
-                  setEditData(employee);
-                  setIsEditing(false);
-                }}
-                onChange={(key, value) => setEditData((old) => ({ ...old, [key]: value }))}
-                onSave={service.handleSave}
-                onSubmit={submitForReview}
-              />
-            </TabsContent>
-            <TabsContent value="payslips">
-              <PayslipsTab
-                payrolls={service.payrolls}
-                isDownloading={isGeneratingPdf}
-                onDownload={downloadPayslip}
-              />
-            </TabsContent>
-            <TabsContent value="leave">
-              <LeaveTab
-                balances={leaveBalances}
-                leaveTypes={leaveTypes}
-                requests={service.leaveRequests}
-                onOpenLeave={() => navigate(PAGE_ROUTES.LEAVE_MANAGEMENT)}
-              />
-            </TabsContent>
-            <TabsContent value="attendance">
-              <AttendanceTab attendance={attendance} />
-            </TabsContent>
-            <TabsContent value="assets">
-              <AssetsTab assets={service.assets} />
-            </TabsContent>
-            <TabsContent value="expenses">
-              <ExpensesTab expenses={service.expenses} />
-            </TabsContent>
-            <TabsContent value="documents">
-              <DocumentsTab
-                documents={documents}
-                employeeId={employeeId}
-                isOpen={service.isUploadOpen}
-                onOpenChange={service.setIsUploadOpen}
-                uploadData={uploadData}
-                setUploadData={service.setUploadData}
-                isUploading={service.isUploadingToCloudinary}
-                isPending={service.uploadDocumentMutation.isPending}
-                onUpload={uploadDocument}
-                uploadingDocId={service.uploadingDocId}
-                onFulfill={service.handleFulfillDocument}
-              />
-            </TabsContent>
-            <TabsContent value="job-history">
-              <JobHistoryTab employee={employee} statusHistory={statusHistory} />
-            </TabsContent>
-          </Tabs>
+          )}
         </motion.div>
       </motion.div>
     </div>

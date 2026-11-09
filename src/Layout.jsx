@@ -1,37 +1,52 @@
 // @ts-nocheck
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PAGE_ROUTES } from "@/constants/pageRoutes";
 import { 
-  LayoutDashboard, Users, FileText, BarChart3, UserCircle, LogOut, Menu,
+  LayoutDashboard, Users, FileText, BarChart3, UserCircle, LogOut,
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
   MessageSquare, Settings, CheckSquare, Plane, MessageCircle, Home,
-  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Moon, Sun, Search, Clock, CalendarRange,
-  LayoutDashboardIcon,
-  Paperclip,
-  BookTemplate
+  Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Clock, CalendarRange,
+  BookTemplate, ChevronRight, ChevronsUpDown, User
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { organizationsApi, approvalsApi } from "@/api";
 import { isAdmin, isSuperAdmin, isHrAdmin, hasAdminPrivileges, isManager } from "@/lib/roleUtils";
 import { usePendingApprovalsStream } from "@/hooks/usePendingApprovalsStream";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarRail,
+  SidebarTrigger,
+  SidebarInset,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
 
 const navigationStructure = [
   {
@@ -39,7 +54,6 @@ const navigationStructure = [
     icon: LayoutDashboard,
     isParent: true,
     children: [
-      // { title: "Dashboard", url: PAGE_ROUTES.DASHBOARD, icon: LayoutDashboardIcon },
       { title: "Overview", url: PAGE_ROUTES.HOME, icon: LayoutDashboard },
       { title: "Approvals", url: PAGE_ROUTES.PENDING_APPROVALS, icon: CheckCircle },
       import.meta.env.DEV && { title: "Assets", url: PAGE_ROUTES.ASSETS, icon: Laptop },
@@ -52,7 +66,6 @@ const navigationStructure = [
     isParent: true,
     children: [
       { title: "All Employees", url: PAGE_ROUTES.EMPLOYEES, icon: Users },
-      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
       { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
       { title: "HR Letter Requests", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
       import.meta.env.DEV && { title: "Attendance", url: PAGE_ROUTES.ATTENDANCE, icon: Calendar },
@@ -72,67 +85,17 @@ const navigationStructure = [
       { title: "Expenses", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
     ]
   },
-  // {
-  //   title: "Recruitment",
-  //   icon: UserPlus,
-  //   isParent: true,
-  //   children: [
-  //     { title: "Job Postings", url: PAGE_ROUTES.RECRUITMENT, icon: UserPlus },
-  //     { title: "Onboarding", url: PAGE_ROUTES.TEMPLATES, icon: CheckCircle },
-  //     { title: "Offboarding", url: PAGE_ROUTES.OFFBOARDING, icon: CheckCircle },
-  //   ]
-  // },
-  // import.meta.env.DEV && {
-  //   title: "Training LMS",
-  //   icon: Video,
-  //   isParent: true,
-  //   children: [
-  //     { title: "Training", url: PAGE_ROUTES.TRAINING, icon: Video },
-  //     { title: "Evaluations", url: PAGE_ROUTES.EVALUATIONS, icon: ClipboardCheck },
-  //   ]
-  // },
-  // import.meta.env.DEV && isFeatureEnabled('PERFORMANCE_MODULE') && {
-  //   title: "Performance",
-  //   icon: Target,
-  //   isParent: true,
-  //   children: [
-  //     { title: "Reviews", url: PAGE_ROUTES.PERFORMANCE, icon: Target }
-  //   ]
-  // },
-  // import.meta.env.DEV && {
-  //   title: "Compliance",
-  //   icon: ShieldCheck,
-  //   isParent: true,
-  //   children: [
-  //     { title: "AI Compliance Monitor", url: PAGE_ROUTES.COMPLIANCE_DASHBOARD, icon: ShieldCheck },
-  //     { title: "Knowledge Bank", url: PAGE_ROUTES.KNOWLEDGE_BANK, icon: BookOpen },
-  //     { title: "HR Letters", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
-  //     { title: "Surveys", url: PAGE_ROUTES.SURVEYS, icon: MessageSquare },
-  //     { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: FileText },
-  //   ]
-  // },
-  // import.meta.env.DEV && {
-  //   title: "Analytics",
-  //   icon: BarChart3,
-  //   isParent: true,
-  //   children: [
-  //     { title: "Analytics", url: PAGE_ROUTES.ANALYTICS, icon: BarChart3 },
-  //     { title: "Advanced Analytics", url: PAGE_ROUTES.ADVANCED_ANALYTICS, icon: TrendingUp },
-  //     { title: "Organogram", url: PAGE_ROUTES.ORGANOGRAM, icon: Users },
-  //   ]
-  // },
-
 ].filter(Boolean);
 
 const employeeNavigation = [
   {
-    title: "Home",
-    icon: Home,
+    title: "Dashboard",
+    icon: LayoutDashboard,
     isParent: true,
     children: [
-      { title: "My Portal", url: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, icon: Briefcase },
+      { title: "Overview", url: PAGE_ROUTES.EMPLOYEE_SELF_SERVICE, icon: LayoutDashboard },
+      { title: "My Profile", url: `${PAGE_ROUTES.EMPLOYEE_SELF_SERVICE}?tab=profile`, icon: User },
       { title: "My Tasks", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
-      // import.meta.env.DEV && isFeatureEnabled('CHAT_MODULE') && { title: "Chat", url: PAGE_ROUTES.CHAT, icon: MessageCircle },
     ].filter(Boolean)
   },
   {
@@ -143,25 +106,150 @@ const employeeNavigation = [
       { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
       { title: "My Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
       { title: "Expense Claims", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
-      { title: "Request HR Letter", url: PAGE_ROUTES.HR_LETTERS, icon: FileText },
     ]
   },
-  // import.meta.env.DEV && {
-  //   title: "Training",
-  //   icon: Video,
-  //   isParent: true,
-  //   children: [
-  //     { title: "My Training", url: PAGE_ROUTES.TRAINING, icon: Video },
-  //   ]
-  // }
 ].filter(Boolean);
 
-export default function Layout({ children }) {
+/**
+ * Interactive Sub-Link with cursor-tracking spotlight animation matching dashboard cards
+ * and dark navy blue background for the selected item.
+ */
+function SidebarSubLink({ to, title, icon: Icon, badge, isActive }) {
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <Link
+      to={to}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn(
+        "relative w-full h-8 px-2.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-between overflow-hidden outline-none",
+        isActive
+          ? "bg-[#0f172a] text-white shadow-xs font-semibold"
+          : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+      )}
+    >
+      {/* Dashboard Card Spotlight Hover Effect */}
+      {isActive && hovered && (
+        <span
+          className="pointer-events-none absolute -inset-px rounded-lg opacity-100 transition-opacity duration-200 z-0"
+          style={{
+            background: `radial-gradient(90px circle at ${pos.x}px ${pos.y}px, rgba(99, 102, 241, 0.45), transparent 80%)`,
+          }}
+        />
+      )}
+      {!isActive && hovered && (
+        <span
+          className="pointer-events-none absolute -inset-px rounded-lg opacity-100 transition-opacity duration-200 z-0"
+          style={{
+            background: `radial-gradient(90px circle at ${pos.x}px ${pos.y}px, rgba(79, 70, 229, 0.08), transparent 80%)`,
+          }}
+        />
+      )}
+
+      <span className="flex items-center gap-2 truncate relative z-10">
+        <Icon
+          className={cn(
+            "w-3.5 h-3.5 shrink-0 transition-colors",
+            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+          )}
+        />
+        <span className="truncate">{title}</span>
+      </span>
+
+      {badge && (
+        <span
+          className={cn(
+            "px-1.5 py-0.2 rounded-full text-[10px] font-bold ml-1 relative z-10",
+            isActive
+              ? "bg-rose-500 text-white"
+              : "bg-rose-50 text-rose-700 border border-rose-200/60"
+          )}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/**
+ * Collapsed Icon Button with cursor-tracking spotlight and dark navy selected state
+ */
+const CollapsedMenuButton = React.forwardRef(({ item, hasActiveChild, tooltip, ...props }, ref) => {
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
+  const Icon = item.icon;
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <SidebarMenuButton
+      ref={ref}
+      tooltip={tooltip}
+      isActive={hasActiveChild}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn(
+        "relative w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all duration-200 outline-none overflow-hidden",
+        hasActiveChild
+          ? "!bg-[#0f172a] !text-white shadow-sm font-semibold data-[active=true]:!bg-[#0f172a] data-[active=true]:!text-white"
+          : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
+      )}
+      {...props}
+    >
+      {/* Dashboard Card Spotlight Hover Effect */}
+      {hasActiveChild && hovered && (
+        <span
+          className="pointer-events-none absolute -inset-px rounded-xl opacity-100 transition-opacity duration-200 z-0"
+          style={{
+            background: `radial-gradient(70px circle at ${pos.x}px ${pos.y}px, rgba(99, 102, 241, 0.45), transparent 80%)`,
+          }}
+        />
+      )}
+      {!hasActiveChild && hovered && (
+        <span
+          className="pointer-events-none absolute -inset-px rounded-xl opacity-100 transition-opacity duration-200 z-0"
+          style={{
+            background: `radial-gradient(70px circle at ${pos.x}px ${pos.y}px, rgba(79, 70, 229, 0.12), transparent 80%)`,
+          }}
+        />
+      )}
+
+      <Icon
+        className={cn(
+          "w-5 h-5 shrink-0 relative z-10 transition-colors",
+          hasActiveChild ? "!text-white" : "text-slate-600"
+        )}
+      />
+
+      {item.badge && (
+        <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-xs z-20">
+          {item.badge}
+        </span>
+      )}
+    </SidebarMenuButton>
+  );
+});
+CollapsedMenuButton.displayName = "CollapsedMenuButton";
+
+function LayoutInner({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, viewMode, changeViewMode } = useAuth();
-  const [theme, setTheme] = useState(() => localStorage.getItem("sidebarTheme") || "dark");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const handleLogout = async () => {
     try {
@@ -172,41 +260,19 @@ export default function Layout({ children }) {
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem("sidebarTheme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === "dark" ? "light" : "dark");
-  const isDark = theme === "dark";
-  
-  const isEmployee = !!user?.employeeId;
-
-  const { data: organization } = useQuery({
-    queryKey: ['myOrganization', user?.organizationId],
-    queryFn: () => organizationsApi.getMyOrganization(),
-    enabled: !!user?.organizationId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Section picked by clicking a rail icon, tagged with the pathname it was picked on so it
-  // expires on its own once the user navigates (no reset effect / extra render needed).
-  const [manualPrimary, setManualPrimary] = useState(null); // { title, pathname }
-  // Last section the URL matched, so routes that aren't in the nav (e.g. /employeedetail)
-  // keep showing the section the user came from instead of jumping back to navItems[0].
-  const [lastMatchedTitle, setLastMatchedTitle] = useState(null);
-
   const userIsAdmin = isAdmin(user);
   const userIsSuperAdmin = isSuperAdmin(user);
   const userIsHrAdmin = isHrAdmin(user);
   const userHasPrivileges = hasAdminPrivileges(user);
+  const userIsManager = isManager(user);
+  const canSwitchViews = userIsHrAdmin && !userIsSuperAdmin;
+  const canSeeAdminViews = userIsSuperAdmin || (userIsAdmin && (viewMode === 'ADMIN' || !viewMode));
 
   const pendingCountsStreamEnabled = !!user?.organizationId && userHasPrivileges;
   const { data: pendingData } = useQuery({
     queryKey: ['pendingApprovalsCount'],
     queryFn: () => approvalsApi.getPendingCounts(),
     enabled: pendingCountsStreamEnabled,
-    // Live updates arrive via usePendingApprovalsStream (SSE) below; this interval is just a
-    // safety net for dropped connections or an emit site that was missed, not the primary path.
     refetchInterval: 60000,
   });
   usePendingApprovalsStream(pendingCountsStreamEnabled);
@@ -216,316 +282,476 @@ export default function Layout({ children }) {
   const pendingLeaveCount = pendingData?.pendingLeaveCount || 0;
   const pendingProfilesCount = pendingData?.pendingProfilesCount || 0;
 
-  // The SUPER_ADMIN should only have an adminView and they should not have the choice to select the employee view.
-  // ONLY the HR_ADMIN can have the option to switch between views.
-  const canSwitchViews = userIsHrAdmin && !userIsSuperAdmin;
-  const userIsManager = isManager(user);
+  // Build base navigation items according to role
+  const baseNavItems = useMemo(() => {
+    let items = canSeeAdminViews ? [...navigationStructure] : [...employeeNavigation];
+    if (canSeeAdminViews) {
+      items.push({
+        title: "Settings",
+        icon: Settings,
+        isParent: true,
+        children: [
+          { title: "General Settings", url: PAGE_ROUTES.SETTINGS, icon: Settings },
+          { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
+          { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
+          { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
+          { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
+          { title: "Employment", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
+          { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
+          { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
+          { title: "Audit Logs", url: PAGE_ROUTES.AUDIT_LOGS, icon: ShieldCheck }
+        ]
+      });
+    }
+    return items;
+  }, [canSeeAdminViews]);
 
-  // Determine if the user is allowed to see admin views (SUPER_ADMIN always sees admin views)
-  const canSeeAdminViews = userIsSuperAdmin || (userIsAdmin && (viewMode === 'ADMIN' || !viewMode));
-
-  let baseNavItems = canSeeAdminViews
-    ? [...navigationStructure]
-    : [...employeeNavigation];
-
-  // Append settings if admin and allowed to see admin views
-  if (canSeeAdminViews) {
-    baseNavItems.push({
-      title: "Settings",
-      icon: Settings,
-      isParent: true,
-      children: [
-        { title: "General Settings", url: PAGE_ROUTES.SETTINGS, icon: Settings },
-        { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
-        { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
-        { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
-        { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
-        { title: "Employment", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
-        { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
-        { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
-        { title: "Audit Logs", url: PAGE_ROUTES.AUDIT_LOGS, icon: ShieldCheck }
-      ]
+  // Enrich items with live count badges
+  const navItems = useMemo(() => {
+    return baseNavItems.map(item => {
+      if (item.title === "Dashboard" || item.title === "Home") {
+        const pendingCount = canSeeAdminViews ? totalApprovalsCount : 0;
+        return {
+          ...item,
+          badge: pendingCount > 0 ? pendingCount : undefined,
+          children: item.children.map(child => {
+            if (child.title === "Approvals") {
+              return { ...child, badge: pendingCount > 0 ? pendingCount : undefined };
+            }
+            return child;
+          })
+        };
+      }
+      if (item.title === "Recruitment") {
+        return {
+          ...item,
+          badge: pendingOffboardingCount > 0 ? pendingOffboardingCount : undefined,
+          children: item.children.map(child => {
+            if (child.title === "Offboarding") {
+              return { ...child, badge: pendingOffboardingCount > 0 ? pendingOffboardingCount : undefined };
+            }
+            return child;
+          })
+        };
+      }
+      if (item.title === "Employees") {
+        const empBadgeCount = pendingLeaveCount + pendingProfilesCount;
+        return {
+          ...item,
+          badge: empBadgeCount > 0 ? empBadgeCount : undefined,
+          children: item.children.map(child => {
+            if (child.title === "Leave Management" && pendingLeaveCount > 0) {
+              return { ...child, badge: pendingLeaveCount };
+            }
+            return child;
+          })
+        };
+      }
+      if (item.title === "HR & Finance") {
+        const hrBadgeCount = userIsManager ? pendingLeaveCount : 0;
+        return {
+          ...item,
+          badge: hrBadgeCount > 0 ? hrBadgeCount : undefined,
+          children: item.children.map(child => {
+            if (child.title === "Leave Management" && hrBadgeCount > 0) {
+              return { ...child, badge: hrBadgeCount };
+            }
+            return child;
+          })
+        };
+      }
+      return item;
     });
-  }
+  }, [baseNavItems, canSeeAdminViews, totalApprovalsCount, pendingOffboardingCount, pendingLeaveCount, pendingProfilesCount, userIsManager]);
 
-  const navItems = baseNavItems.map(item => {
-    if (item.title === "Dashboard" || item.title === "Home") {
-      const pendingCount = canSeeAdminViews ? totalApprovalsCount : 0;
-      return {
-        ...item,
-        badge: pendingCount > 0 ? pendingCount : undefined,
-        children: item.children.map(child => {
-          if (child.title === "Approvals") {
-            return { ...child, badge: pendingCount > 0 ? pendingCount : undefined };
-          }
-          return child;
-        })
-      };
-    }
-    if (item.title === "Recruitment") {
-      return {
-        ...item,
-        badge: pendingOffboardingCount > 0 ? pendingOffboardingCount : undefined,
-        children: item.children.map(child => {
-          if (child.title === "Offboarding") {
-            return { ...child, badge: pendingOffboardingCount > 0 ? pendingOffboardingCount : undefined };
-          }
-          return child;
-        })
-      };
-    }
-    if (item.title === "Employees") {
-      const empBadgeCount = pendingLeaveCount + pendingProfilesCount;
-      return {
-        ...item,
-        badge: empBadgeCount > 0 ? empBadgeCount : undefined,
-        children: item.children.map(child => {
-          if (child.title === "Leave Management" && pendingLeaveCount > 0) {
-            return { ...child, badge: pendingLeaveCount };
-          }
-          return child;
-        })
-      };
-    }
-    if (item.title === "HR & Finance") {
-      const hrBadgeCount = userIsManager ? pendingLeaveCount : 0;
-      return {
-        ...item,
-        badge: hrBadgeCount > 0 ? hrBadgeCount : undefined,
-        children: item.children.map(child => {
-          if (child.title === "Leave Management" && hrBadgeCount > 0) {
-            return { ...child, badge: hrBadgeCount };
-          }
-          return child;
-        })
-      };
-    }
-    return item;
-  });
-
-  // Resolve by title against the *current* navItems (not a stored object) so badges stay live
-  // and a section that no longer exists after a view-mode switch can't be selected.
-  const findNavItem = (title) => (title ? navItems.find(item => item.title === title) : undefined);
   const pathname = location.pathname.toLowerCase();
-  const urlMatchedItem = navItems.find(item =>
-    item.children?.some(child => child.url.toLowerCase() === pathname)
-  );
 
-  const activePrimary =
-    (manualPrimary?.pathname === location.pathname && findNavItem(manualPrimary.title)) ||
-    urlMatchedItem ||
-    findNavItem(lastMatchedTitle) ||
-    navItems[0];
+  const isRouteActive = (targetUrl) => {
+    if (!targetUrl) return false;
+    const currentPath = location.pathname.toLowerCase();
+    const currentSearch = location.search.toLowerCase();
+    const currentFull = currentPath + currentSearch;
+    const targetLower = targetUrl.toLowerCase();
 
-  useEffect(() => {
-    if (urlMatchedItem) setLastMatchedTitle(urlMatchedItem.title);
-  }, [urlMatchedItem?.title]);
+    if (targetLower.includes('?')) {
+      return currentFull === targetLower;
+    }
 
-  const handlePrimaryClick = (item) => {
-    setManualPrimary({ title: item.title, pathname: location.pathname });
+    if (targetLower === PAGE_ROUTES.EMPLOYEE_SELF_SERVICE.toLowerCase()) {
+      const params = new URLSearchParams(location.search);
+      const tab = params.get('tab');
+      return currentPath === targetLower && (!tab || tab === 'overview');
+    }
+
+    return currentPath === targetLower;
   };
 
+  // Keep track of which accordion group is open
+  const [openGroups, setOpenGroups] = useState(() => {
+    const initial = {};
+    navItems.forEach(item => {
+      const hasActiveChild = item.children?.some(child => isRouteActive(child.url));
+      if (hasActiveChild) initial[item.title] = true;
+    });
+    if (Object.keys(initial).length === 0 && navItems[0]) {
+      initial[navItems[0].title] = true;
+    }
+    return initial;
+  });
+
+  // Auto-expand accordion when URL matches a child
+  useEffect(() => {
+    navItems.forEach(item => {
+      const hasActiveChild = item.children?.some(child => isRouteActive(child.url));
+      if (hasActiveChild) {
+        setOpenGroups(prev => ({ ...prev, [item.title]: true }));
+      }
+    });
+  }, [pathname, location.search, navItems]);
+
+  const toggleGroup = (title) => {
+    setOpenGroups(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
+
+  // Find active parent and sub-item for breadcrumb
+  const currentSubItem = useMemo(() => {
+    return navItems
+      .flatMap(item => item.children || [])
+      .find(child => isRouteActive(child.url));
+  }, [navItems, pathname, location.search]);
+
+  const currentParentItem = useMemo(() => {
+    return navItems.find(item =>
+      item.children?.some(child => isRouteActive(child.url))
+    );
+  }, [navItems, pathname, location.search]);
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden font-sans md:flex-row bg-slate-50">
-      
-      {/* Mobile Header */}
-      <header className="z-30 flex items-center gap-4 px-6 py-4 bg-white border-b border-slate-200 md:hidden shrink-0">
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -ml-2 rounded-lg hover:bg-slate-100">
-          <Menu className="w-6 h-6 text-slate-700" />
-        </button>
-        <div className="flex items-center gap-2">
-          <img src="/logo-icon.png" alt="Logo" className="w-6 h-6" />
-          <h1 className="text-lg font-bold tracking-tight text-slate-900">Tradevu</h1>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
+    <div className="flex h-screen w-full overflow-hidden font-sans bg-slate-50 text-slate-900">
+      <Sidebar
+        collapsible="icon"
+        className="border-r border-slate-200/70 bg-white transition-all duration-200 z-30 select-none"
+      >
+        {/* 1. Brand Logo Header - Exactly h-14 (56px) and vertically centered */}
+        <SidebarHeader className="h-14 p-0 px-4 border-b border-slate-200/70 bg-white flex flex-row items-center box-border shrink-0">
+          {isCollapsed ? (
+            <div className="flex items-center justify-center w-full h-full">
+              <Link to={PAGE_ROUTES.HOME} className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 text-white shadow-xs hover:scale-105 transition-transform">
+                <img
+                  src="/logo-icon.png"
+                  alt="Tradevu"
+                  className="object-contain w-5 h-5 invert brightness-0"
+                />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center w-full h-full gap-3">
+              <Link to={PAGE_ROUTES.HOME} className="flex items-center gap-2.5 min-w-0 group focus:outline-none">
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 text-white shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                  <img
+                    src="/logo-icon.png"
+                    alt="Tradevu Logo"
+                    className="object-contain w-5 h-5 invert brightness-0"
+                  />
+                </div>
+                <div className="flex flex-col justify-center min-w-0">
+                  <span className="font-heading font-bold text-base tracking-tight truncate text-slate-900 leading-none">
+                    Tradevu
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate uppercase font-semibold tracking-wider mt-1 leading-none">
+                    {canSeeAdminViews ? 'HR Workspace' : 'Employee Portal'}
+                  </span>
+                </div>
+              </Link>
+            </div>
+          )}
+        </SidebarHeader>
 
-        </div>
-      </header>
+        {/* 2. Navigation Content */}
+        <SidebarContent className="px-2 group-data-[collapsible=icon]:px-0 py-3 overflow-y-auto custom-scrollbar bg-white">
+          <SidebarMenu className="gap-1.5 group-data-[collapsible=icon]:gap-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const hasActiveChild = item.children?.some(c => isRouteActive(c.url));
+              const isOpen = Boolean(openGroups[item.title]);
 
-      {/* Primary Rail (Leftmost Sidebar) */}
-      <aside className={`fixed md:sticky top-0 h-screen w-16 flex flex-col items-center py-5 border-r flex-shrink-0 z-50 transition-colors duration-300 ${
-        isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
-      } ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        
-        {/* Logo */}
-        <div className="flex items-center justify-center w-10 h-10 mb-8">
-          <img src={isDark ? "/logo-icon-white.png" : "/logo-icon.png"} alt="Tradevu" className="object-contain w-8 h-8" />
-        </div>
-
-        {/* Icons */}
-        <nav className="flex flex-col flex-1 w-full gap-2 px-2 overflow-y-auto hide-scrollbar">
-          <TooltipProvider delayDuration={200}>
-            {navItems.map((item, i) => {
-              const isActive = activePrimary?.title === item.title;
-              return (
-                <Tooltip key={item.title}>
-                  <TooltipTrigger asChild>
-                    <motion.button
-                      aria-label={item.title}
-                      data-cy={`nav-primary-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        handlePrimaryClick(item);
-                        if (window.innerWidth < 768) setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-colors group relative ${
-                        isActive 
-                          ? (isDark ? 'bg-indigo-500 text-white shadow-sm' : 'bg-white shadow-sm text-slate-900 border border-slate-200') 
-                          : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900')
-                      }`}
-                    >
-                      <span className="sr-only">{item.title}</span>
-                      <item.icon className={`w-5 h-5 transition-all ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-2'}`} />
-                      {item.badge && (
-                        <div className={`absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 ${isDark ? 'border-slate-900' : 'border-slate-50'}`}>
-                          {item.badge}
+              // When collapsed in icon mode, render as centered button with spotlight effect
+              if (isCollapsed) {
+                return (
+                  <SidebarMenuItem key={item.title} className="w-full flex items-center justify-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <CollapsedMenuButton
+                          item={item}
+                          hasActiveChild={hasActiveChild}
+                          tooltip={item.title}
+                        />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        side="right"
+                        align="start"
+                        sideOffset={14}
+                        className="w-56 p-1.5 shadow-xl border border-slate-200/80 bg-white rounded-2xl z-50 font-sans"
+                      >
+                        <div className="px-3 py-2 text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center justify-between">
+                          <span>{item.title}</span>
+                          {item.badge && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200/60">
+                              {item.badge}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </motion.button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={14} className="z-[100] font-medium bg-slate-900 text-white border-none shadow-md">
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
+                        <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                        {item.children?.map((child) => {
+                          const isChildActive = isRouteActive(child.url);
+                          const ChildIcon = child.icon;
+                          return (
+                            <DropdownMenuItem key={child.title} asChild className="cursor-pointer">
+                              <Link
+                                to={child.url}
+                                className={cn(
+                                   "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors",
+                                   isChildActive
+                                     ? "bg-[#0f172a] text-white font-semibold shadow-2xs"
+                                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                              >
+                                <span className="flex items-center gap-2.5 truncate">
+                                  <ChildIcon className={cn("w-4 h-4 shrink-0", isChildActive ? "text-white" : "text-slate-400")} />
+                                  <span className="truncate">{child.title}</span>
+                                </span>
+                                {child.badge && (
+                                  <span className={cn(
+                                    "ml-auto px-1.5 py-0.2 rounded-full text-[10px] font-bold",
+                                    isChildActive ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                                  )}>
+                                    {child.badge}
+                                  </span>
+                                )}
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </SidebarMenuItem>
+                );
+              }
+
+              // In expanded mode, render as Accordion
+              return (
+                <Collapsible
+                  key={item.title}
+                  open={isOpen}
+                  onOpenChange={() => toggleGroup(item.title)}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={hasActiveChild && !isOpen}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all duration-150",
+                          hasActiveChild && !isOpen
+                            ? "bg-slate-100/90 text-slate-900 font-bold"
+                            : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className={cn(
+                            "w-4 h-4 shrink-0 transition-colors",
+                            hasActiveChild ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"
+                          )} />
+                          <span className="truncate">{item.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                          {item.badge && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200/60">
+                              {item.badge}
+                            </span>
+                          )}
+                          <ChevronRight
+                            className={cn(
+                              "w-3.5 h-3.5 text-slate-400 transition-transform duration-200",
+                              isOpen && "rotate-90 text-slate-600"
+                            )}
+                          />
+                        </div>
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+
+                    {/* Children Accordion Content */}
+                    <CollapsibleContent className="transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                      <SidebarMenuSub className="ml-4 pl-2.5 my-1 space-y-0.5 border-l border-slate-200/80">
+                        {item.children?.map((child) => {
+                          const isChildActive = isRouteActive(child.url);
+                          return (
+                            <SidebarMenuSubItem key={child.title}>
+                              <SidebarMenuSubButton asChild isActive={isChildActive} className="p-0 h-auto">
+                                <SidebarSubLink
+                                  to={child.url}
+                                  title={child.title}
+                                  icon={child.icon}
+                                  badge={child.badge}
+                                  isActive={isChildActive}
+                                />
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                        })}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               );
             })}
-          </TooltipProvider>
-        </nav>
+          </SidebarMenu>
+        </SidebarContent>
 
-        {/* Theme Toggle & Avatar */}
-        <div className="flex flex-col items-center w-full gap-3 px-2 pt-4 pb-2 mt-auto">
-
-
-          <button onClick={toggleTheme} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-900'}`}>
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-
+        {/* 3. Footer with User Profile */}
+        <SidebarFooter className="p-2 border-t border-slate-100 bg-white">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-10 h-10 overflow-hidden transition-all border-2 border-transparent rounded-full outline-none hover:border-indigo-500">
-                {user?.avatar_url ? (
-                  <img src={user.avatar_url} className="object-cover w-full h-full" />
-                ) : (
-                  <div className="flex items-center justify-center w-full h-full text-white bg-gradient-to-br from-indigo-500 to-purple-600">
+              <button className={cn(
+                "w-full flex items-center gap-2.5 rounded-xl transition-colors text-left outline-none hover:bg-slate-50",
+                isCollapsed ? "p-1.5 justify-center" : "p-2"
+              )}>
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
                     <UserCircle className="w-5 h-5" />
-                  </div>
+                  )}
+                </div>
+                {!isCollapsed && (
+                  <>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs font-semibold truncate leading-tight text-slate-900">
+                        {user?.full_name || user?.fullName || 'User'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">
+                        {user?.email}
+                      </span>
+                    </div>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400 ml-auto shrink-0" />
+                  </>
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="w-48 ml-4">
-              <div className="px-2 py-2 mb-1 border-b border-slate-100">
-                <p className="text-sm font-medium truncate text-slate-900">{user?.full_name || 'User'}</p>
-                <p className="text-xs truncate text-slate-500">{user?.email}</p>
-                <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 bg-slate-50 text-slate-600 border-slate-200">
+
+            <DropdownMenuContent
+              align={isCollapsed ? "start" : "end"}
+              side={isCollapsed ? "right" : "top"}
+              sideOffset={14}
+              className="w-56 p-2 rounded-2xl shadow-xl border border-slate-200/80 bg-white z-50 text-xs font-sans"
+            >
+              <div className="px-2 py-1.5 border-b border-slate-100">
+                <p className="font-semibold text-slate-900 truncate">{user?.full_name || 'User'}</p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">{user?.email}</p>
+                <Badge variant="outline" className="mt-1 text-[9px] px-1.5 py-0 bg-slate-50 text-slate-600 border-slate-200">
                   {userIsSuperAdmin ? 'Super Admin' : userIsHrAdmin ? 'HR Admin' : user?.role || 'User'}
                 </Badge>
               </div>
+
+              <DropdownMenuSeparator className="my-1 bg-slate-100" />
+
               {userIsSuperAdmin ? (
-                <DropdownMenuItem onClick={() => navigate(PAGE_ROUTES.SETTINGS)}>
-                  <Settings className="w-4 h-4 mr-2" />
+                <DropdownMenuItem onClick={() => navigate(PAGE_ROUTES.SETTINGS)} className="cursor-pointer">
+                  <Settings className="w-3.5 h-3.5 mr-2 text-slate-500" />
                   Settings
                 </DropdownMenuItem>
               ) : (
+                <>
                   <DropdownMenuItem onClick={() => {
-                    if (canSwitchViews) {
-                      changeViewMode('EMPLOYEE');
-                    }
+                    if (canSwitchViews) changeViewMode('EMPLOYEE');
                     navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
-                  }}>
-                    <UserCircle className="w-4 h-4 mr-2" />
-                    My Profile
+                  }} className="cursor-pointer">
+                    <UserCircle className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                    My Portal Dashboard
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    if (canSwitchViews) changeViewMode('EMPLOYEE');
+                    navigate(`${PAGE_ROUTES.EMPLOYEE_SELF_SERVICE}?tab=profile`);
+                  }} className="cursor-pointer">
+                    <User className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                    My Profile & Records
+                  </DropdownMenuItem>
+                </>
               )}
+
               {canSwitchViews && (
                 <DropdownMenuItem onClick={() => {
                   const newMode = viewMode === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
                   changeViewMode(newMode);
                   navigate(newMode === 'ADMIN' ? PAGE_ROUTES.HOME : PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
-                }}>
-                  {viewMode === 'ADMIN' ? <Briefcase className="w-4 h-4 mr-2" /> : <Users className="w-4 h-4 mr-2" />}
+                }} className="cursor-pointer">
+                  {viewMode === 'ADMIN' ? <Briefcase className="w-3.5 h-3.5 mr-2 text-slate-500" /> : <Users className="w-3.5 h-3.5 mr-2 text-slate-500" />}
                   Switch to {viewMode === 'ADMIN' ? 'Employee Portal' : 'Admin Panel'}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:bg-red-50">
-                <LogOut className="w-4 h-4 mr-2" />
+
+              <DropdownMenuSeparator className="my-1 bg-slate-100" />
+
+              <DropdownMenuItem onClick={handleLogout} className="text-rose-600 hover:bg-rose-50 cursor-pointer">
+                <LogOut className="w-3.5 h-3.5 mr-2 text-rose-500" />
                 Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </aside>
+        </SidebarFooter>
 
-      {/* Secondary Sidebar (Sub-navigation) */}
-      <aside className="sticky top-0 z-10 flex-col flex-shrink-0 hidden w-64 h-screen bg-white border-r shadow-sm md:flex border-slate-200">
-        <div className="px-5 py-6">
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">{activePrimary?.title}</h2>
-        </div>
-        
+        <SidebarRail />
+      </Sidebar>
 
-        <div className="relative flex-1 px-3 pb-6 overflow-y-auto">
-          {/* Enter-only animation, deliberately without AnimatePresence mode="wait": when the key
-              changed again mid-exit (fast rail clicks, or a navigation re-render), framer-motion could
-              drop the exiting list without mounting the new one, leaving this panel empty until reload. */}
-            <motion.div
-              key={activePrimary?.title}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-1"
-            >
-              {activePrimary?.children?.map(child => {
-                const isActive = location.pathname.toLowerCase() === child.url.toLowerCase();
-                return (
-                  <Link 
-                    key={child.title}
-                    to={child.url}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
-                      isActive 
-                        ? 'bg-slate-100 text-slate-900 translate-x-1' 
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div 
-                        layoutId="activeIndicator"
-                        className="absolute left-0 w-1 h-6 bg-indigo-600 rounded-r-full" 
-                      />
-                    )}
-                    <child.icon className={`w-4 h-4 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                    {child.title}
-                    {child.badge && (
-                      <span className="ml-auto bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
-                        {child.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </motion.div>
-        </div>
+      {/* 4. Main Inset Area with Top Header Bar - Exact h-14 and border-b border-slate-200/70 */}
+      <SidebarInset className="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-50">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-slate-200/70 bg-white/80 px-4 md:px-6 backdrop-blur-md shrink-0 box-border">
+          <div className="flex items-center gap-3 min-w-0">
+            <SidebarTrigger className="text-slate-500 hover:text-slate-900 rounded-lg p-1.5 hover:bg-slate-100 transition-colors" />
+            <Separator orientation="vertical" className="h-4 bg-slate-200/80" />
+            
+            <div className="flex items-center gap-1.5 text-xs truncate">
+              <span className="font-medium text-slate-400">
+                {currentParentItem?.title || 'Dashboard'}
+              </span>
+              {currentSubItem && (
+                <>
+                  <span className="text-slate-300">/</span>
+                  <span className="font-semibold text-slate-800">
+                    {currentSubItem.title}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
 
-      </aside>
+          <div className="flex items-center gap-2.5">
+            {canSwitchViews && (
+              <Badge variant="outline" className="hidden sm:inline-flex text-[11px] font-medium px-2.5 py-0.5 bg-blue-50 text-blue-700 border-blue-200/70 rounded-full">
+                {viewMode === 'EMPLOYEE' ? 'Employee View' : 'Admin View'}
+              </Badge>
+            )}
+          </div>
+        </header>
 
-      {/* Main Content Area */}
-      <main className="relative flex flex-col flex-1 min-w-0 overflow-auto bg-slate-50">
-        <div className="flex-1 w-full p-4 mx-auto max-w-7xl md:p-8">
-          {children}
-        </div>
-      </main>
-
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-slate-900/50 md:hidden backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-      
-      {/* Mobile Secondary Menu (Slide up or just inline - for MVP we can just use the desktop ones if screen is wide enough, but for true mobile we need a drawer) */}
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
+      </SidebarInset>
     </div>
+  );
+}
+
+export default function Layout({ children }) {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <LayoutInner>{children}</LayoutInner>
+    </SidebarProvider>
   );
 }

@@ -360,7 +360,7 @@ export const leaveResolvers = {
           category: 'leave',
           title: `Leave Request ${nextStatus === 'APPROVED' ? 'Approved' : 'Updated'}`,
           message: `Your leave request from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()} has been ${nextStatus}.`,
-          deepLink: '/LeaveManagement',
+          deepLink: '/employeeselfservice?tab=leave',
           sendEmail: true
         });
       }
@@ -416,7 +416,7 @@ export const leaveResolvers = {
           category: 'leave',
           title: 'Leave Request Rejected',
           message: `Your leave request from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()} was rejected. Reason: ${reason}`,
-          deepLink: '/LeaveManagement',
+          deepLink: '/employeeselfservice?tab=leave',
           sendEmail: true
         });
       }

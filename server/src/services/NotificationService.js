@@ -85,33 +85,39 @@ export class NotificationService {
             const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
             const fallbackUrl = process.env.NODE_ENV === 'production' ? 'https://hr.tradevu.co' : 'https://staging.hr.tradevu.co';
             const frontendUrl = process.env.FRONTEND_URL || fallbackUrl;
+            const resolveDeepLink = (link) => {
+              if (!link) return undefined;
+              if (link.startsWith('http://') || link.startsWith('https://')) return link;
+              return `${frontendUrl}${link.startsWith('/') ? '' : '/'}${link}`;
+            };
             
             let htmlContent;
             try {
+              const fullDeepLink = resolveDeepLink(deepLink);
               if (category === 'onboarding_welcome') {
-                htmlContent = await render(React.createElement(WelcomeEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(WelcomeEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'leave') {
-                htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(LeaveUpdateEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'approval') {
-                htmlContent = await render(React.createElement(ApprovalRequestEmail, { fullName: recipientName, message, deepLink: deepLink ? `${frontendUrl}${deepLink}` : undefined, ...emailProps }));
+                htmlContent = await render(React.createElement(ApprovalRequestEmail, { fullName: recipientName, message, deepLink: fullDeepLink, ...emailProps }));
               } else if (category === 'promotion') {
-                htmlContent = await render(React.createElement(PromotionEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(PromotionEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'employee_created') {
-                htmlContent = await render(React.createElement(EmployeeCreationEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(EmployeeCreationEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'employee_activated') {
-                htmlContent = await render(React.createElement(EmployeeActivationEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(EmployeeActivationEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'probation_update') {
-                htmlContent = await render(React.createElement(ProbationNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(ProbationNoticeEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'suspension_notice') {
-                htmlContent = await render(React.createElement(SuspensionNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(SuspensionNoticeEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'exit_notice') {
-                htmlContent = await render(React.createElement(ExitNoticeEmail, { fullName: recipientName, ...emailProps, deepLink }));
+                htmlContent = await render(React.createElement(ExitNoticeEmail, { fullName: recipientName, ...emailProps, deepLink: fullDeepLink }));
               } else if (category === 'PROFILE_COMPLETION') {
-                htmlContent = await render(React.createElement(ProfileCompletionEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
+                htmlContent = await render(React.createElement(ProfileCompletionEmail, { link: fullDeepLink || frontendUrl, ...emailProps }));
               } else if (category === 'PROFILE_UPDATE') {
-                htmlContent = await render(React.createElement(ProfileUpdateEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
+                htmlContent = await render(React.createElement(ProfileUpdateEmail, { link: fullDeepLink || frontendUrl, ...emailProps }));
               } else if (category === 'PROBATION_OFFBOARDING') {
-                htmlContent = await render(React.createElement(ProbationOffboardingEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
+                htmlContent = await render(React.createElement(ProbationOffboardingEmail, { link: fullDeepLink || frontendUrl, ...emailProps }));
               } else if (category === 'EXPENSE_ASSET') {
                 htmlContent = await render(React.createElement(ExpenseAssetEmail, { link: deepLink ? `${frontendUrl}${deepLink}` : frontendUrl, ...emailProps }));
               } else if (category === 'DOCUMENT_NOTIFICATION') {
