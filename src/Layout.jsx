@@ -33,8 +33,8 @@ import {
   SidebarRail,
   SidebarTrigger,
   SidebarInset,
-  useSidebar,
 } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar-context";
 import {
   Collapsible,
   CollapsibleTrigger,
