@@ -175,9 +175,52 @@ export default function useEmployeeSelfService() {
         asset_name: a.name || a.asset_name,
         asset_type: a.type || a.asset_type,
         serial_number: a.serialNumber || a.serial_number,
+        specifications: a.specifications,
+        condition: a.condition,
+        notes: a.notes,
+        assigned_date: a.assignedAt || a.assigned_date || a.createdAt,
+        confirmation_status: a.confirmationStatus || (a.confirmedByEmployee ? 'confirmed' : 'pending_confirmation'),
+        confirmed_by_employee: Boolean(a.confirmedByEmployee),
+        confirmed_at: a.confirmedAt,
       })),
     enabled: !!employee?.id,
     initialData: [],
+  });
+
+  const confirmAssetMutation = useMutation({
+    mutationFn: async ({ assetId, notes, confirmedBy, confirmedAt }) => {
+      return assetsApi.confirmAsset(assetId, {
+        notes,
+        confirmedBy: confirmedBy || employee?.fullName || employee?.email || "Employee",
+        confirmedAt: confirmedAt || new Date().toISOString(),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Asset receipt confirmed successfully!");
+      queryClient.invalidateQueries({ queryKey: ["my-assets"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err) || "Failed to confirm asset");
+    },
+  });
+
+  const disputeAssetMutation = useMutation({
+    mutationFn: async ({ assetId, reason, disputedBy, disputedAt }) => {
+      return assetsApi.disputeAsset(assetId, {
+        reason,
+        disputedBy: disputedBy || employee?.fullName || employee?.email || "Employee",
+        disputedAt: disputedAt || new Date().toISOString(),
+      });
+    },
+    onSuccess: () => {
+      toast.warning("Asset record disputed. Flagged for HR review.");
+      queryClient.invalidateQueries({ queryKey: ["my-assets"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err) || "Failed to submit dispute");
+    },
   });
   const { data: expenses = [] } = useQuery({
     queryKey: ["my-expenses", employee?.id],
@@ -235,12 +278,18 @@ export default function useEmployeeSelfService() {
     onSuccess: () => invalidate(["my-dashboard-notifications", employeeId]),
   });
   const toggleTaskMutation = useMutation({
-    mutationFn: ({ taskId, isCompleted }) =>
-      onboardingApi.updateTask(taskId, { status: isCompleted ? TASK_STATUSES.TODO : TASK_STATUSES.DONE }),
+    mutationFn: ({ taskId, isCompleted, status, responseValue, attachmentUrls, submissions, notes }) =>
+      onboardingApi.updateTask(taskId, {
+        status: status ? normalizeTaskStatus(status) : isCompleted ? TASK_STATUSES.TODO : TASK_STATUSES.DONE,
+        ...(responseValue !== undefined ? { responseValue } : {}),
+        ...(attachmentUrls !== undefined ? { attachmentUrls } : {}),
+        ...(submissions !== undefined ? { submissions } : {}),
+        ...(notes !== undefined ? { notes } : {}),
+      }),
     onSuccess: () => {
       invalidate(["my-onboarding-tasks"]);
       invalidate(["onboarding-tasks"]);
-      toast.success("Task updated!");
+      toast.success("Task updated successfully!");
     },
     onError: (error) => toast.error(error.message || "Failed to update task"),
   });
@@ -383,6 +432,8 @@ export default function useEmployeeSelfService() {
     updateEmployeeMutation,
     submitProfileMutation,
     uploadDocumentMutation,
+    confirmAssetMutation,
+    disputeAssetMutation,
     handleCompleteAll,
     handleRemindLater,
     handleSave,

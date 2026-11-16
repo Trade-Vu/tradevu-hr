@@ -54,8 +54,14 @@ export default function Templates() {
           title: t.title,
           description: t.description,
           category: t.category || 'General',
-          dueOffset: t.deadline_days || 7,
+          dueOffset: t.deadline_days || t.dueOffset || 7,
           isRequired: true,
+          taskType: t.taskType || 'checkbox',
+          assignedRole: t.assignedRole || 'EMPLOYEE',
+          completionRule: t.completionRule || 'auto_on_submit',
+          inputConfig: t.inputConfig || null,
+          templateUrl: t.templateUrl || null,
+          templateName: t.templateName || null,
         })),
       };
       return await onboardingApi.createTemplate(payload);
@@ -82,8 +88,14 @@ export default function Templates() {
           title: t.title,
           description: t.description,
           category: t.category || 'General',
-          dueOffset: t.deadline_days || 7,
+          dueOffset: t.deadline_days || t.dueOffset || 7,
           isRequired: true,
+          taskType: t.taskType || 'checkbox',
+          assignedRole: t.assignedRole || 'EMPLOYEE',
+          completionRule: t.completionRule || 'auto_on_submit',
+          inputConfig: t.inputConfig || null,
+          templateUrl: t.templateUrl || null,
+          templateName: t.templateName || null,
         })),
       };
       return await onboardingApi.updateTemplate(id, payload);

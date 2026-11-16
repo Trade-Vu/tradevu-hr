@@ -79,6 +79,12 @@ export default function TaskManager({ tasks = [], employeeId }) {
         priority: taskData.priority || 'medium',
         dueDate: taskData.deadline || undefined,
         status: TASK_STATUSES.TODO,
+        taskType: taskData.taskType || 'checkbox',
+        assignedRole: taskData.assignedRole || 'EMPLOYEE',
+        completionRule: taskData.completionRule || 'auto_on_submit',
+        inputConfig: taskData.inputConfig,
+        templateUrl: taskData.templateUrl,
+        templateName: taskData.templateName,
       };
       return await onboardingApi.createTask(payload);
     },

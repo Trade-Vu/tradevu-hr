@@ -20,6 +20,7 @@ import PayslipsTab from "@/components/employee-self-service/tabs/PayslipsTab";
 import AssetsTab from "@/components/employee-self-service/tabs/AssetsTab";
 import DocumentsTab from "@/components/employee-self-service/tabs/DocumentsTab";
 import JobHistoryTab from "@/components/employee-self-service/tabs/JobHistoryTab";
+import OnboardingTab from "@/components/employee-self-service/tabs/OnboardingTab";
 
 const itemVariants = {
   hidden: { y: 20, opacity: 0 },
@@ -32,7 +33,7 @@ export default function EmployeeSelfService() {
   const { user, isLoadingAuth } = useAuth();
   const service = useEmployeeSelfService();
 
-  const dossierTabs = ["profile", "documents", "payslips", "assets", "job-history"];
+  const dossierTabs = ["profile", "onboarding", "documents", "payslips", "assets", "job-history"];
   const validTabs = ["overview", ...dossierTabs];
 
   const tabParam = searchParams.get("tab");
@@ -55,10 +56,6 @@ export default function EmployeeSelfService() {
       navigate(PAGE_ROUTES.ATTENDANCE, { replace: true });
       return;
     }
-    if (current === "onboarding") {
-      navigate(PAGE_ROUTES.TASK_MANAGER, { replace: true });
-      return;
-    }
     if (current && validTabs.includes(current) && current !== activeTab) {
       setActiveTab(current);
     } else if (!current && activeTab !== "overview") {
@@ -77,10 +74,6 @@ export default function EmployeeSelfService() {
     }
     if (newTab === "attendance") {
       navigate(PAGE_ROUTES.ATTENDANCE);
-      return;
-    }
-    if (newTab === "onboarding") {
-      navigate(PAGE_ROUTES.TASK_MANAGER);
       return;
     }
 
@@ -296,6 +289,17 @@ export default function EmployeeSelfService() {
                   />
                 </TabsContent>
 
+                <TabsContent value="onboarding" className="mt-0 outline-none">
+                  <OnboardingTab
+                    tasks={service.myTasks}
+                    pendingTasksCount={service.pendingTasksCount}
+                    isCompleting={service.completeAllMutation.isPending}
+                    onCompleteAll={service.handleCompleteAll}
+                    onOpenTaskManager={() => navigate(PAGE_ROUTES.TASK_MANAGER)}
+                    onToggleTask={service.toggleTaskMutation.mutate}
+                  />
+                </TabsContent>
+
                 <TabsContent value="documents" className="mt-0 outline-none">
                   <DocumentsTab
                     documents={documents}
@@ -321,7 +325,13 @@ export default function EmployeeSelfService() {
                 </TabsContent>
 
                 <TabsContent value="assets" className="mt-0 outline-none">
-                  <AssetsTab assets={service.assets} />
+                  <AssetsTab
+                    assets={service.assets}
+                    onConfirmAsset={service.confirmAssetMutation.mutateAsync}
+                    isConfirming={service.confirmAssetMutation.isPending}
+                    onDisputeAsset={service.disputeAssetMutation.mutateAsync}
+                    isDisputing={service.disputeAssetMutation.isPending}
+                  />
                 </TabsContent>
 
                 <TabsContent value="job-history" className="mt-0 outline-none">
