@@ -33,7 +33,11 @@ const hasManagerApproved = (leave) =>
   Boolean(
     (leave.approvers || leave.approvalHistory || []).some(
       (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
-    ) || ((leave.currentApprovalLevel || 0) > 0 && leave.approvalLevels?.[0]?.role === 'MANAGER')
+    ) || (
+      (leave.currentApprovalLevel || 0) > 0 &&
+      leave.approvalLevels?.[0]?.role === 'MANAGER' &&
+      (leave.approvers || leave.approvalHistory || []).some((h) => h.action === 'approved' || h.action === 'APPROVED')
+    )
   );
 
 export const RequestsSkeleton = () => (

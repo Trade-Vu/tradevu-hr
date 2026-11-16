@@ -39,7 +39,7 @@ LeaveUpdateEmail.PreviewProps = {
   leaveType: 'Annual Leave',
   startDate: 'July 1, 2026',
   endDate: 'July 15, 2026',
-  deepLink: `${getPreviewBaseUrl()}/LeaveManagement`
+  deepLink: `${getPreviewBaseUrl()}/employeeselfservice?tab=leave`
 };
 
 export default LeaveUpdateEmail;

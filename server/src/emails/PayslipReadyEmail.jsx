@@ -39,7 +39,7 @@ export const PayslipReadyEmail = ({ fullName, month, payslipLink }) => {
 PayslipReadyEmail.PreviewProps = {
   fullName: 'Amara Okafor',
   month: 'June 2026',
-  payslipLink: `${getPreviewBaseUrl()}/employeeselfservice`,
+  payslipLink: `${getPreviewBaseUrl()}/employeeselfservice?tab=payslips`,
 };
 
 export default PayslipReadyEmail;

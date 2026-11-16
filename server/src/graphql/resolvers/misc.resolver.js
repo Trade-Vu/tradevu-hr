@@ -1979,7 +1979,7 @@ processApproval: async (_, {
         category: 'leave',
         title: `Leave Request ${newStatus}`,
         message: `Your leave request has been ${newStatus.toLowerCase().replace('_', ' ')}.`,
-        deepLink: '/LeaveManagement',
+        deepLink: '/employeeselfservice?tab=leave',
         sendEmail: true
       });
     }

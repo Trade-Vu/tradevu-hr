@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leaveApi, approvalsApi } from "@/api";
@@ -6,6 +6,7 @@ import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuer
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { toast } from "sonner";
 import { extractErrorMessage, getRefId } from "@/lib/utils";
+import { isPendingLeaveStatus } from "@/lib/leaveStatus";
 import { Button } from "@/components/ui/button";
 import { Plane, Plus } from "lucide-react";
 import { isSuperAdmin, isHrAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
@@ -40,6 +41,33 @@ export default function AllLeaveRequests() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
 
+  const normalizeLeave = (l) => {
+    const emp = l.employeeId || l.employee || {};
+    const typeName = l.leaveTypeId?.name || l.leaveType?.name || l.leave_type || 'Annual Leave';
+    return {
+      ...l,
+      id: l._id || l.id,
+      employee_name: emp.fullName || emp.name || l.employee_name || 'Employee',
+      employee_email: emp.email || l.employee_email || '',
+      department_name: emp.departmentId?.name || emp.department?.name || l.department_name || '',
+      leave_type: typeName,
+      start_date: l.startDate || l.start_date,
+      end_date: l.endDate || l.end_date,
+      total_days: l.totalDays || l.total_days || 0,
+      isHalfDay: !!l.isHalfDay,
+      selectedDates: l.selectedDates || [],
+      attachment_url: l.attachmentUrl || l.attachment_url || '',
+      handover_note: l.handoverNote || l.handover_note || '',
+      handover_note_url: l.handoverNoteUrl || l.handover_note_url || '',
+      relief_officer_id: l.reliefOfficerId?._id || l.reliefOfficerId?.id || l.reliefOfficerId || '',
+      relief_officer_name: l.reliefOfficerId?.fullName || l.reliefOfficerId?.name || '',
+      relief_officer_status: l.reliefOfficerStatus || 'PENDING',
+      approvers: l.approvers || [],
+      isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
+      isPastLeave: Boolean(l.isPastLeave),
+    };
+  };
+
   const { data: leaveRequestsData, isLoading: loadingRequests } = useQuery({
     queryKey: ['leave-requests', page, limit],
     queryFn: async () => {
@@ -50,30 +78,16 @@ export default function AllLeaveRequests() {
         total: payload?.pagination?.total ?? list.length,
         totalPages: Math.max(1, payload?.pagination?.totalPages ?? Math.ceil(list.length / limit)),
         currentPage: page,
-        leaveRequests: list.map(l => ({
-          ...l,
-          id: l._id || l.id,
-          employee_name: l.employeeId?.fullName || l.employeeId?.name || l.employee_name || 'Employee',
-          employee_email: l.employeeId?.email || l.employee_email || '',
-          department_name: l.employeeId?.departmentId?.name || l.employeeId?.department?.name || l.department_name || '',
-          leave_type: l.leaveTypeId?.name || 'Annual Leave',
-          start_date: l.startDate || l.start_date,
-          end_date: l.endDate || l.end_date,
-          total_days: l.totalDays || l.total_days || 0,
-          isHalfDay: !!l.isHalfDay,
-          selectedDates: l.selectedDates || [],
-          attachment_url: l.attachmentUrl || l.attachment_url || '',
-          handover_note: l.handoverNote || l.handover_note || '',
-          handover_note_url: l.handoverNoteUrl || l.handover_note_url || '',
-          relief_officer_id: l.reliefOfficerId?._id || l.reliefOfficerId?.id || l.reliefOfficerId || '',
-          relief_officer_name: l.reliefOfficerId?.fullName || l.reliefOfficerId?.name || '',
-          relief_officer_status: l.reliefOfficerStatus || 'PENDING',
-          approvers: l.approvers || [],
-          isAnnualPlan: Boolean(l.isAnnualPlan || l.leavePlanId),
-          isPastLeave: Boolean(l.isPastLeave),
-        }))
+        leaveRequests: list.map(normalizeLeave)
       };
     },
+  });
+
+  // Query pending approvals queue so managers can see and act on cross-department direct reports
+  const { data: pendingApprovalsData, isLoading: loadingPending } = useQuery({
+    queryKey: ['pendingApprovals'],
+    queryFn: async () => await approvalsApi.getPendingApprovals(),
+    enabled: !!user,
   });
 
   const { data: leaveTypes = [] } = useLeaveTypes();
@@ -90,6 +104,7 @@ export default function AllLeaveRequests() {
   const invalidateLeaveQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
+    queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
     queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.refetchQueries({ queryKey: ['pendingApprovalsCount'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -131,10 +146,13 @@ export default function AllLeaveRequests() {
         ? await approvalsApi.approveLeave(id)
         : await approvalsApi.rejectLeave(id, data.reason || 'Rejected by HR');
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       invalidateLeaveQueries();
       setEditingLeave(null);
       setShowForm(false);
+      setConfirmState(null);
+      const actionText = variables.data?.status === 'approved' ? 'approved' : 'rejected';
+      toast.success(`Leave request ${actionText} successfully.`);
     },
     onError: (error) => {
       toast.error(extractErrorMessage(error, "Failed to update leave request."));
@@ -147,9 +165,9 @@ export default function AllLeaveRequests() {
   };
 
   const isOwnRequest = (leave) => {
-    const requestEmployeeId = getRefId(leave.employeeId) || getRefId(leave.employee_id);
+    const requestEmployeeId = getRefId(leave.employeeId) || getRefId(leave.employee_id) || getRefId(leave.employee);
     const currentEmployeeId = getRefId(user?.employeeId) || getRefId(user?.employee);
-    const requestEmail = String(leave.employee_email || leave.employeeId?.email || '').toLowerCase();
+    const requestEmail = String(leave.employee_email || leave.employeeId?.email || leave.employee?.email || '').toLowerCase();
     const currentEmail = String(user?.email || '').toLowerCase();
 
     return Boolean(
@@ -172,7 +190,7 @@ export default function AllLeaveRequests() {
       return;
     }
     updateLeaveMutation.mutate({
-      id: leave.id,
+      id: leave.id || leave._id,
       data: { status: 'approved' },
       oldData: leave
     });
@@ -184,7 +202,7 @@ export default function AllLeaveRequests() {
       return;
     }
     updateLeaveMutation.mutate({
-      id: leave.id,
+      id: leave.id || leave._id,
       data: { status: 'rejected', reason },
       oldData: leave
     });
@@ -199,9 +217,39 @@ export default function AllLeaveRequests() {
     }
   };
 
-  const displayRequests = leaveRequestsData?.leaveRequests || [];
-  const totalRequests = leaveRequestsData?.total || 0;
-  const totalPages = leaveRequestsData?.totalPages || 1;
+  // Pending leaves awaiting this manager's decision (including cross-department direct reports)
+  const pendingLeaves = useMemo(() => {
+    const rawLeaves = pendingApprovalsData?.leaveRequests || [];
+    return rawLeaves
+      .filter((l) => !isOwnRequest(l) && isPendingLeaveStatus(l.status))
+      .map(normalizeLeave);
+  }, [pendingApprovalsData?.leaveRequests, user]);
+
+  // Merge pending approvals and historical requests for a unified, comprehensive view
+  const displayRequests = useMemo(() => {
+    const baseRequests = leaveRequestsData?.leaveRequests || [];
+    const map = new Map();
+
+    // Ensure pending approval leaves appear first so they are visible and actionable
+    pendingLeaves.forEach((leave) => {
+      const id = leave.id || leave._id;
+      if (id) map.set(id, leave);
+    });
+
+    baseRequests.forEach((leave) => {
+      const id = leave.id || leave._id;
+      if (id && !map.has(id)) {
+        map.set(id, leave);
+      } else if (id && map.has(id)) {
+        map.set(id, { ...map.get(id), ...leave });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [pendingLeaves, leaveRequestsData?.leaveRequests]);
+
+  const totalRequests = Math.max(displayRequests.length, leaveRequestsData?.total || 0);
+  const totalPages = Math.max(1, leaveRequestsData?.totalPages || Math.ceil(totalRequests / limit));
 
   return (
     <motion.div 
@@ -219,28 +267,17 @@ export default function AllLeaveRequests() {
             </div>
             <p className="text-slate-500">Manage and approve employee time off</p>
           </div>
-
-          {/* <Button
-            onClick={() => {
-              setEditingLeave(null);
-              setShowForm(true);
-            }}
-            className="text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Request
-          </Button> */}
         </motion.div>
 
         <LeaveStatsCards
           requests={displayRequests}
-          isLoading={loadingRequests}
+          isLoading={loadingRequests || loadingPending}
           itemVariants={itemVariants}
         />
 
         <LeaveRequestsList
           requests={displayRequests}
-          isLoading={loadingRequests}
+          isLoading={loadingRequests || loadingPending}
           isManagerOnly={isManagerOnly}
           page={page}
           limit={limit}

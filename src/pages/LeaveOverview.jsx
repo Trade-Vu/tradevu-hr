@@ -16,7 +16,6 @@ import { extractErrorMessage, getRefId } from "@/lib/utils";
 import LeaveBalances from "@/components/Leave/LeaveBalances";
 import LeaveOverviewFormCard from "@/components/Leave/LeaveOverviewFormCard";
 import ReliefHandoverConfirmations from "@/components/Leave/ReliefHandoverConfirmations";
-import PendingLeaveApprovals from "@/components/Leave/PendingLeaveApprovals";
 import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
 
 export default function LeaveOverview() {
@@ -177,14 +176,6 @@ export default function LeaveOverview() {
     }
   });
 
-  const handleApprove = (request) => {
-    updateLeaveMutation.mutate({ id: request.id, status: 'APPROVED' });
-  };
-
-  const handleReject = (request, reason) => {
-    updateLeaveMutation.mutate({ id: request.id, status: 'REJECTED', reason });
-  };
-
   const handleCancel = (request) => {
     updateLeaveMutation.mutate({ id: request.id, status: 'CANCELLED' });
   };
@@ -211,17 +202,6 @@ export default function LeaveOverview() {
   };
 
   const myRequests = leaveRequests.filter(isOwnLeaveRequest);
-  const pendingApprovals = leaveRequests.filter(r => {
-    if (isOwnLeaveRequest(r)) return false;
-    if (!isPendingLeaveStatus(r.status)) return false;
-    if (isManager && !isAdmin) {
-      const hasManagerApproved = (r.approvers || r.approvalHistory || []).some(
-        (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
-      );
-      if (hasManagerApproved) return false;
-    }
-    return isAdmin || isManager;
-  });
 
   const handleFormSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
@@ -295,14 +275,6 @@ export default function LeaveOverview() {
           requests={reliefRequests}
           onConfirm={confirmReliefMutation.mutate}
           isPending={confirmReliefMutation.isPending}
-          safeDate={safeDate}
-        />
-
-        <PendingLeaveApprovals
-          requests={pendingApprovals}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          isPending={updateLeaveMutation.isPending}
           safeDate={safeDate}
         />
 

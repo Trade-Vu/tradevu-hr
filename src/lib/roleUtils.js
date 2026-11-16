@@ -23,8 +23,23 @@ export const isFinanceAdmin = (user) => {
 };
 
 export const isManager = (user) => {
+  if (!user) return false;
   const role = getNormalizedRole(user);
-  return role === 'MANAGER' || role.includes('MANAGER');
+  if (role === 'MANAGER' || role.includes('MANAGER')) return true;
+  if (Boolean(user.isManager || user.canManage || user.canApproveLeave)) return true;
+
+  const empClass = String(
+    user.employeeClass ||
+    user.employee_class ||
+    user.employeeId?.employeeClass ||
+    user.employeeId?.employee_class ||
+    ''
+  ).toUpperCase();
+
+  if (/MANAGER/i.test(empClass)) return true;
+  if (user.employeeId?.canManage || user.employeeId?.canApproveLeave) return true;
+
+  return false;
 };
 
 export const isEmployee = (user) => {
