@@ -15,11 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Wifi, WifiOff, Edit, Trash2, RefreshCw, Settings as SettingsIcon } from "lucide-react";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 export default function ZKTecoDeviceManager({ open, onClose }) {
   const queryClient = useQueryClient();
   const [showDeviceForm, setShowDeviceForm] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
+  const [deletingDevice, setDeletingDevice] = useState(null);
   const [formData, setFormData] = useState({
     device_name: '',
     device_serial: '',
@@ -80,6 +82,7 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['zkteco-devices'] });
+      setDeletingDevice(null);
     },
   });
 
@@ -314,12 +317,9 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this device?')) {
-                            deleteDeviceMutation.mutate(device.id);
-                          }
-                        }}
-                        className="text-red-600 border-red-300 hover:bg-red-50"
+                        onClick={() => setDeletingDevice(device)}
+                        className="text-red-600 border-red-300 hover:bg-red-50 cursor-pointer"
+                        title="Delete device"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -344,6 +344,29 @@ export default function ZKTecoDeviceManager({ open, onClose }) {
             </Card>
           )}
         </div>
+
+        <ConfirmationDialog
+          open={Boolean(deletingDevice)}
+          onOpenChange={(open) => !open && setDeletingDevice(null)}
+          title="Delete Biometric Device"
+          description={
+            deletingDevice ? (
+              <span>
+                Are you sure you want to remove device{" "}
+                <strong className="text-slate-900 font-semibold">{deletingDevice.device_name}</strong>{" "}
+                (S/N: {deletingDevice.device_serial})? This will stop automated attendance synchronization.
+              </span>
+            ) : ""
+          }
+          confirmText="Delete Device"
+          variant="danger"
+          isLoading={deleteDeviceMutation.isPending}
+          onConfirm={() => {
+            if (deletingDevice) {
+              deleteDeviceMutation.mutate(deletingDevice.id);
+            }
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

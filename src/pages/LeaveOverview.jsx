@@ -17,6 +17,7 @@ import LeaveBalances from "@/components/Leave/LeaveBalances";
 import LeaveOverviewFormCard from "@/components/Leave/LeaveOverviewFormCard";
 import ReliefHandoverConfirmations from "@/components/Leave/ReliefHandoverConfirmations";
 import MyLeaveRequests from "@/components/Leave/MyLeaveRequests";
+import { getLeaveEmployeeName, getLeaveDepartmentName } from "@/components/Leave/leaveEmployeeUtils";
 
 export default function LeaveOverview() {
   const queryClient = useQueryClient();
@@ -69,8 +70,8 @@ export default function LeaveOverview() {
           ...l,
           id: l._id || l.id,
           employee_email: emp.email || l.employee_email || (typeof emp === 'string' ? emp : ''),
-          employee_name: emp.fullName || l.employee_name || (typeof emp === 'string' ? emp : 'Employee'),
-          department_name: emp.departmentId?.name || emp.department?.name || l.department_name || '',
+          employee_name: getLeaveEmployeeName(l),
+          department_name: getLeaveDepartmentName(l),
           leave_type: typeName,
           start_date: l.startDate || l.start_date,
           end_date: l.endDate || l.end_date,

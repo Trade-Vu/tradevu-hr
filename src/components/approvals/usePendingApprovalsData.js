@@ -5,6 +5,7 @@ import { approvalsApi, payrollApi, expensesApi } from '@/api';
 import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin, isManager as checkIsManager } from '@/lib/roleUtils';
 import { extractErrorMessage, getRefId } from '@/lib/utils';
 import { isPendingLeaveStatus } from '@/lib/leaveStatus';
+import { queryKeys } from '@/constants/queryKeys';
 
 export function usePendingApprovalsData() {
   const queryClient = useQueryClient();
@@ -25,7 +26,7 @@ export function usePendingApprovalsData() {
     queryClient.invalidateQueries({ queryKey: ['expense-claims'] });
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
     queryClient.invalidateQueries({ queryKey: ['departments'] });
-    queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+    queryKeys.tasks.invalidateAll(queryClient);
   };
 
   const handleError = (err) => {

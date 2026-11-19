@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { queryKeys } from "@/constants/queryKeys";
 
 const priorityColors = {
   low: "bg-slate-100 text-slate-700",
@@ -22,7 +23,7 @@ export default function EmployeeTaskList({ tasks, employeeId }) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employee-tasks', employeeId] });
+      queryKeys.tasks.invalidateAll(queryClient, employeeId);
     },
   });
 

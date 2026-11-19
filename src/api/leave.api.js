@@ -92,6 +92,16 @@ export const leaveApi = {
   confirmReliefHandover: async (id, dto) => {
     return apiClient.put(`/leave/requests/${id}/relief-confirm`, dto);
   },
+
+  exportLeaveReport: async (params = {}) => {
+    return apiClient.post('/leave/export', params, {
+      responseType: 'blob',
+    });
+  },
+
+  getLeaveReportPreview: async (params = {}) => {
+    return apiClient.post('/leave/export/preview', params);
+  },
 };
 
 export default leaveApi;

@@ -1,322 +1,196 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, FileText, CheckSquare, File, Edit } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CheckSquare, AlertCircle, Plus } from "lucide-react";
 
-export default function TemplateForm({ initialData = null, onSubmit, onCancel, isSubmitting }) {
+import TemplateScopeSection from "./TemplateScopeSection";
+import TemplateTaskItem from "./TemplateTaskItem";
+import TemplateTaskEditor from "./TemplateTaskEditor";
+import TemplateDocumentsSection from "./TemplateDocumentsSection";
+import { useTemplateForm } from "./useTemplateForm";
+
+export default function TemplateForm({
+  initialData = null,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  orgData = null,
+  departments = [],
+}) {
   const isEditing = Boolean(initialData && (initialData._id || initialData.id));
 
-  const [formData, setFormData] = useState({
-    name: initialData?.name || "",
-    description: initialData?.description || "",
-    department: initialData?.department || initialData?.role_type || "",
-    role_type: initialData?.department || initialData?.role_type || "",
-    tasks: (initialData?.tasks || []).map(t => ({
-      title: t.title || "",
-      description: t.description || "",
-      deadline_days: t.dueOffset ?? t.deadline_days ?? 7,
-      category: t.category || "General",
-    })),
-    required_documents: initialData?.requiredDocuments || initialData?.required_documents || [],
-  });
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || "",
-        description: initialData.description || "",
-        department: initialData.department || initialData.role_type || "",
-        role_type: initialData.department || initialData.role_type || "",
-        tasks: (initialData.tasks || []).map(t => ({
-          title: t.title || "",
-          description: t.description || "",
-          deadline_days: t.dueOffset ?? t.deadline_days ?? 7,
-          category: t.category || "General",
-        })),
-        required_documents: initialData.requiredDocuments || initialData.required_documents || [],
-      });
-    }
-  }, [initialData]);
-
-  const [newTask, setNewTask] = useState({
-    title: "",
-    description: "",
-    deadline_days: 7,
-  });
-
-  const [newDocument, setNewDocument] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      department: (formData.department || '').trim() || 'All Departments',
-      role_type: (formData.department || '').trim() || 'All Departments',
-    });
-  };
-
-  const addTask = () => {
-    if (newTask.title.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        tasks: [...prev.tasks, { ...newTask, title: newTask.title.trim(), deadline_days: Number(newTask.deadline_days) || 7 }],
-      }));
-      setNewTask({ title: "", description: "", deadline_days: 7 });
-    }
-  };
-
-  const removeTask = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      tasks: prev.tasks.filter((_, i) => i !== index),
-    }));
-  };
-
-  const addDocument = () => {
-    if (newDocument) {
-      setFormData(prev => ({
-        ...prev,
-        required_documents: [...prev.required_documents, newDocument],
-      }));
-      setNewDocument("");
-    }
-  };
-
-  const removeDocument = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      required_documents: prev.required_documents.filter((_, i) => i !== index),
-    }));
-  };
+  const {
+    formData,
+    setFormData,
+    editingTaskIndex,
+    isTaskDialogOpen,
+    newTask,
+    isUploadingTemplate,
+    newDocument,
+    setNewDocument,
+    resolvedEmploymentTypes,
+    resolvedEmployeeClasses,
+    handleTaskFieldChange,
+    handleOpenCreateTask,
+    handleEditTask,
+    handleCloseTaskDialog,
+    handleTemplateUpload,
+    handleRemoveAttachedTemplate,
+    saveTask,
+    removeTask,
+    addDocument,
+    removeDocument,
+    handleSubmit,
+  } = useTemplateForm({ initialData, onSubmit, orgData });
 
   return (
-    <Card className="max-w-4xl mx-auto border-slate-200 shadow-lg">
-      <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            {isEditing ? (
-              <Edit className="w-6 h-6 text-indigo-600" />
-            ) : (
-              <FileText className="w-6 h-6 text-indigo-600" />
-            )}
-            {isEditing ? "Edit Onboarding Template" : "Create Onboarding Template"}
-            {isEditing && (
-              <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
-                Editing
-              </Badge>
-            )}
-          </CardTitle>
-          <Button 
-            type="button" 
-            variant="ghost" 
-            size="sm" 
-            onClick={onCancel}
-            className="text-slate-500 hover:text-slate-700"
-          >
-            Cancel
-          </Button>
+    <form id="onboarding-template-form" onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6 pb-24">
+      {isEditing && (
+        <div className="p-4 bg-amber-50/90 border border-amber-200/90 rounded-xl text-xs text-amber-900 leading-relaxed flex items-start gap-3 shadow-2xs">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <span>
+            <strong>Audit Note:</strong> Template updates will automatically sync to in-progress onboarding milestones. Any tasks already finalized or approved for existing employees will remain intact.
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className="p-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {isEditing && (
-            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
-              <strong>Notice:</strong> Updates will automatically reflect on tasks for all employees who are still actively going through onboarding. Tasks that employees have already completed will remain preserved.
+      )}
+
+      {/* 1. Scope & Targeting Rules */}
+      <TemplateScopeSection
+        formData={formData}
+        setFormData={setFormData}
+        resolvedEmployeeClasses={resolvedEmployeeClasses}
+        resolvedEmploymentTypes={resolvedEmploymentTypes}
+        departments={departments}
+      />
+
+      {/* 2. Tasks & Activities Section */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-5 sm:p-6 shadow-2xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 mt-0.5">
+              <CheckSquare className="w-4 h-4" />
             </div>
-          )}
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">Template Details</h3>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Template Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Software Engineer Onboarding"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Target Department *</Label>
-                <Input
-                  id="department"
-                  value={formData.department}
-                  onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value, role_type: e.target.value }))}
-                  placeholder="e.g., All Departments, Engineering, Sales, Marketing"
-                  required
-                />
-                <p className="text-xs text-slate-500">
-                  Specifies which department or team this template is suited for (or "All Departments" for company-wide use).
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe what this template includes..."
-                  rows={3}
-                />
-              </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 tracking-tight font-heading">
+                Configured Onboarding Tasks
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review, edit, or remove milestone tasks for this template, or configure new ones.
+              </p>
             </div>
           </div>
-
-          {/* Tasks Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <CheckSquare className="w-5 h-5 text-indigo-600" />
-              Onboarding Tasks
-            </h3>
-            
-            {/* Task List */}
-            {formData.tasks.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {formData.tasks.map((task, index) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <CheckSquare className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-medium text-slate-900">{task.title}</p>
-                      {task.description && (
-                        <p className="text-sm text-slate-600 mt-0.5">{task.description}</p>
-                      )}
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline" className="text-xs bg-white text-indigo-700 border-indigo-200">
-                          Due in {task.deadline_days} days
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTask(index)}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add Task Form */}
-            <div className="p-5 border-2 border-dashed border-slate-300 rounded-lg space-y-4 bg-slate-50/50">
-              <div className="space-y-2">
-                <Label htmlFor="task-title" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Task Title *
-                </Label>
-                <Input
-                  id="task-title"
-                  placeholder="e.g., Complete IT workstation setup and security training"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-description" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Task Description
-                </Label>
-                <Input
-                  id="task-description"
-                  placeholder="Provide instructions or links for completing this task..."
-                  value={newTask.description}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-1">
-                <div className="space-y-2 w-full sm:w-64">
-                  <Label htmlFor="task-deadline" className="text-xs font-bold text-indigo-700 flex items-center gap-1.5 uppercase tracking-wider">
-                    <span>Days Until Deadline *</span>
-                  </Label>
-                  <Input
-                    id="task-deadline"
-                    type="number"
-                    min="1"
-                    placeholder="e.g., 7"
-                    value={newTask.deadline_days}
-                    onChange={(e) => setNewTask(prev => ({ ...prev, deadline_days: parseInt(e.target.value) || 0 }))}
-                    className="bg-white border-slate-300 focus:border-indigo-500 font-medium"
-                  />
-                </div>
-                <Button 
-                  type="button" 
-                  onClick={addTask} 
-                  variant="outline"
-                  className="bg-white border-slate-300 hover:bg-slate-100 self-end shadow-sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Task
-                </Button>
-              </div>
-            </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 w-fit shrink-0">
+              {formData.tasks.length} {formData.tasks.length === 1 ? "task" : "tasks"}
+            </span>
+            <Button
+              type="button"
+              onClick={handleOpenCreateTask}
+              className="h-8 px-3 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-2xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Activity</span>
+            </Button>
           </div>
+        </div>
 
-          {/* Documents Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <File className="w-5 h-5" />
-              Required Documents
-            </h3>
-
-            {/* Document List */}
-            {formData.required_documents.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {formData.required_documents.map((doc, index) => (
-                  <Badge key={index} variant="secondary" className="px-3 py-2">
-                    {doc}
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(index)}
-                      className="ml-2 text-red-500 hover:text-red-700"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* Add Document Form */}
-            <div className="flex gap-3">
-              <Input
-                placeholder="Document name (e.g., ID Copy, Resume)"
-                value={newDocument}
-                onChange={(e) => setNewDocument(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDocument())}
+        {/* List of Configured Tasks */}
+        {formData.tasks.length > 0 ? (
+          <div className="space-y-3">
+            {formData.tasks.map((task, index) => (
+              <TemplateTaskItem
+                key={index}
+                task={task}
+                index={index}
+                isBeingEdited={editingTaskIndex === index}
+                onEdit={handleEditTask}
+                onRemove={removeTask}
               />
-              <Button type="button" onClick={addDocument} variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Document
-              </Button>
-            </div>
+            ))}
           </div>
+        ) : (
+          <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center bg-slate-50/50 space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+              <CheckSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-800">No milestone activities configured yet</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Add onboarding steps, document uploads, or forms for new hires to complete.</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenCreateTask}
+              className="h-8 text-xs font-medium border-slate-200 hover:bg-white text-slate-700 cursor-pointer shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1 text-slate-500" />
+              Add First Activity
+            </Button>
+          </div>
+        )}
+      </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-            <Button type="button" variant="outline" onClick={onCancel} isLoading={isSubmitting}>
+      {/* Task Modal Dialog */}
+      <TemplateTaskEditor
+        open={isTaskDialogOpen}
+        onClose={handleCloseTaskDialog}
+        newTask={newTask}
+        onChange={handleTaskFieldChange}
+        editingTaskIndex={editingTaskIndex}
+        onSave={saveTask}
+        isUploadingTemplate={isUploadingTemplate}
+        onTemplateUpload={handleTemplateUpload}
+        onRemoveTemplate={handleRemoveAttachedTemplate}
+      />
+
+      {/* 3. Standard Paperwork Documents */}
+      <TemplateDocumentsSection
+        requiredDocuments={formData.required_documents}
+        newDocument={newDocument}
+        setNewDocument={setNewDocument}
+        onAddDocument={addDocument}
+        onRemoveDocument={removeDocument}
+      />
+
+      {/* 4. Sticky Form Action Footer */}
+      <div className="fixed sm:sticky bottom-0 left-0 right-0 z-30 py-3.5 px-4 sm:px-6 bg-white/90 backdrop-blur-md border-t border-slate-200/90 shadow-md">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <div className="text-xs text-slate-500 hidden sm:flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="font-medium text-slate-700">
+              {formData.tasks.length} {formData.tasks.length === 1 ? "task" : "tasks"}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-medium text-slate-700">
+              {formData.required_documents.length} required documents
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="h-9 px-4 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-lg cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              isLoading={isSubmitting}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-9 px-5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs cursor-pointer"
             >
-              {isSubmitting 
-                ? (isEditing ? "Saving Changes..." : "Creating...") 
-                : (isEditing ? "Save Changes" : "Create Template")
-              }
+              {isSubmitting
+                ? isEditing
+                  ? "Saving Changes..."
+                  : "Creating Template..."
+                : isEditing
+                  ? "Save Template Changes"
+                : "Create Onboarding Template"}
             </Button>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </form>
   );
 }

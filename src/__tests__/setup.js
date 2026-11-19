@@ -9,7 +9,7 @@ import { cleanup } from '@testing-library/react';
 // Auto-cleanup after each test to prevent DOM leaks
 afterEach(() => {
   cleanup();
-  localStorage.clear();
+  globalThis.localStorage?.clear?.();
   vi.clearAllMocks();
 });
 

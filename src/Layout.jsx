@@ -7,7 +7,7 @@ import {
   Briefcase, Video, ClipboardCheck, Calendar, DollarSign, UserPlus, Receipt,
   MessageSquare, Settings, CheckSquare, Plane, MessageCircle, Home,
   Target, ShieldCheck, Laptop, CheckCircle, TrendingUp, BookOpen, Clock, CalendarRange,
-  BookTemplate, ChevronRight, ChevronsUpDown, User
+  BookTemplate, ChevronRight, ChevronsUpDown, User, FolderArchive
 } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/lib/AuthContext";
@@ -57,7 +57,7 @@ const navigationStructure = [
       { title: "Overview", url: PAGE_ROUTES.HOME, icon: LayoutDashboard },
       { title: "Approvals", url: PAGE_ROUTES.PENDING_APPROVALS, icon: CheckCircle },
       import.meta.env.DEV && { title: "Assets", url: PAGE_ROUTES.ASSETS, icon: Laptop },
-      { title: "Tasks & Projects", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
+      { title: "Tasks", url: PAGE_ROUTES.TASK_MANAGER, icon: CheckSquare },
     ].filter(Boolean)
   },
   {
@@ -103,6 +103,7 @@ const employeeNavigation = [
     icon: FileText,
     isParent: true,
     children: [
+      { title: "Company Library", url: PAGE_ROUTES.COMPANY_LIBRARY, icon: FolderArchive },
       { title: "Leave Management", url: PAGE_ROUTES.LEAVE_MANAGEMENT, icon: Plane },
       { title: "My Loans", url: PAGE_ROUTES.LOANS, icon: DollarSign },
       { title: "Expense Claims", url: PAGE_ROUTES.EXPENSES, icon: Receipt },
@@ -292,10 +293,11 @@ function LayoutInner({ children }) {
         isParent: true,
         children: [
           { title: "General Settings", url: PAGE_ROUTES.SETTINGS, icon: Settings },
+          { title: "Company Library", url: PAGE_ROUTES.SETTINGS_COMPANY_LIBRARY, icon: FolderArchive },
           { title: "Approval Workflows", url: PAGE_ROUTES.SETTINGS_APPROVAL_WORKFLOWS, icon: CheckCircle },
           { title: "Work Shifts", url: PAGE_ROUTES.SETTINGS_SHIFTS, icon: Clock },
           { title: "Departments", url: PAGE_ROUTES.SETTINGS_DEPARTMENTS, icon: Users },
-          { title: "Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
+          { title: "Onboarding Templates", url: PAGE_ROUTES.TEMPLATES, icon: BookTemplate },
           { title: "Employment", url: PAGE_ROUTES.SETTINGS_CLASSES, icon: Settings },
           { title: "Leave Types", url: PAGE_ROUTES.SETTINGS_LEAVE_TYPES, icon: CalendarRange },
           { title: "Public Holidays", url: PAGE_ROUTES.SETTINGS_PUBLIC_HOLIDAYS, icon: Calendar },
@@ -665,7 +667,7 @@ function LayoutInner({ children }) {
                 </DropdownMenuItem>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => {
+                    {/* <DropdownMenuItem onClick={() => {
                     if (canSwitchViews) changeViewMode('EMPLOYEE');
                     navigate(PAGE_ROUTES.EMPLOYEE_SELF_SERVICE);
                   }} className="cursor-pointer">
@@ -678,7 +680,7 @@ function LayoutInner({ children }) {
                   }} className="cursor-pointer">
                     <User className="w-3.5 h-3.5 mr-2 text-slate-500" />
                     My Profile & Records
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                 </>
               )}
 
