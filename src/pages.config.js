@@ -69,6 +69,7 @@ import HRAssistant from './pages/HRAssistant';
 import HRLetters from './pages/HRLetters';
 import Home from './pages/Home';
 import LeaveManagement from './pages/LeaveManagement';
+import LeaveReports from './pages/LeaveReports';
 import Loans from './pages/Loans';
 import Offboarding from './pages/Offboarding';
 import OrganizationSetup from './pages/OrganizationSetup';
@@ -79,6 +80,7 @@ import PayrollReports from './pages/PayrollReports';
 
 import Recruitment from './pages/Recruitment';
 import Settings from './pages/Settings';
+import SettingsCompanyLibrary from './pages/Settings/SettingsCompanyLibrary';
 import SettingsApprovalWorkflows from './pages/Settings/SettingsApprovalWorkflows';
 import SettingsShifts from './pages/Settings/SettingsShifts';
 import SettingsDepartments from './pages/Settings/SettingsDepartments';
@@ -86,6 +88,7 @@ import SettingsClasses from './pages/Settings/SettingsClasses';
 import SettingsLeaveTypes from './pages/SettingsLeaveTypes';
 import SettingsPublicHolidays from './pages/SettingsPublicHolidays';
 import SettingsStatutory from './pages/SettingsStatutory';
+import CompanyLibrary from './pages/CompanyLibrary';
 import Surveys from './pages/Surveys';
 import TaskManager from './pages/TaskManager';
 import Templates from './pages/Templates';
@@ -122,6 +125,7 @@ export const PAGES = {
     "HRLetters": HRLetters,
     "Home": Home,
     "LeaveManagement": LeaveManagement,
+    "LeaveReports": LeaveReports,
     "Loans": Loans,
     "Offboarding": Offboarding,
     "OrganizationSetup": OrganizationSetup,
@@ -131,6 +135,8 @@ export const PAGES = {
 
     "Recruitment": Recruitment,
     "Settings": Settings,
+    "SettingsCompanyLibrary": SettingsCompanyLibrary,
+    "CompanyLibrary": CompanyLibrary,
     "SettingsApprovalWorkflows": SettingsApprovalWorkflows,
     "SettingsShifts": SettingsShifts,
     "SettingsDepartments": SettingsDepartments,

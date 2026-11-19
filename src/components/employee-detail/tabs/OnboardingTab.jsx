@@ -16,7 +16,7 @@ export default function OnboardingTab({
         onSetToActive={() => onNavigateToJobWithStatus('ACTIVE')}
         onBeginOffboarding={() => onNavigateToJobWithStatus('OFFBOARDED')}
       />
-      <TaskManager employeeId={employeeId} tasks={employee?.onboardingTasks || []} />
+      <TaskManager employeeId={employeeId} employee={employee} tasks={employee?.onboardingTasks || []} />
     </div>
   );
 }

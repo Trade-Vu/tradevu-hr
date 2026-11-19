@@ -18,4 +18,5 @@ export { default as projectsApi } from './projects.api';
 export { default as approvalsApi } from './approvals.api';
 export { default as notificationsApi } from './notifications.api';
 export { default as hrLettersApi, HR_LETTER_TYPES } from './hrLetters.api';
+export { default as companyLibraryApi, companyLibraryApi as companyLibrary } from './companyLibrary.api';
 

@@ -4,13 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi, onboardingApi, employeesApi } from "@/api";
 import { toast } from "sonner";
 import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
+import { queryKeys } from "@/constants/queryKeys";
 
 export function useTaskManager({ user, selectedTask, setSelectedTask }) {
   const queryClient = useQueryClient();
 
   // Queries
   const { data: employeesData } = useQuery({
-    queryKey: ["task-manager-employees"],
+    queryKey: queryKeys.tasks.taskManagerEmployees(),
     queryFn: async () => employeesApi.getAllEmployees(),
   });
   const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);
@@ -25,7 +26,7 @@ export function useTaskManager({ user, selectedTask, setSelectedTask }) {
   const rawProjects = Array.isArray(projectsData) ? projectsData : (projectsData?.data || []);
 
   const { data: projectTasksData, isLoading: projectTasksLoading } = useQuery({
-    queryKey: ["project-tasks"],
+    queryKey: queryKeys.tasks.projects(),
     queryFn: async () => {
       const res = await projectsApi.getAllTasks();
       return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
@@ -34,7 +35,7 @@ export function useTaskManager({ user, selectedTask, setSelectedTask }) {
   const rawProjectTasks = Array.isArray(projectTasksData) ? projectTasksData : (projectTasksData?.data || []);
 
   const { data: onboardingTasksData, isLoading: onboardingTasksLoading } = useQuery({
-    queryKey: ["onboarding-tasks"],
+    queryKey: queryKeys.tasks.onboarding(),
     queryFn: async () => {
       const res = await onboardingApi.getAllTasks();
       return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
@@ -261,12 +262,8 @@ export function useTaskManager({ user, selectedTask, setSelectedTask }) {
       }
       toast.error("Failed to update task");
     },
-    onSettled: (data, error, variables) => {
-      if (variables?.task?.is_onboarding) {
-        queryClient.invalidateQueries({ queryKey: ["onboarding-tasks"] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
-      }
+    onSettled: () => {
+      queryKeys.tasks.invalidateAll(queryClient);
     },
   });
 
@@ -307,8 +304,7 @@ export function useTaskManager({ user, selectedTask, setSelectedTask }) {
       return await Promise.allSettled(promises);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["onboarding-tasks"] });
+      queryKeys.tasks.invalidateAll(queryClient);
       const statusTitle = variables.newStatus
         ? TASK_STATUS_CONFIG[normalizeTaskStatus(variables.newStatus)]?.title || variables.newStatus
         : "updated";

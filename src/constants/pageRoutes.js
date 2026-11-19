@@ -32,10 +32,13 @@ const BASE_ROUTES = {
   // Leave & Attendance
   LEAVE_MANAGEMENT: '/leavemanagement',
   ALL_LEAVE_REQUESTS: '/allleaverequests',
+  LEAVE_REPORTS: '/leavereports',
   ATTENDANCE: '/attendance',
 
   // Assets & Communication
   ASSETS: '/assets',
+  COMPANY_LIBRARY: '/companylibrary',
+  SETTINGS_COMPANY_LIBRARY: '/settingscompanylibrary',
   CHAT: '/chat',
   COMPANY_WALL: '/companywall',
 

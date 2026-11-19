@@ -25,6 +25,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from '@/utils/cloudinary';
+import { companyLibraryApi } from '@/api';
+import { validateAssetFile } from '@/lib/fileFormatUtils';
 import { TASK_STATUSES, normalizeTaskStatus } from '@/constants/taskStatus';
 import { useAuth } from '@/lib/AuthContext';
 import {
@@ -150,6 +152,13 @@ export default function OnboardingTab({
 
   const handleFileUpload = async (task, file) => {
     if (!file) return;
+
+    const validation = validateAssetFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
     try {
       setUploadingTaskId(task.id);
       const res = await uploadToCloudinary(file);
@@ -166,6 +175,18 @@ export default function OnboardingTab({
       const existingSubmissions = Array.isArray(task.submissions) ? task.submissions : [];
       const updatedSubmissions = [submissionRecord, ...existingSubmissions];
       const shouldComplete = task.completionRule !== COMPLETION_RULES.REQUIRES_HR_REVIEW;
+
+      // Sync submission with Company Library backend endpoint
+      try {
+        await companyLibraryApi.submitTaskAsset(task.id, {
+          submissionFileUrl: res.secure_url,
+          submissionFileName: file.name,
+          submissionFileType: file.name.split('.').pop()?.toLowerCase() || 'pdf',
+          submissionFileSize: file.size,
+        });
+      } catch (backendErr) {
+        console.warn('Backend company library submitTaskAsset sync:', backendErr);
+      }
 
       onToggleTask({
         taskId: task.id,
@@ -328,13 +349,42 @@ export default function OnboardingTab({
                     {/* Checkbox only for simple checkbox tasks, or disabled for input/upload tasks that require evidence */}
                     <Checkbox
                       checked={isCompleted}
-                      onCheckedChange={() =>
+                      onCheckedChange={() => {
+                        if (!isCompleted) {
+                          if (
+                            task.isUploadRequired ||
+                            taskType === TASK_INPUT_TYPES.FILE_UPLOAD ||
+                            taskType === TASK_INPUT_TYPES.DOCUMENT_SIGNING
+                          ) {
+                            const hasUploaded =
+                              submissions.length > 0 ||
+                              (task.attachmentUrls && task.attachmentUrls.length > 0) ||
+                              task.responseValue;
+                            if (!hasUploaded) {
+                              toast.error('Please download, sign, and upload the required document before completing this task.');
+                              return;
+                            }
+                          }
+                          if (taskType === TASK_INPUT_TYPES.INPUT && !task.responseValue && !inputs[task.id]) {
+                            toast.error('Please enter your response and click "Save Response".');
+                            return;
+                          }
+                          if (
+                            taskType === TASK_INPUT_TYPES.MULTI_SELECT &&
+                            !task.responseValue &&
+                            (!selectedOptions[task.id] || selectedOptions[task.id].length === 0)
+                          ) {
+                            toast.error('Please select an option and click "Submit Choice".');
+                            return;
+                          }
+                        }
+
                         onToggleTask({
                           taskId: task.id,
                           isCompleted,
                           status: isCompleted ? TASK_STATUSES.TODO : TASK_STATUSES.DONE,
-                        })
-                      }
+                        });
+                      }}
                       className="mt-1"
                     />
 
@@ -383,6 +433,18 @@ export default function OnboardingTab({
                         >
                           {isCompleted ? 'Completed' : isUnderReview ? 'Under Review' : 'Pending Action'}
                         </Badge>
+
+                        {task.templateUrl && (
+                          <Badge variant="outline" className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            Template Attached
+                          </Badge>
+                        )}
+
+                        {task.isUploadRequired && !isCompleted && (
+                          <Badge className="text-[10px] font-semibold bg-rose-50 text-rose-700 border-rose-200">
+                            Upload Required
+                          </Badge>
+                        )}
                       </div>
 
                       {task.description && (
@@ -516,31 +578,50 @@ export default function OnboardingTab({
 
                       {/* --- INTERACTIVE TASK TYPE 3: Template Download & Evidence Upload --- */}
                       {(taskType === TASK_INPUT_TYPES.FILE_UPLOAD ||
-                        taskType === TASK_INPUT_TYPES.DOCUMENT_SIGNING) && (
+                        taskType === TASK_INPUT_TYPES.DOCUMENT_SIGNING ||
+                        Boolean(task.templateUrl) ||
+                        Boolean(task.companyAssetId) ||
+                        Boolean(task.companyAsset) ||
+                        Boolean(task.isUploadRequired)) && (() => {
+                        const templateDocUrl = task.companyAsset?.fileUrl || task.templateUrl;
+                        const templateDocTitle = task.companyAsset?.name || task.templateName || 'Official Starter Document Template';
+                        return (
                         <div className="mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
                           {/* Attached Template from Admin */}
-                          {task.templateUrl && (
+                          {templateDocUrl && (
                             <div className="flex items-center justify-between p-3 rounded-lg bg-indigo-50/60 border border-indigo-200/70 text-xs shadow-2xs">
                               <div className="flex items-center gap-2.5 truncate">
                                 <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
                                 <div className="truncate">
-                                  <span className="font-semibold text-slate-900 block truncate">
-                                    {task.templateName || 'Official Starter Document Template'}
-                                  </span>
-                                  <span className="text-[10px] text-indigo-700">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-slate-900 truncate">
+                                      {templateDocTitle}
+                                    </span>
+                                    {task.companyAsset && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+                                        Company Library
+                                      </span>
+                                    )}
+                                    {task.isUploadRequired && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+                                        Upload Required
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-indigo-700 block">
                                     Download, fill/sign, and upload completed version below
                                   </span>
                                 </div>
                               </div>
                               <a
-                                href={task.templateUrl}
+                                href={templateDocUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 download
-                                className="inline-flex items-center gap-1 font-semibold text-indigo-700 hover:text-indigo-900 text-xs px-2.5 py-1 rounded-md bg-white border border-indigo-200 shadow-2xs transition-colors shrink-0 ml-2"
+                                className="inline-flex items-center gap-1 font-semibold text-indigo-700 hover:text-indigo-900 text-xs px-2.5 py-1 rounded-md bg-white border border-indigo-200 shadow-2xs transition-colors shrink-0 ml-2 cursor-pointer"
                               >
                                 <Download className="w-3.5 h-3.5" />
-                                <span>Download Form</span>
+                                <span>Download Template</span>
                               </a>
                             </div>
                           )}
@@ -553,7 +634,7 @@ export default function OnboardingTab({
                                 <span>
                                   {uploadingTaskId === task.id
                                     ? 'Uploading Document to Cloud...'
-                                    : task.templateUrl
+                                    : templateDocUrl
                                     ? 'Upload Completed / Signed Version'
                                     : 'Upload Document Evidence'}
                                 </span>
@@ -613,7 +694,8 @@ export default function OnboardingTab({
                             </div>
                           )}
                         </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Due date and Completion Rule */}
                       <div className="flex items-center gap-4 text-xs text-slate-400 mt-2.5 flex-wrap">

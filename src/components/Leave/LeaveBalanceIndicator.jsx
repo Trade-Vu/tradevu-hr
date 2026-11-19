@@ -35,6 +35,12 @@ export default function LeaveBalanceIndicator({
           </span>
         )}
 
+        {typeof selectedBalance?.earnedLeave === "number" && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
+            Accrued: {selectedBalance.earnedLeave} days
+          </span>
+        )}
+
         {pendingDays > 0 && (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-medium bg-amber-50 text-amber-800 border border-amber-200/80">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />

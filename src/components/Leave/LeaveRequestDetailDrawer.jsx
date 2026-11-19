@@ -26,13 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isPendingLeaveStatus } from '@/lib/leaveStatus';
 import LeaveStatusPill from './LeaveStatusPill';
-
-const getInitials = (name) => {
-  if (!name) return 'EM';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
+import { getLeaveEmployeeName, getLeaveEmployeeInitials, getLeaveDepartmentName } from './leaveEmployeeUtils';
 
 export default function LeaveRequestDetailDrawer({
   isOpen,
@@ -46,14 +40,14 @@ export default function LeaveRequestDetailDrawer({
 }) {
   if (!request) return null;
 
-  const employeeName = request.employee_name || request.employeeId?.fullName || request.employeeId?.name || 'Employee';
+  const employeeName = getLeaveEmployeeName(request);
   const employeeEmail = request.employee_email || request.employeeId?.email || '';
-  const departmentName = request.department_name || request.employeeId?.departmentId?.name || request.employeeId?.department?.name || '';
+  const departmentName = getLeaveDepartmentName(request);
   const leaveTypeName = (request.leave_type || request.leaveTypeId?.name || 'Leave').replace(/_/g, ' ');
   const days = request.total_days ?? request.totalDays ?? 0;
   const attachmentUrl = request.attachment_url || request.attachmentUrl;
   const isPending = isPendingLeaveStatus(request.status);
-  const initials = getInitials(employeeName);
+  const initials = getLeaveEmployeeInitials(employeeName);
 
   const reliefOfficerName = request.relief_officer_name || request.reliefOfficerId?.fullName || request.reliefOfficerId?.name;
   const reliefStatus = request.relief_officer_status || request.reliefOfficerStatus;

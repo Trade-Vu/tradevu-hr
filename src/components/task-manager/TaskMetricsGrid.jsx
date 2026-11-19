@@ -26,7 +26,6 @@ export default function TaskMetricsGrid({ allTasks = [] }) {
     {
       title: "Active Workload",
       value: totalTasksCount - completedTasksCount,
-      subtext: `${totalTasksCount} total registered tasks`,
       icon: Layers,
       trend: `${totalTasksCount - completedTasksCount} Open`,
       badgeColor: "bg-blue-50 text-blue-700 border-blue-200/60",
@@ -34,7 +33,6 @@ export default function TaskMetricsGrid({ allTasks = [] }) {
     {
       title: "In Execution",
       value: activeWorkstreamCount,
-      subtext: "Tasks in progress or review",
       icon: ListTodo,
       trend: "Active Flow",
       badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200/60",
@@ -42,7 +40,6 @@ export default function TaskMetricsGrid({ allTasks = [] }) {
     {
       title: "Overdue & Bottlenecks",
       value: overdueCount,
-      subtext: "Tasks past due requiring action",
       icon: AlertTriangle,
       trend: overdueCount > 0 ? "Requires Attention" : "Clear Schedule",
       badgeColor:
@@ -53,7 +50,6 @@ export default function TaskMetricsGrid({ allTasks = [] }) {
     {
       title: "Delivery Velocity",
       value: `${velocityPct}%`,
-      subtext: `${completedTasksCount} deliverables finalized`,
       icon: CheckCircle2,
       trend: `${completedTasksCount} Done`,
       badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
@@ -86,14 +82,6 @@ export default function TaskMetricsGrid({ allTasks = [] }) {
                 <div className="flex items-baseline gap-2">
                   <span className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
                     {item.value}
-                  </span>
-                </div>
-                <div className="mt-2.5 flex items-center justify-between text-xs pt-2 border-t border-slate-100">
-                  <span className="text-slate-500 truncate max-w-[130px] sm:max-w-none">
-                    {item.subtext}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${item.badgeColor}`}>
-                    {item.trend}
                   </span>
                 </div>
               </div>

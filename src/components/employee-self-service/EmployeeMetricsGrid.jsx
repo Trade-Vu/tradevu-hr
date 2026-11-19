@@ -104,14 +104,6 @@ export default function EmployeeMetricsGrid({
                     {item.value}
                   </span>
                 </div>
-                <div className="mt-2.5 flex items-center justify-between text-xs pt-2 border-t border-slate-100">
-                  <span className="text-slate-500 truncate max-w-[130px] sm:max-w-none">
-                    {item.subtext}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${item.badgeColor}`}>
-                    {item.trend}
-                  </span>
-                </div>
               </div>
             </CardSpotlight>
           </div>

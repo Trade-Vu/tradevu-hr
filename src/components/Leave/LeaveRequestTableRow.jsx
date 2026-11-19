@@ -4,16 +4,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { isPendingLeaveStatus } from '@/lib/leaveStatus';
 import LeaveStatusPill from './LeaveStatusPill';
-
-const getInitials = (name) => {
-  if (!name) return 'EM';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
-
-const getEmployeeName = (leave) =>
-  leave.employee_name || leave.employeeId?.fullName || leave.employeeId?.name || 'Employee';
+import { getLeaveEmployeeName, getLeaveEmployeeInitials } from './leaveEmployeeUtils';
 
 const getLeaveTypeName = (leave) =>
   (leave.leave_type || leave.leaveTypeId?.name || 'Annual Leave').replace(/_/g, ' ');
@@ -32,7 +23,7 @@ export default function LeaveRequestTableRow({
   const isPending = isPendingLeaveStatus(leave.status);
   const managerHasApproved = hasManagerApproved(leave) && isManagerOnly;
   const days = leave.total_days ?? leave.totalDays ?? 0;
-  const employeeName = getEmployeeName(leave);
+  const employeeName = getLeaveEmployeeName(leave);
   const deptOrEmail = leave.department_name || leave.employeeId?.departmentId?.name || leave.employee_email;
   const hasDoc = Boolean(leave.attachment_url || leave.attachmentUrl);
 
@@ -45,7 +36,7 @@ export default function LeaveRequestTableRow({
       <TableCell className="py-3.5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100/80 text-indigo-700 font-semibold text-xs flex items-center justify-center shrink-0 shadow-2xs">
-            {getInitials(employeeName)}
+            {getLeaveEmployeeInitials(employeeName)}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">

@@ -134,7 +134,7 @@ export default function LandingDashboardPreview() {
               </div>
               <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-xs transition-colors">
                 <CheckSquare className="w-4 h-4 text-slate-400" />
-                <span>Tasks & Projects</span>
+                <span>Tasks</span>
               </div>
             </nav>
           </div>

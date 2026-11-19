@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
-import { FolderKanban, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
 
 // Custom Hook (Clean Architecture)
@@ -168,17 +168,11 @@ export default function TaskManager() {
       {/* 1. Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
         <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Tasks & Project Workspace
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200/60">
-              <FolderKanban className="w-3.5 h-3.5 text-blue-600" />
-              <span>Initiatives & Milestones</span>
-            </span>
-          </div>
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1">
+            Tasks
+          </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Coordinate cross-functional projects, sprint deliverables, and track employee onboarding milestone progress.
+            Track employee onboarding milestone progress.
           </p>
         </div>
 

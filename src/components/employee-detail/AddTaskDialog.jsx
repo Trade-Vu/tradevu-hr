@@ -45,6 +45,7 @@ export default function AddTaskDialog({ open, onClose, onSubmit, isSubmitting })
     allowMultiple: true,
     templateUrl: "",
     templateName: "",
+    isUploadRequired: false,
   });
 
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
@@ -103,6 +104,7 @@ export default function AddTaskDialog({ open, onClose, onSubmit, isSubmitting })
       inputConfig,
       templateUrl: taskData.templateUrl || undefined,
       templateName: taskData.templateName || undefined,
+      isUploadRequired: Boolean(taskData.isUploadRequired),
     };
 
     onSubmit(payload);
@@ -350,6 +352,23 @@ export default function AddTaskDialog({ open, onClose, onSubmit, isSubmitting })
                       <Check className="w-3.5 h-3.5" /> Attached: {taskData.templateName}
                     </span>
                   )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200/70">
+                  <Checkbox
+                    id="dialog-require-upload"
+                    checked={
+                      taskData.isUploadRequired ||
+                      taskData.taskType === TASK_INPUT_TYPES.FILE_UPLOAD ||
+                      taskData.taskType === TASK_INPUT_TYPES.DOCUMENT_SIGNING
+                    }
+                    onCheckedChange={(checked) =>
+                      setTaskData((prev) => ({ ...prev, isUploadRequired: Boolean(checked) }))
+                    }
+                  />
+                  <Label htmlFor="dialog-require-upload" className="text-xs font-medium text-slate-800 cursor-pointer">
+                    Mark upload as required (employee must upload signed file/evidence)
+                  </Label>
                 </div>
               </div>
             )}

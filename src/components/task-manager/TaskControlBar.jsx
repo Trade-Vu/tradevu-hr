@@ -2,7 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, UserCheck, Filter, Kanban, ListTodo, FolderKanban } from "lucide-react";
+import { Search, UserCheck, Filter, Kanban, FolderKanban } from "lucide-react";
 
 export default function TaskControlBar({
   viewMode,
@@ -37,18 +37,6 @@ export default function TaskControlBar({
           >
             <Kanban className="w-3.5 h-3.5" />
             <span>Kanban Board</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-              viewMode === "list"
-                ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <ListTodo className="w-3.5 h-3.5" />
-            <span>High-Density List</span>
           </button>
           <button
             type="button"

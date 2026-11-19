@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { onboardingApi } from "@/api/onboarding.api";
 import { toast } from "sonner";
@@ -6,10 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, User, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Plus, Calendar, User, CheckCircle, Clock, AlertCircle, BookTemplate } from "lucide-react";
 import { format } from "date-fns";
 import AddTaskDialog from "./AddTaskDialog";
+import AssignTemplateDialog from "./AssignTemplateDialog";
 import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
+import { queryKeys } from "@/constants/queryKeys";
 
 const statusColors = {
   pending: "bg-orange-100 text-orange-800 border-orange-200",
@@ -23,12 +25,27 @@ const priorityColors = {
   high: "bg-red-100 text-red-800",
 };
 
-export default function TaskManager({ tasks = [], employeeId }) {
+export default function TaskManager({ tasks = [], employeeId, employee }) {
   const queryClient = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+
+  const { data: templates = [] } = useQuery({
+    queryKey: queryKeys.templates.all,
+    queryFn: async () => {
+      const res = await onboardingApi.getTemplates();
+      return Array.isArray(res) ? res : (res?.data || []);
+    },
+  });
+
+  const assignedTemplate = useMemo(() => {
+    const tId = employee?.templateId || employee?.template_id || employee?.template?._id || employee?.template?.id;
+    if (!tId || !templates.length) return null;
+    return templates.find((t) => (t._id || t.id) === tId) || null;
+  }, [employee, templates]);
 
   const { data: fetchedTasks = [] } = useQuery({
-    queryKey: ['onboarding-tasks', employeeId],
+    queryKey: queryKeys.tasks.onboardingEmployee(employeeId),
     queryFn: async () => {
       if (!employeeId) return [];
       const res = await onboardingApi.getEmployeeTasks(employeeId);
@@ -55,9 +72,7 @@ export default function TaskManager({ tasks = [], employeeId }) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      queryKeys.tasks.invalidateAll(queryClient, employeeId);
       queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] });
       queryClient.refetchQueries({ queryKey: ['pendingApprovals'] });
       queryClient.invalidateQueries({ queryKey: ['pendingApprovalsCount'] });
@@ -85,13 +100,12 @@ export default function TaskManager({ tasks = [], employeeId }) {
         inputConfig: taskData.inputConfig,
         templateUrl: taskData.templateUrl,
         templateName: taskData.templateName,
+        isUploadRequired: Boolean(taskData.isUploadRequired),
       };
       return await onboardingApi.createTask(payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', employeeId] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', employeeId] });
-      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
+      queryKeys.tasks.invalidateAll(queryClient, employeeId);
       setShowAddDialog(false);
       toast.success("Task created successfully");
     },
@@ -127,11 +141,72 @@ export default function TaskManager({ tasks = [], employeeId }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Onboarding Tasks</h2>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Task
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Onboarding Tasks</h2>
+          <p className="text-xs text-slate-500">Track and manage onboarding milestone progress for this employee.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (assignedTemplate) {
+                setSelectedTemplateId(assignedTemplate._id || assignedTemplate.id);
+              }
+              setShowAssignDialog(true);
+            }}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 gap-1.5 cursor-pointer"
+          >
+            <BookTemplate className="w-4 h-4 text-slate-500" />
+            <span>{assignedTemplate ? "Re-sync Template" : "Apply Template"}</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowAddDialog(true)}
+            className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Task</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Template Association & Audit Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+            <BookTemplate className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-800">
+                {assignedTemplate ? `Track: ${assignedTemplate.name}` : "Onboarding Track: Custom / Ad-hoc"}
+              </span>
+              <Badge variant="outline" className="bg-white text-indigo-700 border-indigo-200 text-[10px] font-semibold py-0 h-4">
+                v{assignedTemplate?.version || "1.0"}
+              </Badge>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {assignedTemplate
+                ? "Milestones are linked to this template. Re-syncing pulls any new or updated tasks from the template."
+                : "Assign an onboarding template to automatically populate this employee with standardized milestones."}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (assignedTemplate) {
+              setSelectedTemplateId(assignedTemplate._id || assignedTemplate.id);
+            }
+            setShowAssignDialog(true);
+          }}
+          className="text-xs h-8 border-slate-200 hover:bg-white text-slate-700 font-medium shrink-0 cursor-pointer"
+        >
+          <BookTemplate className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+          {assignedTemplate ? "Re-sync Tasks" : "Assign Template"}
         </Button>
       </div>
 
@@ -276,6 +351,14 @@ export default function TaskManager({ tasks = [], employeeId }) {
         onClose={() => setShowAddDialog(false)}
         onSubmit={(data) => createTaskMutation.mutate(data)}
         isSubmitting={createTaskMutation.isPending}
+      />
+
+      {/* Standalone Reusable Apply / Re-sync Template Dialog */}
+      <AssignTemplateDialog
+        open={showAssignDialog}
+        onClose={() => setShowAssignDialog(false)}
+        employeeId={employeeId}
+        initialTemplateId={assignedTemplate?._id || assignedTemplate?.id || ""}
       />
     </div>
   );

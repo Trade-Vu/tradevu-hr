@@ -1,3 +1,12 @@
+export {
+  calculateLeaveBalance,
+  getConfirmedMonthsInYear,
+  getElapsedMonthsPostConfirmation,
+  roundLeaveDays,
+  ROUNDING_POLICY,
+  DEFAULT_LEAVE_CONFIG
+} from './leaveEngine.js';
+
 export const dateKey = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
