@@ -1,7 +1,8 @@
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Plane, Clock } from "lucide-react";
+import { Calendar, Plane, Clock, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { isAdmin as checkIsAdmin, isManager as checkIsManager } from "@/lib/roleUtils";
 import { useQuery } from "@tanstack/react-query";
@@ -9,12 +10,16 @@ import { approvalsApi } from "@/api";
 import LeaveOverview from "./LeaveOverview";
 import AllLeaveRequests from "./AllLeaveRequests";
 import LeavePlanner from "./LeavePlanner";
+import LeaveReports from "./LeaveReports";
 
 export default function LeaveManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get("tab") || "overview";
   const { user } = useAuth();
   const isAdmin = checkIsAdmin(user);
   const isManager = checkIsManager(user);
   const canViewTeamRequests = isAdmin || isManager;
+  const canViewReports = isAdmin || isManager || true; // All roles can access reports, scoped per RBAC
 
   const { data: pendingData } = useQuery({
     queryKey: ['pendingApprovalsCount'],
@@ -24,16 +29,20 @@ export default function LeaveManagement() {
   });
   const pendingLeaveCount = pendingData?.pendingLeaveCount || 0;
 
+  const handleTabChange = (value) => {
+    setSearchParams({ tab: value });
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Leave Management</h2>
         <p className="text-muted-foreground mt-2">
-          Manage your leave requests, view balances, and plan your annual leave.
+          Manage your leave requests, view balances, plan capacity, and export reports.
         </p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="bg-slate-100 p-1 rounded-xl h-auto inline-flex border border-slate-200/70">
           <TabsTrigger
             value="overview"
@@ -63,6 +72,13 @@ export default function LeaveManagement() {
             <Calendar className="w-4 h-4" />
             <span>Calendar</span>
           </TabsTrigger>
+          <TabsTrigger
+            value="reports"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Leave Reports</span>
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           <LeaveOverview />
@@ -74,6 +90,9 @@ export default function LeaveManagement() {
         )}
         <TabsContent value="planner" className="space-y-4">
           <LeavePlanner />
+        </TabsContent>
+        <TabsContent value="reports" className="space-y-4">
+          <LeaveReports />
         </TabsContent>
       </Tabs>
     </div>

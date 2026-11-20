@@ -20,6 +20,7 @@ import EmployeeQuickPreviewSheet from "../components/dashboard/EmployeeQuickPrev
 import EmployeePagination from "../components/employees/EmployeePagination";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
+import { queryKeys } from "@/constants/queryKeys";
 
 export default function Employees() {
   const { user } = useAuth();
@@ -155,7 +156,7 @@ export default function Employees() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
       queryClient.invalidateQueries({ queryKey: ['allEmployees'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryKeys.tasks.invalidateAll(queryClient);
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast.success('Employee created and invitation email sent!');
       setShowAddForm(false);
@@ -191,6 +192,7 @@ export default function Employees() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['paginatedEmployees'] });
+      queryKeys.tasks.invalidateAll(queryClient);
       setShowImportDialog(false);
       if (data?.created > 0) {
         toast.success(`Successfully imported ${data.created} employee${data.created !== 1 ? 's' : ''}!`);

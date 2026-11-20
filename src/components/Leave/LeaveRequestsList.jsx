@@ -17,9 +17,9 @@ import { isPendingLeaveStatus, normalizeLeaveStatus } from '@/lib/leaveStatus';
 import LeaveApprovalCard from './LeaveApprovalCard';
 import LeaveRequestDetailDrawer from './LeaveRequestDetailDrawer';
 import LeaveRequestTableRow from './LeaveRequestTableRow';
+import { getLeaveEmployeeName } from './leaveEmployeeUtils';
 
-const getEmployeeName = (leave) =>
-  leave.employee_name || leave.employeeId?.fullName || leave.employeeId?.name || 'Employee';
+const getEmployeeName = (leave) => getLeaveEmployeeName(leave);
 
 const getLeaveTypeName = (leave) =>
   (leave.leave_type || leave.leaveTypeId?.name || 'Annual Leave').replace(/_/g, ' ');

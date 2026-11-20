@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatLeaveStatus, getLeaveStatusBadgeClass, isPendingLeaveStatus } from '@/lib/leaveStatus';
+import { getLeaveEmployeeName, getLeaveDepartmentName } from './leaveEmployeeUtils';
 
 export default function LeaveApprovalCard({
   request,
@@ -28,16 +29,8 @@ export default function LeaveApprovalCard({
   canTakeAction = true,
 }) {
   const isPendingStatus = isPendingLeaveStatus(request.status);
-  const employeeName =
-    request.employee_name ||
-    request.employeeId?.fullName ||
-    request.employeeId?.name ||
-    'Employee';
-  const departmentName =
-    request.department_name ||
-    request.employeeId?.departmentId?.name ||
-    request.employeeId?.department?.name ||
-    '';
+  const employeeName = getLeaveEmployeeName(request);
+  const departmentName = getLeaveDepartmentName(request);
   const leaveTypeName =
     request.leave_type ||
     request.leaveTypeId?.name ||

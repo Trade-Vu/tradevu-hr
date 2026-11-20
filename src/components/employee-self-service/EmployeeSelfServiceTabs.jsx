@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   User,
+  CheckSquare,
   FileText,
   DollarSign,
   Laptop,
@@ -10,6 +11,7 @@ import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const dossierTabs = [
   { value: 'profile', label: 'Personal & Bank Info', icon: User },
+  { value: 'onboarding', label: 'Onboarding Checklist', icon: CheckSquare },
   { value: 'documents', label: 'Documents & Contracts', icon: FileText },
   { value: 'payslips', label: 'Payslips', icon: DollarSign },
   { value: 'assets', label: 'Company Assets', icon: Laptop },

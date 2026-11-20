@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leaveApi, approvalsApi } from "@/api";
+import { leaveApi, approvalsApi, employeesApi } from "@/api";
 import { useLeaveEligibleEmployees } from "@/hooks/useLeaveEligibleEmployeesQuery";
 import { useLeaveTypes } from "@/hooks/useLeaveTypesQuery";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import LeaveActionDialog from "@/components/Leave/LeaveActionDialog";
 import LeaveStatsCards from "@/components/Leave/LeaveStatsCards";
 import LeaveRequestsList from "@/components/Leave/LeaveRequestsList";
 import LeaveRequestDialog from "@/components/Leave/LeaveRequestDialog";
+import { getLeaveEmployeeName, getLeaveDepartmentName } from "@/components/Leave/leaveEmployeeUtils";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -41,15 +42,81 @@ export default function AllLeaveRequests() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
 
+  const { data: leaveTypes = [] } = useLeaveTypes();
+  const { data: employees = [] } = useLeaveEligibleEmployees();
+
+  // Org-wide employees directory for resolving employee names on all leave records
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ['allEmployees'],
+    queryFn: async () => {
+      const res = await employeesApi.getAllEmployees();
+      return Array.isArray(res) ? res : res?.data || [];
+    },
+  });
+
+  const employeesMap = useMemo(() => {
+    const map = new Map();
+    [...employees, ...allEmployees].forEach((emp) => {
+      const id = emp.id || emp._id;
+      if (id) {
+        map.set(String(id), emp);
+      }
+      if (emp.email) {
+        map.set(String(emp.email).toLowerCase(), emp);
+      }
+    });
+    return map;
+  }, [employees, allEmployees]);
+
   const normalizeLeave = (l) => {
-    const emp = l.employeeId || l.employee || {};
+    const rawEmp = l.employeeId || l.employee;
+    const empId = typeof rawEmp === 'string' ? rawEmp : (rawEmp?._id || rawEmp?.id || l.employee_id);
+    const empEmail = (typeof rawEmp === 'object' && rawEmp?.email) || l.employee_email;
+    const matchedEmp =
+      (empId ? employeesMap.get(String(empId)) : null) ||
+      (empEmail ? employeesMap.get(String(empEmail).toLowerCase()) : null);
+
+    const resolvedName =
+      (typeof rawEmp === 'object' &&
+        (rawEmp?.fullName ||
+          rawEmp?.full_name ||
+          rawEmp?.name ||
+          (rawEmp?.firstName && rawEmp?.lastName ? `${rawEmp.firstName} ${rawEmp.lastName}` : null) ||
+          (rawEmp?.first_name && rawEmp?.last_name ? `${rawEmp.first_name} ${rawEmp.last_name}` : null) ||
+          rawEmp?.user?.fullName ||
+          rawEmp?.user?.full_name ||
+          rawEmp?.user?.name)) ||
+      matchedEmp?.fullName ||
+      matchedEmp?.full_name ||
+      matchedEmp?.name ||
+      (matchedEmp?.firstName && matchedEmp?.lastName ? `${matchedEmp.firstName} ${matchedEmp.lastName}` : null) ||
+      (matchedEmp?.first_name && matchedEmp?.last_name ? `${matchedEmp.first_name} ${matchedEmp.last_name}` : null) ||
+      (l.employee_name && l.employee_name !== 'Employee' ? l.employee_name : null) ||
+      (l.employeeName && l.employeeName !== 'Employee' ? l.employeeName : null) ||
+      (empEmail && typeof empEmail === 'string' && empEmail.includes('@')
+        ? empEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : null) ||
+      'Employee';
+
+    const resolvedEmail = empEmail || matchedEmp?.email || '';
+
+    const resolvedDept =
+      (typeof rawEmp === 'object' &&
+        (rawEmp?.departmentId?.name || rawEmp?.department?.name || rawEmp?.department)) ||
+      matchedEmp?.departmentId?.name ||
+      matchedEmp?.department?.name ||
+      matchedEmp?.department ||
+      l.department_name ||
+      '';
+
     const typeName = l.leaveTypeId?.name || l.leaveType?.name || l.leave_type || 'Annual Leave';
+
     return {
       ...l,
       id: l._id || l.id,
-      employee_name: emp.fullName || emp.name || l.employee_name || 'Employee',
-      employee_email: emp.email || l.employee_email || '',
-      department_name: emp.departmentId?.name || emp.department?.name || l.department_name || '',
+      employee_name: resolvedName,
+      employee_email: resolvedEmail,
+      department_name: resolvedDept,
       leave_type: typeName,
       start_date: l.startDate || l.start_date,
       end_date: l.endDate || l.end_date,
@@ -78,7 +145,6 @@ export default function AllLeaveRequests() {
         total: payload?.pagination?.total ?? list.length,
         totalPages: Math.max(1, payload?.pagination?.totalPages ?? Math.ceil(list.length / limit)),
         currentPage: page,
-        leaveRequests: list.map(normalizeLeave)
       };
     },
   });
@@ -89,9 +155,6 @@ export default function AllLeaveRequests() {
     queryFn: async () => await approvalsApi.getPendingApprovals(),
     enabled: !!user,
   });
-
-  const { data: leaveTypes = [] } = useLeaveTypes();
-  const { data: employees = [] } = useLeaveEligibleEmployees();
 
   const { data: publicHolidays = [] } = useQuery({
     queryKey: ['publicHolidays'],
@@ -223,11 +286,11 @@ export default function AllLeaveRequests() {
     return rawLeaves
       .filter((l) => !isOwnRequest(l) && isPendingLeaveStatus(l.status))
       .map(normalizeLeave);
-  }, [pendingApprovalsData?.leaveRequests, user]);
+  }, [pendingApprovalsData?.leaveRequests, employeesMap, user]);
 
   // Merge pending approvals and historical requests for a unified, comprehensive view
   const displayRequests = useMemo(() => {
-    const baseRequests = leaveRequestsData?.leaveRequests || [];
+    const rawBase = leaveRequestsData?.data || [];
     const map = new Map();
 
     // Ensure pending approval leaves appear first so they are visible and actionable
@@ -236,17 +299,19 @@ export default function AllLeaveRequests() {
       if (id) map.set(id, leave);
     });
 
-    baseRequests.forEach((leave) => {
-      const id = leave.id || leave._id;
-      if (id && !map.has(id)) {
-        map.set(id, leave);
-      } else if (id && map.has(id)) {
-        map.set(id, { ...map.get(id), ...leave });
-      }
-    });
+    rawBase
+      .map(normalizeLeave)
+      .forEach((leave) => {
+        const id = leave.id || leave._id;
+        if (id && !map.has(id)) {
+          map.set(id, leave);
+        } else if (id && map.has(id)) {
+          map.set(id, { ...map.get(id), ...leave });
+        }
+      });
 
     return Array.from(map.values());
-  }, [pendingLeaves, leaveRequestsData?.leaveRequests]);
+  }, [pendingLeaves, leaveRequestsData?.data, employeesMap]);
 
   const totalRequests = Math.max(displayRequests.length, leaveRequestsData?.total || 0);
   const totalPages = Math.max(1, leaveRequestsData?.totalPages || Math.ceil(totalRequests / limit));
@@ -309,7 +374,7 @@ export default function AllLeaveRequests() {
         open={!!confirmState}
         onOpenChange={(open) => !open && setConfirmState(null)}
         action={confirmState?.action}
-        employeeName={confirmState?.leave?.employee_name}
+        employeeName={getLeaveEmployeeName(confirmState?.leave)}
         isPending={updateLeaveMutation.isPending}
         onConfirm={handleConfirmLeaveAction}
       />

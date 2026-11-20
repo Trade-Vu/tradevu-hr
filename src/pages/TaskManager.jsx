@@ -1,862 +1,327 @@
 // @ts-nocheck
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { projectsApi, onboardingApi, employeesApi } from "@/api";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Kanban, FolderKanban, Calendar, Clock, User, CheckCircle } from "lucide-react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { TASK_STATUSES, TASK_STATUS_CONFIG, normalizeTaskStatus } from "@/constants/taskStatus";
+import { Plus } from "lucide-react";
+import { TASK_STATUSES, normalizeTaskStatus } from "@/constants/taskStatus";
 
-const TaskSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-    {Array(5).fill(0).map((_, i) => (
-      <div key={i} className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100/50">
-        <div className="flex justify-between items-center mb-4">
-          <div className="h-4 bg-slate-200 rounded w-1/3 animate-pulse"></div>
-          <div className="w-6 h-4 bg-slate-200 rounded-full animate-pulse"></div>
-        </div>
-        <div className="space-y-3">
-          {Array(3).fill(0).map((_, j) => (
-            <div key={j} className="h-28 bg-white border border-slate-100 rounded-xl shadow-sm p-4 animate-pulse flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="h-3 bg-slate-100 rounded w-3/4"></div>
-                <div className="h-2 bg-slate-100 rounded w-full"></div>
-              </div>
-              <div className="flex justify-between">
-                <div className="w-12 h-4 bg-slate-100 rounded"></div>
-                <div className="w-6 h-6 bg-slate-100 rounded-full"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    ))}
-  </div>
-);
+// Custom Hook (Clean Architecture)
+import { useTaskManager } from "@/hooks/useTaskManager";
 
-const ProjectSkeleton = () => (
-  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {Array(6).fill(0).map((_, i) => (
-      <div key={i} className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 h-[250px] animate-pulse flex flex-col">
-        <div className="flex justify-between items-start mb-4">
-          <div className="h-5 bg-slate-100 rounded w-1/2"></div>
-          <div className="w-16 h-5 bg-slate-100 rounded-full"></div>
-        </div>
-        <div className="h-3 bg-slate-100 rounded w-full mb-2"></div>
-        <div className="h-3 bg-slate-100 rounded w-2/3 mb-6"></div>
-        
-        <div className="space-y-2 mb-6">
-          <div className="flex justify-between">
-            <div className="w-12 h-3 bg-slate-100 rounded"></div>
-            <div className="w-8 h-3 bg-slate-100 rounded"></div>
-          </div>
-          <div className="w-full h-2 bg-slate-50 rounded-full"></div>
-        </div>
-
-        <div className="mt-auto grid grid-cols-2 gap-4">
-          <div className="h-8 bg-slate-100 rounded"></div>
-          <div className="h-8 bg-slate-100 rounded"></div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
+// Modular UI Components (All < 250 lines)
+import TaskMetricsGrid from "@/components/task-manager/TaskMetricsGrid";
+import TaskControlBar from "@/components/task-manager/TaskControlBar";
+import TaskKanbanView from "@/components/task-manager/TaskKanbanView";
+import TaskListView from "@/components/task-manager/TaskListView";
+import TaskProjectsView from "@/components/task-manager/TaskProjectsView";
+import TaskDetailSheet from "@/components/task-manager/TaskDetailSheet";
+import TaskBulkActionBar from "@/components/task-manager/TaskBulkActionBar";
+import CreateProjectDialog from "@/components/task-manager/CreateProjectDialog";
+import CreateTaskDialog from "@/components/task-manager/CreateTaskDialog";
 
 export default function TaskManager() {
-  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'projects'
-  const [selectedProject, setSelectedProject] = useState(null);
+
+  // View & Filter States
+  const [viewMode, setViewMode] = useState("kanban"); // 'kanban' | 'list' | 'projects'
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("all");
+  const [selectedPriority, setSelectedPriority] = useState("all");
+  const [onlyMyTasks, setOnlyMyTasks] = useState(false);
+
+  // Multi-Selection State (Bulk Actions)
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+
+  // Dialog & Sheet States
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
+  // Form States
   const [projectForm, setProjectForm] = useState({
-    project_name: '',
-    description: '',
-    project_manager: '',
+    project_name: "",
+    description: "",
+    project_manager: "",
   });
 
   const [taskForm, setTaskForm] = useState({
-    title: '',
-    description: '',
-    assigned_to: '',
-    priority: 'medium',
-    due_date: '',
-    project_id: '',
+    title: "",
+    description: "",
+    assigned_to: "",
+    priority: "medium",
+    status: TASK_STATUSES.TODO,
+    due_date: "",
+    project_id: "",
   });
 
   useEffect(() => {
     if (user?.email) {
-      setProjectForm(prev => ({ ...prev, project_manager: prev.project_manager || user.email }));
-      setTaskForm(prev => ({ ...prev, assigned_to: prev.assigned_to || user.email }));
+      setProjectForm((prev) => ({ ...prev, project_manager: prev.project_manager || user.email }));
+      setTaskForm((prev) => ({ ...prev, assigned_to: prev.assigned_to || user.email }));
     }
   }, [user]);
 
-  // Query: Employees
-  const { data: employeesData } = useQuery({
-    queryKey: ['task-manager-employees'],
-    queryFn: async () => {
-      return employeesApi.getAllEmployees();
-    },
-  });
-  const employees = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);
+  // Data & Mutations Layer
+  const {
+    employees,
+    mappedProjects,
+    allTasks,
+    tasksLoading,
+    createProjectMutation,
+    createTaskMutation,
+    updateTaskMutation,
+    bulkUpdateTasksMutation,
+    deleteTaskMutation,
+  } = useTaskManager({ user, selectedTask, setSelectedTask });
 
-  // Query: Projects
-  const { data: projectsData, isLoading: projectsLoading } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const res = await projectsApi.getProjects({ limit: 100 });
-      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
-    },
-  });
-  const rawProjects = Array.isArray(projectsData) ? projectsData : (projectsData?.data || []);
+  // Filter Pipeline
+  const filteredTasks = useMemo(() => {
+    return allTasks.filter((task) => {
+      if (selectedProjectId !== "all" && task.project_id !== selectedProjectId) return false;
+      if (selectedPriority !== "all" && task.priority !== selectedPriority) return false;
 
-  // Query: Project Tasks
-  const { data: projectTasksData, isLoading: projectTasksLoading } = useQuery({
-    queryKey: ['project-tasks'],
-    queryFn: async () => {
-      const res = await projectsApi.getAllTasks();
-      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
-    },
-  });
-  const rawProjectTasks = Array.isArray(projectTasksData) ? projectTasksData : (projectTasksData?.data || []);
+      if (onlyMyTasks && user?.email) {
+        const matchesEmail = task.assigned_email && task.assigned_email.toLowerCase() === user.email.toLowerCase();
+        const matchesName = task.assigned_to && user.fullName && task.assigned_to.toLowerCase().includes(user.fullName.toLowerCase());
+        const matchesUserEmailString = task.assigned_to && task.assigned_to.toLowerCase() === user.email.toLowerCase();
+        if (!matchesEmail && !matchesName && !matchesUserEmailString) return false;
+      }
 
-  // Query: Onboarding Tasks
-  const { data: onboardingTasksData, isLoading: onboardingTasksLoading } = useQuery({
-    queryKey: ['onboarding-tasks'],
-    queryFn: async () => {
-      const res = await onboardingApi.getAllTasks();
-      return Array.isArray(res) ? res : (res?.data?.data || res?.data || []);
-    },
-  });
-  const rawOnboardingTasks = Array.isArray(onboardingTasksData) ? onboardingTasksData : (onboardingTasksData?.data || []);
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = task.title?.toLowerCase().includes(q);
+        const matchesDesc = task.description?.toLowerCase().includes(q);
+        const matchesAssignee = task.assigned_to?.toLowerCase().includes(q);
+        const matchesProject = task.projectName?.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesAssignee && !matchesProject) return false;
+      }
 
-  const tasksLoading = projectsLoading || projectTasksLoading || onboardingTasksLoading;
+      return true;
+    });
+  }, [allTasks, selectedProjectId, selectedPriority, onlyMyTasks, searchQuery, user]);
 
-  // Normalized Custom Project Tasks
-  const normalizedProjectTasks = rawProjectTasks.map(t => {
-    const rawProjectId = t.projectId?._id || t.projectId;
-    const proj = rawProjects.find(p => String(p._id || p.id) === String(rawProjectId));
-    const status = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
-
-    let assignedToDisplay = 'Unassigned';
-    if (typeof t.assignedTo === 'string') {
-      assignedToDisplay = t.assignedTo;
-    } else if (t.assignedTo && typeof t.assignedTo === 'object') {
-      assignedToDisplay = t.assignedTo.fullName || t.assignedTo.name || t.assignedTo.email || (t.assignedTo[0]?.fullName || t.assignedTo[0]?.email) || 'Unassigned';
-    }
-
+  const tasksByStatus = useMemo(() => {
     return {
-      id: t._id || t.id,
-      title: t.title,
-      description: t.description || '',
-      status,
-      priority: t.priority || 'medium',
-      assigned_to: assignedToDisplay,
-      project_id: rawProjectId ? String(rawProjectId) : null,
-      projectName: proj?.name || proj?.project_name || 'General Tasks',
-      category: t.category,
-      due_date: t.dueDate || t.due_date,
-      is_onboarding: false,
+      [TASK_STATUSES.BACKLOG]: filteredTasks.filter((t) => normalizeTaskStatus(t.status) === TASK_STATUSES.BACKLOG),
+      [TASK_STATUSES.TODO]: filteredTasks.filter((t) => normalizeTaskStatus(t.status) === TASK_STATUSES.TODO),
+      [TASK_STATUSES.IN_PROGRESS]: filteredTasks.filter((t) => normalizeTaskStatus(t.status) === TASK_STATUSES.IN_PROGRESS),
+      [TASK_STATUSES.REVIEW]: filteredTasks.filter((t) => normalizeTaskStatus(t.status) === TASK_STATUSES.REVIEW),
+      [TASK_STATUSES.DONE]: filteredTasks.filter((t) => normalizeTaskStatus(t.status) === TASK_STATUSES.DONE),
     };
-  });
+  }, [filteredTasks]);
 
-  // Normalized Onboarding Tasks
-  const normalizedOnboardingTasks = rawOnboardingTasks.map(t => {
-    const rawEmpId = t.employeeId?._id || t.employeeId;
-    const emp = t.employeeId && typeof t.employeeId === 'object' && (t.employeeId.fullName || t.employeeId.email)
-      ? t.employeeId 
-      : employees.find(e => String(e._id || e.id) === String(rawEmpId));
-    
-    const empName = emp?.fullName || emp?.email || 'Employee';
-    const projId = rawEmpId ? `onboarding_${String(rawEmpId)}` : 'onboarding';
-    const status = normalizeTaskStatus(t.status, Boolean(t.isCompleted));
-
-    return {
-      id: t._id || t.id,
-      title: t.title,
-      description: t.description || (t.category ? `Category: ${t.category}` : ''),
-      status,
-      priority: t.priority || 'medium',
-      assigned_to: empName,
-      project_id: projId,
-      projectName: `Onboarding: ${empName}`,
-      category: t.category,
-      due_date: t.dueDate || t.due_date,
-      is_onboarding: true,
-    };
-  });
-
-  const allTasks = [...normalizedProjectTasks, ...normalizedOnboardingTasks];
-
-  // Dynamic Projects List (Custom Projects + Onboarding Groups)
-  const mappedProjects = rawProjects.map(p => ({
-    id: String(p._id || p.id),
-    project_name: p.name || p.project_name || 'Untitled Project',
-    description: p.description || '',
-    status: p.status || 'active',
-    end_date: p.endDate || p.end_date,
-    is_onboarding: false,
-  }));
-
-  const onboardingProjectsMap = new Map();
-  normalizedOnboardingTasks.forEach(t => {
-    if (t.project_id && !onboardingProjectsMap.has(t.project_id)) {
-      onboardingProjectsMap.set(t.project_id, {
-        id: t.project_id,
-        project_name: t.projectName,
-        description: 'Employee onboarding process and milestones',
-        status: 'in_progress',
-        is_onboarding: true,
-      });
-    }
-  });
-
-  const projects = [
-    ...mappedProjects,
-    ...Array.from(onboardingProjectsMap.values()),
-  ];
-
-  // Mutations
-  const createProjectMutation = useMutation({
-    mutationFn: async (data) => {
-      const payload = {
-        name: data.project_name,
-        description: data.description,
-        projectManager: data.project_manager,
-      };
-      return await projectsApi.createProject(payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setShowProjectDialog(false);
-      setProjectForm({ project_name: '', description: '', project_manager: user?.email || '' });
-      toast.success("Project created successfully");
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || error?.message || "Failed to create project");
-    }
-  });
-
-  const createTaskMutation = useMutation({
-    mutationFn: async (data) => {
-      const targetProjectId = selectedProject && !selectedProject.is_onboarding 
-        ? selectedProject.id 
-        : (data.project_id && !data.project_id.startsWith('onboarding_') ? data.project_id : undefined);
-
-      const payload = {
-        title: data.title,
-        description: data.description,
-        assignedTo: data.assigned_to,
-        priority: data.priority,
-        dueDate: data.due_date || undefined,
-        projectId: targetProjectId,
-      };
-      return await projectsApi.createTask(payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
-      setShowTaskDialog(false);
-      setTaskForm({
-        title: '',
-        description: '',
-        assigned_to: user?.email || '',
-        priority: 'medium',
-        due_date: '',
-        project_id: '',
-      });
-      toast.success("Task created successfully");
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || error?.message || "Failed to create task");
-    }
-  });
-
-  const updateTaskMutation = useMutation({
-    mutationFn: async ({ task, newStatus }) => {
-      const canonicalStatus = normalizeTaskStatus(newStatus);
-      if (task.is_onboarding) {
-        return await onboardingApi.updateTask(task.id, { status: canonicalStatus });
-      } else {
-        return await projectsApi.updateTask(task.id, { status: canonicalStatus });
-      }
-    },
-    onMutate: async ({ task, newStatus }) => {
-      const canonicalStatus = normalizeTaskStatus(newStatus);
-      const queryKey = task.is_onboarding ? ['onboarding-tasks'] : ['project-tasks'];
-      await queryClient.cancelQueries({ queryKey });
-      const previousData = queryClient.getQueryData(queryKey);
-
-      queryClient.setQueryData(queryKey, (old) => {
-        if (!old) return old;
-        const list = Array.isArray(old) ? old : (old?.data || []);
-        const updatedList = list.map(item => {
-          const itemId = item._id || item.id;
-          if (itemId === task.id) {
-            return {
-              ...item,
-              status: canonicalStatus,
-              isCompleted: canonicalStatus === TASK_STATUSES.DONE,
-              completedAt: canonicalStatus === TASK_STATUSES.DONE ? new Date().toISOString() : item.completedAt,
-            };
-          }
-          return item;
-        });
-        return Array.isArray(old) ? updatedList : { ...old, data: updatedList };
-      });
-
-      return { previousData, queryKey };
-    },
-    onError: (error, variables, context) => {
-      if (context?.queryKey && context?.previousData) {
-        queryClient.setQueryData(context.queryKey, context.previousData);
-      }
-      toast.error("Failed to update task status");
-    },
-    onSettled: (data, error, variables) => {
-      if (variables?.task?.is_onboarding) {
-        queryClient.invalidateQueries({ queryKey: ['onboarding-tasks'] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
-      }
-    }
-  });
-
-  const tasks = selectedProject 
-    ? allTasks.filter(t => t.project_id === selectedProject.id)
-    : allTasks;
-
-  const tasksByStatus = {
-    [TASK_STATUSES.BACKLOG]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.BACKLOG),
-    [TASK_STATUSES.TODO]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.TODO),
-    [TASK_STATUSES.IN_PROGRESS]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.IN_PROGRESS),
-    [TASK_STATUSES.REVIEW]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.REVIEW),
-    [TASK_STATUSES.DONE]: tasks.filter(t => normalizeTaskStatus(t.status) === TASK_STATUSES.DONE),
+  // Multi-Select Handlers
+  const handleToggleSelectTask = (taskId) => {
+    setSelectedTaskIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
   };
 
-  const onDragEnd = (result) => {
+  const handleToggleSelectAll = () => {
+    const visibleIds = filteredTasks.map((t) => t.id);
+    const isAllSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedTaskIds.includes(id));
+    if (isAllSelected) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(visibleIds);
+    }
+  };
+
+  const handleBulkMoveStatus = (newStatus) => {
+    if (selectedTaskIds.length === 0) return;
+    bulkUpdateTasksMutation.mutate(
+      { taskIds: selectedTaskIds, newStatus },
+      { onSuccess: () => setSelectedTaskIds([]) }
+    );
+  };
+
+  const handleBulkChangePriority = (newPriority) => {
+    if (selectedTaskIds.length === 0) return;
+    bulkUpdateTasksMutation.mutate(
+      { taskIds: selectedTaskIds, newPriority },
+      { onSuccess: () => setSelectedTaskIds([]) }
+    );
+  };
+
+  const handleDragEnd = (result) => {
     if (!result.destination) return;
-    
     const taskId = result.draggableId;
     const newStatus = normalizeTaskStatus(result.destination.droppableId);
-    const task = tasks.find(t => t.id === taskId);
-    
+    const task = allTasks.find((t) => t.id === taskId);
+
     if (task && normalizeTaskStatus(task.status) !== newStatus) {
-      updateTaskMutation.mutate({
-        task,
-        newStatus,
-      });
+      updateTaskMutation.mutate({ task, newStatus });
     }
   };
 
-  const statusConfig = TASK_STATUS_CONFIG;
-
-  const priorityColors = {
-    low: 'bg-slate-300',
-    medium: 'bg-slate-400',
-    high: 'bg-slate-600',
-    urgent: 'bg-red-500',
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  const handleOpenCreateWithColumn = (columnStatus) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      status: columnStatus,
+      project_id: selectedProjectId !== "all" ? selectedProjectId : "",
+    }));
+    setShowTaskDialog(true);
   };
 
   return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="p-4 md:p-8 max-w-7xl mx-auto space-y-8"
-    >
-      {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 mx-auto space-y-6 sm:space-y-8 max-w-7xl font-sans text-slate-900 pb-20">
+      {/* 1. Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full mb-4">
-            <FolderKanban className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Task Management</span>
-          </div>
-          
-          <p className="text-slate-500">
-            Manage tasks, track progress, and collaborate with your team
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1">
+            Tasks
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Track employee onboarding milestone progress.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                <Plus className="w-4 h-4 mr-2" />
-                New Project
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-2xl border-slate-100 shadow-xl max-w-md">
-              <DialogHeader>
-                <DialogTitle>Create Project</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(projectForm); }} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="project_name">Project Name</Label>
-                  <Input 
-                    id="project_name" 
-                    value={projectForm.project_name} 
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, project_name: e.target.value }))} 
-                    className="rounded-lg" 
-                    placeholder="e.g. Q3 Hiring Initiative"
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="project_description">Description</Label>
-                  <Textarea 
-                    id="project_description" 
-                    value={projectForm.description} 
-                    onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} 
-                    className="rounded-lg" 
-                    rows={3} 
-                    placeholder="Brief description of the project..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="project_manager">Project Manager</Label>
-                  <Select value={projectForm.project_manager} onValueChange={(value) => setProjectForm(prev => ({ ...prev, project_manager: value }))} required>
-                    <SelectTrigger id="project_manager" className="rounded-lg"><SelectValue placeholder="Select a manager" /></SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                      {employees.map(emp => {
-                        const val = emp.email || emp._id || emp.id;
-                        const label = emp.fullName || emp.full_name || emp.email;
-                        return (
-                          <SelectItem key={emp._id || emp.id} value={val}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })}
-                      {user?.email && !employees.some(e => e.email === user.email) && (
-                        <SelectItem value={user.email}>{user.email}</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setShowProjectDialog(false)} className="rounded-lg">Cancel</Button>
-                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white" disabled={createProjectMutation.isPending}>
-                    {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
 
-          <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-            <DialogTrigger asChild>
-              <Button className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
-                <Plus className="w-4 h-4 mr-2" />
-                New Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-2xl border-slate-100 shadow-xl max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create Task</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={(e) => { e.preventDefault(); createTaskMutation.mutate(taskForm); }} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="task_title">Task Title</Label>
-                  <Input 
-                    id="task_title" 
-                    value={taskForm.title} 
-                    onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))} 
-                    className="rounded-lg" 
-                    placeholder="e.g. Prepare offer letter"
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="task_description">Description</Label>
-                  <Textarea 
-                    id="task_description" 
-                    value={taskForm.description} 
-                    onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))} 
-                    className="rounded-lg" 
-                    rows={3} 
-                    placeholder="Task details and instructions..."
-                  />
-                </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowProjectDialog(true)}
+            className="h-9 px-3.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-slate-500" />
+            <span>New Project</span>
+          </Button>
 
-                {/* Project selection if not already filtering by a project */}
-                {mappedProjects.length > 0 && !selectedProject && (
-                  <div className="space-y-2">
-                    <Label htmlFor="task_project">Project (Optional)</Label>
-                    <Select value={taskForm.project_id} onValueChange={(value) => setTaskForm(prev => ({ ...prev, project_id: value }))}>
-                      <SelectTrigger id="task_project" className="rounded-lg"><SelectValue placeholder="Assign to project (Optional)" /></SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                        <SelectItem value="general">No Project (General Task)</SelectItem>
-                        {mappedProjects.map(proj => (
-                          <SelectItem key={proj.id} value={proj.id}>
-                            {proj.project_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="assigned_to">Assign To</Label>
-                    <Select value={taskForm.assigned_to} onValueChange={(value) => setTaskForm(prev => ({ ...prev, assigned_to: value }))} required>
-                      <SelectTrigger id="assigned_to" className="rounded-lg"><SelectValue placeholder="Assignee" /></SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                        {employees.map(emp => {
-                          const val = emp.fullName || emp.email || emp.full_name;
-                          return (
-                            <SelectItem key={emp._id || emp.id} value={val}>
-                              {emp.fullName || emp.full_name || emp.email}
-                            </SelectItem>
-                          );
-                        })}
-                        {user?.email && !employees.some(e => e.email === user.email) && (
-                          <SelectItem value={user.email}>{user.email}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="priority">Priority</Label>
-                    <Select value={taskForm.priority} onValueChange={(value) => setTaskForm(prev => ({ ...prev, priority: value }))} required>
-                      <SelectTrigger id="priority" className="rounded-lg"><SelectValue placeholder="Priority" /></SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-100 shadow-lg">
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="due_date">Due Date</Label>
-                  <Input id="due_date" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))} className="rounded-lg" />
-                </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)} className="rounded-lg">Cancel</Button>
-                  <Button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white" disabled={createTaskMutation.isPending}>
-                    {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            onClick={() => handleOpenCreateWithColumn(TASK_STATUSES.TODO)}
+            className="h-9 px-4 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Task</span>
+          </Button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* View Toggle */}
-      <motion.div variants={itemVariants} className="flex gap-1.5 bg-slate-100 p-1 rounded-lg w-fit">
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`rounded-md px-4 ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-          onClick={() => setViewMode('kanban')}
-        >
-          <Kanban className="w-4 h-4 mr-2" />
-          Kanban
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`rounded-md px-4 ${viewMode === 'projects' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-          onClick={() => setViewMode('projects')}
-        >
-          <FolderKanban className="w-4 h-4 mr-2" />
-          Projects
-        </Button>
-      </motion.div>
+      {/* 2. Executive 4-Card Spotlight KPI Grid */}
+      <TaskMetricsGrid allTasks={allTasks} />
 
-      {/* Project Filter */}
-      {projects.length > 0 && (
-        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-2">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <Button
-              size="sm"
-              variant={!selectedProject ? 'default' : 'ghost'}
-              className={`rounded-lg whitespace-nowrap ${!selectedProject ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-              onClick={() => setSelectedProject(null)}
-            >
-              All Tasks
-            </Button>
-            {projects.map(project => (
-              <Button
-                key={project.id}
-                size="sm"
-                variant={selectedProject?.id === project.id ? 'default' : 'ghost'}
-                className={`rounded-lg whitespace-nowrap ${selectedProject?.id === project.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-                onClick={() => setSelectedProject(project)}
-              >
-                {project.project_name}
-              </Button>
-            ))}
-          </div>
-        </motion.div>
+      {/* 3. Control Rail: Switcher & Filters */}
+      <TaskControlBar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onlyMyTasks={onlyMyTasks}
+        setOnlyMyTasks={setOnlyMyTasks}
+        selectedProjectId={selectedProjectId}
+        setSelectedProjectId={setSelectedProjectId}
+        selectedPriority={selectedPriority}
+        setSelectedPriority={setSelectedPriority}
+        mappedProjects={mappedProjects}
+        allTasksCount={allTasks.length}
+      />
+
+      {/* 4. Active Workstream View Mode */}
+      {tasksLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {Array(5).fill(0).map((_, i) => (
+            <div key={i} className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 animate-pulse space-y-3">
+              <div className="h-4 bg-slate-200 rounded w-1/2" />
+              <div className="h-24 bg-white rounded-lg border border-slate-100" />
+              <div className="h-24 bg-white rounded-lg border border-slate-100" />
+            </div>
+          ))}
+        </div>
+      ) : viewMode === "kanban" ? (
+        <TaskKanbanView
+          tasksByStatus={tasksByStatus}
+          onDragEnd={handleDragEnd}
+          onOpenCreateWithColumn={handleOpenCreateWithColumn}
+          onSelectTask={setSelectedTask}
+          selectedTaskIds={selectedTaskIds}
+          onToggleSelectTask={handleToggleSelectTask}
+        />
+      ) : viewMode === "list" ? (
+        <TaskListView
+          filteredTasks={filteredTasks}
+          onSelectTask={setSelectedTask}
+          onUpdateStatus={(task, newStatus) => updateTaskMutation.mutate({ task, newStatus })}
+          selectedTaskIds={selectedTaskIds}
+          onToggleSelectTask={handleToggleSelectTask}
+          onToggleSelectAll={handleToggleSelectAll}
+        />
+      ) : (
+        <TaskProjectsView
+          mappedProjects={mappedProjects}
+          allTasks={allTasks}
+          onSelectProject={(projId) => {
+            setSelectedProjectId(projId);
+            setViewMode("kanban");
+          }}
+        />
       )}
 
-      {/* Main Content */}
-      <motion.div variants={itemVariants} className="min-h-[500px]">
-        {tasksLoading ? (
-          viewMode === 'kanban' ? <TaskSkeleton /> : <ProjectSkeleton />
-        ) : viewMode === 'kanban' ? (
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-6 overflow-x-auto pb-6 no-scrollbar snap-x">
-              {Object.entries(statusConfig).map(([status, config]) => (
-                <Droppable key={status} droppableId={status}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex flex-col bg-slate-100/50 rounded-2xl p-4 min-h-[500px] border border-slate-200/40 transition-colors w-[320px] shrink-0 snap-start ${snapshot.isDraggingOver ? 'bg-indigo-50/50 border-indigo-100' : ''}`}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-slate-800 tracking-tight">{config.title}</h3>
-                        <Badge variant="outline" className={`${config.color} border font-semibold px-2 py-0.5 rounded-full`}>
-                          {tasksByStatus[status].length}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex-1 space-y-3">
-                        {tasksByStatus[status].map((task, index) => (
-                          <Draggable key={task.id} draggableId={task.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                onClick={() => setSelectedTask(task)}
-                                className={`group bg-white rounded-2xl border border-slate-200 p-5 ${
-                                  snapshot.isDragging ? 'shadow-2xl scale-[1.02] rotate-1 ring-1 ring-slate-900/5 z-50' : 'shadow-sm hover:shadow-md hover:border-slate-300'
-                                } cursor-grab active:cursor-grabbing transition-all flex flex-col gap-3 min-h-[140px]`}
-                                style={provided.draggableProps.style}
-                              >
-                                <div className="flex justify-between items-center">
-                                  {task.category ? (
-                                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-widest">{task.category.replace('_', ' ')}</span>
-                                  ) : task.is_onboarding ? (
-                                    <span className="text-[11px] font-medium text-indigo-500 uppercase tracking-widest">ONBOARDING</span>
-                                  ) : <span />}
-                                  <div className="flex items-center justify-center w-5 h-5 rounded-md hover:bg-slate-50 transition-colors" title={`Priority: ${task.priority}`}>
-                                    <div className={`w-2 h-2 rounded-full ${priorityColors[task.priority] || priorityColors.medium}`} />
-                                  </div>
-                                </div>
-                                <h4 className="font-medium text-slate-900 text-base leading-snug tracking-tight">
-                                  {task.title}
-                                </h4>
-                                {task.description && (
-                                  <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
-                                    {task.description}
-                                  </p>
-                                )}
-                                <div className="flex items-center justify-between mt-auto pt-4">
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No date'}
-                                  </div>
-                                  {task.assigned_to && (
-                                    <div className="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-xs text-slate-600 font-medium truncate max-w-[120px] px-1" title={task.assigned_to}>
-                                      {task.assigned_to.charAt(0).toUpperCase()}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    </div>
-                  )}
-                </Droppable>
-              ))}
-            </div>
-          </DragDropContext>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => {
-              const projectTasks = allTasks.filter(t => t.project_id === project.id);
-              const completedTasks = projectTasks.filter(t => t.status === 'done').length;
-              const progress = projectTasks.length > 0 
-                ? Math.round((completedTasks / projectTasks.length) * 100)
-                : 0;
+      {/* 5. Floating Bulk Action Toolbar */}
+      <TaskBulkActionBar
+        selectedCount={selectedTaskIds.length}
+        onClearSelection={() => setSelectedTaskIds([])}
+        onBulkMoveStatus={handleBulkMoveStatus}
+        onBulkChangePriority={handleBulkChangePriority}
+        isPending={bulkUpdateTasksMutation.isPending}
+      />
 
-              return (
-                <motion.div key={project.id} whileHover={{ y: -4 }}>
-                  <Card className="h-full border-slate-200/60 shadow-sm hover:shadow-md transition-all rounded-2xl overflow-hidden bg-white group flex flex-col">
-                    <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-5">
-                      <div className="flex justify-between items-start gap-4">
-                        <CardTitle className="text-lg font-bold text-slate-900 tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">
-                          {project.project_name}
-                        </CardTitle>
-                        <Badge variant="outline" className={`shrink-0 rounded-full border ${
-                          project.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          project.status === 'in_progress' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                          'bg-slate-50 text-slate-700 border-slate-200'
-                        }`}>
-                          {project.status.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6 flex-1 flex flex-col">
-                      <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
-                        {project.description}
-                      </p>
-                      
-                      <div className="space-y-2 mt-auto">
-                        <div className="flex justify-between text-xs font-semibold">
-                          <span className="text-slate-500 uppercase tracking-wider">Progress</span>
-                          <span className="text-indigo-700">{progress}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 1, delay: 0.2 }}
-                            className="h-full bg-indigo-500 rounded-full"
-                          />
-                        </div>
-                      </div>
+      {/* 6. Slide-Over Task Inspection Sheet */}
+      <TaskDetailSheet
+        selectedTask={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdateStatus={(task, newStatus) => updateTaskMutation.mutate({ task, newStatus })}
+        onUpdatePriority={(task, newPriority) => updateTaskMutation.mutate({ task, newPriority })}
+        onDeleteTask={(task) => deleteTaskMutation.mutate(task)}
+        isDeleting={deleteTaskMutation.isPending}
+      />
 
-                      <div className="grid grid-cols-2 gap-4 text-sm bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">Tasks</span>
-                          <p className="font-bold text-slate-900">
-                            {completedTasks} <span className="text-slate-400 font-medium">/ {projectTasks.length}</span>
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">Due Date</span>
-                          <p className="font-semibold text-slate-900 truncate">
-                            {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'No deadline'}
-                          </p>
-                        </div>
-                      </div>
+      {/* 7. Modal: Create Project */}
+      <CreateProjectDialog
+        open={showProjectDialog}
+        onOpenChange={setShowProjectDialog}
+        projectForm={projectForm}
+        setProjectForm={setProjectForm}
+        onSubmit={(e) => {
+          e.preventDefault();
+          createProjectMutation.mutate(projectForm, {
+            onSuccess: () => {
+              setShowProjectDialog(false);
+              setProjectForm({ project_name: "", description: "", project_manager: user?.email || "" });
+            },
+          });
+        }}
+        isPending={createProjectMutation.isPending}
+        employees={employees}
+        currentUserEmail={user?.email || ""}
+      />
 
-                      <Button 
-                        variant="outline" 
-                        className="w-full rounded-lg border-slate-200 hover:bg-slate-50 group-hover:border-indigo-200 group-hover:text-indigo-700 transition-colors"
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setViewMode('kanban');
-                        }}
-                      >
-                        View Tasks
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-            
-            {projects.length === 0 && (
-              <div className="col-span-full border border-slate-200/60 border-dashed rounded-2xl bg-white/50 p-16 text-center flex flex-col items-center justify-center">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4">
-                  <FolderKanban className="w-8 h-8 text-slate-300" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">No projects yet</h3>
-                <p className="text-slate-500 mb-6 max-w-sm">Create your first project to start managing tasks and collaborating with your team.</p>
-                <Button onClick={() => setShowProjectDialog(true)} className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Project
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
-
-      {/* Task Details Dialog */}
-      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-0 shadow-2xl rounded-2xl">
-          {selectedTask && (
-            <>
-              <div className="bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-8 relative">
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 font-semibold backdrop-blur-sm uppercase shadow-sm">
-                    {selectedTask.status.replace('_', ' ')}
-                  </Badge>
-                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 font-semibold backdrop-blur-sm uppercase shadow-sm">
-                    {selectedTask.priority}
-                  </Badge>
-                </div>
-                <h2 className="text-2xl font-bold text-white mt-4 mb-2 pr-20 leading-tight drop-shadow-sm">
-                  {selectedTask.title}
-                </h2>
-                <div className="flex items-center gap-4 text-white/90 text-sm font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <FolderKanban className="w-4 h-4" />
-                    Project: {projects.find(p => p.id === selectedTask.project_id)?.project_name || selectedTask.projectName || 'General Tasks'}
-                  </div>
-                  {selectedTask.category && (
-                    <div className="flex items-center gap-1.5">
-                      <Kanban className="w-4 h-4" />
-                      {selectedTask.category.replace('_', ' ')}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="p-6 space-y-6 bg-slate-50/50">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Assignee</span>
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-200">
-                        {selectedTask.assigned_to ? selectedTask.assigned_to.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                      <span className="font-semibold text-sm text-slate-700 truncate">{selectedTask.assigned_to || 'Unassigned'}</span>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Due Date</span>
-                    <div className="flex items-center gap-2.5">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <span className="font-semibold text-sm text-slate-700">
-                        {selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : 'No deadline'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-3">Description</span>
-                  <div className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed min-h-[60px]">
-                    {selectedTask.description || <span className="italic text-slate-400">No description provided.</span>}
-                  </div>
-                </div>
-                
-                <div className="flex justify-end pt-2">
-                  <Button onClick={() => setSelectedTask(null)} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-sm px-6">
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </motion.div>
+      {/* 8. Modal: Create Task */}
+      <CreateTaskDialog
+        open={showTaskDialog}
+        onOpenChange={setShowTaskDialog}
+        taskForm={taskForm}
+        setTaskForm={setTaskForm}
+        onSubmit={(e) => {
+          e.preventDefault();
+          createTaskMutation.mutate(taskForm, {
+            onSuccess: () => {
+              setShowTaskDialog(false);
+              setTaskForm({
+                title: "",
+                description: "",
+                assigned_to: user?.email || "",
+                priority: "medium",
+                status: TASK_STATUSES.TODO,
+                due_date: "",
+                project_id: "",
+              });
+            },
+          });
+        }}
+        isPending={createTaskMutation.isPending}
+        mappedProjects={mappedProjects}
+        employees={employees}
+        currentUserEmail={user?.email || ""}
+      />
+    </div>
   );
 }
