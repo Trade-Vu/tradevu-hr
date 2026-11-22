@@ -264,9 +264,9 @@ export default function LeaveTypeForm({
                     ...prev,
                     approvalMode,
                     approvalSteps:
-                      approvalMode === 'custom' && (!prev.approvalSteps || prev.approvalSteps.length === 0)
-                        ? DEFAULT_LEAVE_APPROVAL_STEPS
-                        : prev.approvalSteps,
+                      approvalMode === 'custom'
+                        ? (prev.approvalSteps && prev.approvalSteps.length > 0 ? prev.approvalSteps : DEFAULT_LEAVE_APPROVAL_STEPS)
+                        : [], // Clear steps so it defaults to org workflow
                   }))
                 }
                 className="space-y-2"

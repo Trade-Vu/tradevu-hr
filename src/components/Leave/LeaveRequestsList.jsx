@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { isPendingLeaveStatus, normalizeLeaveStatus } from '@/lib/leaveStatus';
+import { normalizeApprovalRole } from '@/lib/approvalSteps';
 import LeaveApprovalCard from './LeaveApprovalCard';
 import LeaveRequestDetailDrawer from './LeaveRequestDetailDrawer';
 import LeaveRequestTableRow from './LeaveRequestTableRow';
@@ -32,12 +33,13 @@ const getRequestDates = (leave, safeDate) =>
 const hasManagerApproved = (leave) =>
   Boolean(
     (leave.approvers || leave.approvalHistory || []).some(
-      (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
-    ) || (
-      (leave.currentApprovalLevel || 0) > 0 &&
-      leave.approvalLevels?.[0]?.role === 'MANAGER' &&
-      (leave.approvers || leave.approvalHistory || []).some((h) => h.action === 'approved' || h.action === 'APPROVED')
-    )
+      (h) =>
+        (String(h.action).toUpperCase() === 'APPROVED') &&
+        (['LINE_MANAGER', 'MANAGER'].includes(normalizeApprovalRole(h.role)) || h.level === 0)
+    ) ||
+    ((leave.currentApprovalLevel || 0) > 0 &&
+      Array.isArray(leave.approvalLevels) &&
+      ['LINE_MANAGER', 'MANAGER'].includes(normalizeApprovalRole(leave.approvalLevels[0]?.role)))
   );
 
 export const RequestsSkeleton = () => (
@@ -180,16 +182,15 @@ export default function LeaveRequestsList({
                   <p className="mt-1 text-xs text-slate-500">Try another employee name or status filter.</p>
                 </div>
               ) : view === 'table' ? (
-                <div className="overflow-x-auto">
-                  <Table className="w-full table-fixed min-w-[720px]">
+                <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
+                  <Table className="w-full min-w-[840px]">
                     <TableHeader>
-                      <TableRow className="border-b border-slate-100 hover:bg-transparent">
-                        <TableHead className="w-[32%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3">Employee</TableHead>
-                        <TableHead className="w-[28%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3">Leave type</TableHead>
-                        {/* <TableHead className="w-[22%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3">Dates</TableHead> */}
-                        <TableHead className="w-[14%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3">Days</TableHead>
-                        <TableHead className="w-[14%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3">Status</TableHead>
-                        <TableHead className="w-[12%] text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3 pr-4">Actions</TableHead>
+                      <TableRow className="border-b border-slate-200/80 hover:bg-transparent">
+                        <TableHead className="w-[30%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3.5 pl-4">Employee</TableHead>
+                        <TableHead className="w-[24%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3.5">Leave Type</TableHead>
+                        <TableHead className="w-[10%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3.5">Days</TableHead>
+                        <TableHead className="w-[14%] text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3.5">Status</TableHead>
+                        <TableHead className="w-[22%] min-w-[190px] text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400 py-3.5 pr-4">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

@@ -25,6 +25,7 @@ export const PENDING_LEAVE_STATUSES = [
   LEAVE_STATUS.PENDING_APPROVAL,
   LEAVE_STATUS.PENDING_HR,
   LEAVE_STATUS.PENDING_SUPER_ADMIN,
+  LEAVE_STATUS.NEEDS_INFORMATION,
 ];
 
 // Legacy values folded onto their canonical equivalent. Bare 'PENDING' was the old

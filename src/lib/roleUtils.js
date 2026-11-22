@@ -1,3 +1,5 @@
+import { toTitleCase } from './utils';
+
 /**
  * Centralized Role Helpers for Tradevu HR
  * Handles case-insensitivity and dual-role checks consistently.
@@ -5,6 +7,33 @@
 
 export const getNormalizedRole = (user) => {
   return (user?.role || '').toUpperCase();
+};
+
+/**
+ * Formats raw role enums into human-readable Title Case labels.
+ * Examples:
+ *  - 'LINE_MANAGER' -> 'Line Manager'
+ *  - 'HEAD_OF_DEPARTMENT' -> 'Head Of Department'
+ *  - 'HR_ADMIN' -> 'HR Admin'
+ *  - 'SUPER_ADMIN' -> 'Super Admin'
+ *  - 'FINANCE_ADMIN' -> 'Finance Admin'
+ */
+const ROLE_DISPLAY_NAMES = {
+  LINE_MANAGER: 'Line Manager',
+  HEAD_OF_DEPARTMENT: 'Head Of Department',
+  HR_ADMIN: 'HR Admin',
+  SUPER_ADMIN: 'Super Admin',
+  FINANCE_ADMIN: 'Finance Admin',
+  MANAGER: 'Manager',
+  EMPLOYEE: 'Employee',
+  ADMIN: 'Admin',
+  OTHER: 'Custom Approver',
+};
+
+export const formatRole = (role) => {
+  if (!role) return '';
+  const upper = String(role).trim().toUpperCase();
+  return ROLE_DISPLAY_NAMES[upper] || toTitleCase(role);
 };
 
 export const isSuperAdmin = (user) => {
@@ -45,6 +74,51 @@ export const isManager = (user) => {
 export const isEmployee = (user) => {
   const role = getNormalizedRole(user);
   return role === 'EMPLOYEE';
+};
+
+/**
+ * Checks whether an employee record or user has authority to approve leave requests
+ * based on their assigned employee class configuration.
+ */
+export const canEmployeeClassApproveLeave = (employeeOrUser, classConfigurations = null) => {
+  if (!employeeOrUser) return false;
+
+  const employeeClassification = String(
+    employeeOrUser.employeeClass ||
+    employeeOrUser.employee_class ||
+    employeeOrUser.employeeId?.employeeClass ||
+    employeeOrUser.employeeId?.employee_class ||
+    ''
+  ).trim().toUpperCase();
+
+  if (!employeeClassification) {
+    // If no employee class is set, default to checking explicit properties or manager regex
+    return Boolean(
+      employeeOrUser.canApproveLeave ??
+      employeeOrUser.employeeId?.canApproveLeave ??
+      /MANAGER/i.test(employeeOrUser.role || '')
+    );
+  }
+
+  if (Array.isArray(classConfigurations)) {
+    const matchedClassConfiguration = classConfigurations.find((configuredClass) => {
+      const configuredClassName = String(
+        configuredClass?.name || configuredClass?.value || configuredClass || ''
+      ).trim().toUpperCase();
+      return configuredClassName === employeeClassification;
+    });
+
+    if (matchedClassConfiguration && typeof matchedClassConfiguration.canApproveLeave === 'boolean') {
+      return matchedClassConfiguration.canApproveLeave;
+    }
+  }
+
+  // Fallback to explicit property on employee or regex heuristic
+  return Boolean(
+    employeeOrUser.canApproveLeave ??
+    employeeOrUser.employeeId?.canApproveLeave ??
+    /MANAGER/i.test(employeeClassification)
+  );
 };
 
 export const isAdmin = (user) => {
@@ -143,37 +217,60 @@ export const isEligibleManager = (emp, classConfigs = null) => {
 
 /**
  * Formats an employee option for manager dropdown selects.
- * Output: Name — Job Title • Department [(Head of Dept)]
+ * Output: Name — Job Title • Department [(Head of Dept)] [[Leave routed to HR]]
  */
-export const formatManagerOption = (emp, departments = []) => {
-  if (!emp) return { value: '', label: '' };
-  const empId = String(emp.id || emp._id || '');
-  const empDeptId = String(emp.departmentId || emp.department_id || '');
-  const deptObj = departments.find((d) => String(d.id || d._id || '') === empDeptId);
-  const deptName =
-    emp.departmentName ||
-    emp.department_name ||
-    deptObj?.name ||
-    (emp.isSuperAdmin ? 'Executive' : 'General');
+export const formatManagerOption = (
+  employeeCandidate,
+  departmentList = [],
+  employeeClassConfigurations = []
+) => {
+  if (!employeeCandidate) return { value: '', label: '' };
+  const employeeId = String(employeeCandidate.id || employeeCandidate._id || '');
+  const employeeDepartmentId = String(employeeCandidate.departmentId || employeeCandidate.department_id || '');
+  const matchedDepartment = departmentList.find(
+    (departmentItem) => String(departmentItem.id || departmentItem._id || '') === employeeDepartmentId
+  );
+  const departmentName =
+    employeeCandidate.departmentName ||
+    employeeCandidate.department_name ||
+    matchedDepartment?.name ||
+    (employeeCandidate.isSuperAdmin ? 'Executive' : 'General');
 
-  const isHOD = departments.some((d) => {
-    const m = d.managerId;
-    const headId = m ? String(m._id || m.id || (typeof m === 'string' ? m : '')) : null;
-    return headId === empId;
+  const isHeadOfDepartment = departmentList.some((departmentItem) => {
+    const managerReference = departmentItem.managerId;
+    const departmentHeadId = managerReference
+      ? String(managerReference._id || managerReference.id || (typeof managerReference === 'string' ? managerReference : ''))
+      : null;
+    return departmentHeadId === employeeId;
   });
 
-  let label = emp.fullName || emp.full_name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
-  const jobTitle = emp.jobTitle || emp.job_title;
+  let formattedLabel =
+    employeeCandidate.fullName ||
+    employeeCandidate.full_name ||
+    `${employeeCandidate.firstName || ''} ${employeeCandidate.lastName || ''}`.trim() ||
+    'Unknown';
+
+  const jobTitle = employeeCandidate.jobTitle || employeeCandidate.job_title;
   if (jobTitle) {
-    label += ` — ${jobTitle}`;
+    formattedLabel += ` — ${jobTitle}`;
   }
-  label += ` • ${deptName}`;
-  if (isHOD) {
-    label += ` (Head of Dept)`;
+  formattedLabel += ` • ${departmentName}`;
+  if (isHeadOfDepartment) {
+    formattedLabel += ` (Head of Dept)`;
+  }
+
+  if (Array.isArray(employeeClassConfigurations) && employeeClassConfigurations.length > 0) {
+    const hasLeaveApprovalAuthority = canEmployeeClassApproveLeave(
+      employeeCandidate,
+      employeeClassConfigurations
+    );
+    if (!hasLeaveApprovalAuthority) {
+      formattedLabel += ` [Leave routed to HR]`;
+    }
   }
 
   return {
-    value: empId,
-    label,
+    value: employeeId,
+    label: formattedLabel,
   };
 };

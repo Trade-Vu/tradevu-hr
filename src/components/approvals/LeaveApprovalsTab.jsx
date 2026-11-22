@@ -18,6 +18,8 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { normalizeApprovalRole, getApprovalRoleLabel } from '@/lib/approvalSteps';
+import { canEmployeeClassApproveLeave } from '@/lib/roleUtils';
 import { ApprovalsSkeleton, EmptyState, safeDate } from './ApprovalsUIComponents';
 
 function getLeaveApprovalStageInfo(leave) {
@@ -36,14 +38,14 @@ function getLeaveApprovalStageInfo(leave) {
   }
 
   const currentStep = levels[currentLevelIdx] || levels[levels.length - 1];
-  const role = currentStep?.role?.toUpperCase();
+  const role = normalizeApprovalRole(currentStep?.role);
   const stepNumber = Math.min(currentLevelIdx + 1, levels.length);
   const totalSteps = levels.length;
 
-  if (role === 'MANAGER') {
+  if (role === 'LINE_MANAGER') {
     return {
-      label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on Manager` : 'Waiting on Manager',
-      role: 'MANAGER',
+      label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on Line Manager` : 'Waiting on Line Manager',
+      role: 'LINE_MANAGER',
       badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/80',
       icon: Clock,
       stepNumber,
@@ -51,7 +53,18 @@ function getLeaveApprovalStageInfo(leave) {
     };
   }
 
-  if (role === 'HR_ADMIN' || role === 'HR') {
+  if (role === 'HEAD_OF_DEPARTMENT') {
+    return {
+      label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on Head of Department` : 'Waiting on Head of Department',
+      role: 'HEAD_OF_DEPARTMENT',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+      icon: UserCheck,
+      stepNumber,
+      totalSteps,
+    };
+  }
+
+  if (role === 'HR_ADMIN') {
     return {
       label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on HR Admin` : 'Waiting on HR Admin',
       role: 'HR_ADMIN',
@@ -62,7 +75,18 @@ function getLeaveApprovalStageInfo(leave) {
     };
   }
 
-  if (role === 'FINANCE_ADMIN' || role === 'FINANCE') {
+  if (role === 'SUPER_ADMIN') {
+    return {
+      label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on Super Admin` : 'Waiting on Super Admin',
+      role: 'SUPER_ADMIN',
+      badgeClass: 'bg-red-50 text-red-700 border-red-200/80',
+      icon: UserCheck,
+      stepNumber,
+      totalSteps,
+    };
+  }
+
+  if (role === 'FINANCE_ADMIN') {
     return {
       label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on Finance` : 'Waiting on Finance',
       role: 'FINANCE_ADMIN',
@@ -91,9 +115,9 @@ function getLeaveApprovalStageInfo(leave) {
   }
 
   return {
-    label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on ${role}` : `Waiting on ${role}`,
+    label: totalSteps > 1 ? `Stage ${stepNumber}/${totalSteps}: Waiting on ${getApprovalRoleLabel(role)}` : `Waiting on ${getApprovalRoleLabel(role)}`,
     role,
-    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80',
+    badgeClass: 'bg-slate-50 text-slate-700 border-slate-200/80',
     icon: Clock,
     stepNumber,
     totalSteps,
@@ -135,9 +159,13 @@ export default function LeaveApprovalsTab({
 
           const hasManagerApproved = Boolean(
             (leave.approvalHistory || leave.approvers || []).some(
-              (h) => (h.action === 'approved' || h.action === 'APPROVED') && (h.role === 'MANAGER' || h.level === 0)
+              (h) =>
+                (String(h.action).toUpperCase() === 'APPROVED') &&
+                (['LINE_MANAGER', 'MANAGER'].includes(normalizeApprovalRole(h.role)) || h.level === 0)
             ) ||
-            ((leave.currentApprovalLevel || 0) > 0 && Array.isArray(leave.approvalLevels) && leave.approvalLevels[0]?.role === 'MANAGER')
+            ((leave.currentApprovalLevel || 0) > 0 &&
+              Array.isArray(leave.approvalLevels) &&
+              ['LINE_MANAGER', 'MANAGER'].includes(normalizeApprovalRole(leave.approvalLevels[0]?.role)))
           );
 
           // Authorization determination
@@ -156,23 +184,52 @@ export default function LeaveApprovalsTab({
                   ? `Requires approval from designated approver: ${stageInfo.approverName}`
                   : 'Requires approval from designated custom approver';
               }
-            } else if (stageInfo.role === 'MANAGER' || stageInfo.role === 'LINE_MANAGER') {
+            } else if (stageInfo.role === 'LINE_MANAGER') {
               if (isManager) {
                 if (currentEmployeeId) {
-                  const isAuthorized =
+                  const isAuthorizedManager =
                     (leave.employee?.managerId && leave.employee.managerId.toString() === currentEmployeeId.toString()) ||
                     (leave.employee?.departmentManagerId && leave.employee.departmentManagerId.toString() === currentEmployeeId.toString());
-                  if (!isAuthorized) {
+
+                  if (!isAuthorizedManager) {
                     canApprove = false;
-                    disabledReason = 'Only direct managers or department heads can approve this stage';
+                    disabledReason = 'Only direct Line Managers or Department Heads can approve this stage';
+                  } else {
+                    const hasLeaveApprovalAuthority = canEmployeeClassApproveLeave(user);
+                    if (!hasLeaveApprovalAuthority) {
+                      canApprove = false;
+                      disabledReason = 'Your employee classification does not have permission to approve leave requests';
+                    }
                   }
                 }
               } else if (isHrAdmin) {
+                // If the employee's line manager belongs to a class without leave approval permissions,
+                // or if the employee has no line manager assigned, HR Admin can step in as a fallback.
+                const hasNoLineManager = !leave.employee?.managerId && !leave.employee?.departmentManagerId;
+                const lineManagerClassRestricted = leave.employee?.managerId && !canEmployeeClassApproveLeave(leave.employee?.managerId);
+                if (!hasNoLineManager && !lineManagerClassRestricted && !isSuperAdmin) {
+                  canApprove = false;
+                  disabledReason = 'Requires Line Manager approval first';
+                }
+              }
+            } else if (stageInfo.role === 'HEAD_OF_DEPARTMENT') {
+              const isDepartmentHead =
+                leave.employee?.departmentManagerId &&
+                currentEmployeeId &&
+                leave.employee.departmentManagerId.toString() === currentEmployeeId.toString();
+
+              if (isDepartmentHead) {
+                const hasLeaveApprovalAuthority = canEmployeeClassApproveLeave(user);
+                if (!hasLeaveApprovalAuthority) {
+                  canApprove = false;
+                  disabledReason = 'Your employee classification does not have permission to approve leave requests';
+                }
+              } else if (!isHrAdmin && !isSuperAdmin) {
                 canApprove = false;
-                disabledReason = 'Requires direct manager approval first';
+                disabledReason = 'Only the Head of Department can approve this stage';
               }
             } else if (stageInfo.role === 'HR_ADMIN') {
-              if (isManager) {
+              if (isManager && !isHrAdmin) {
                 canApprove = false;
                 disabledReason = 'Awaiting final HR Admin review';
               }

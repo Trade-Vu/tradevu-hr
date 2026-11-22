@@ -143,7 +143,9 @@ export default function JobDataTab({
 
     return [
       { value: "NONE", label: "No manager selected" },
-      ...filtered.map((emp) => formatManagerOption(emp, departments)),
+      ...filtered.map((candidateEmployee) =>
+        formatManagerOption(candidateEmployee, departments, employeeClasses)
+      ),
     ];
   }, [employees, employee.id, employee._id, employee.manager_id, employee.managerId, editData?.manager_id, employeeClasses, departments]);
 

@@ -1,9 +1,12 @@
+import { formatRole } from './roleUtils';
+
 // Approval-step roles, mirroring APPROVER_ROLES in
 // ../tradevu-hr-backend/src/modules/approvals/constants/approval-step.ts.
 export const APPROVER_ROLE_OPTIONS = [
   { value: 'LINE_MANAGER', label: 'Line manager' },
   { value: 'HEAD_OF_DEPARTMENT', label: 'Head of department' },
   { value: 'HR_ADMIN', label: 'HR admin' },
+  { value: 'FINANCE_ADMIN', label: 'Finance Admin' },
   { value: 'SUPER_ADMIN', label: 'Super admin' },
   { value: 'OTHER', label: 'Other (Specific user)' },
 ];
@@ -36,13 +39,14 @@ export const normalizeApprovalRole = (role) => {
   if (upper === 'HOD' || upper === 'HEAD_OF_DEPARTMENT' || upper === 'DEPARTMENT_HEAD') return 'HEAD_OF_DEPARTMENT';
   if (upper === 'HR_ADMIN' || upper === 'HRADMIN' || upper === 'HR') return 'HR_ADMIN';
   if (upper === 'SUPER_ADMIN' || upper === 'SUPERADMIN') return 'SUPER_ADMIN';
-  if (upper === 'OTHER' || upper === 'OTHER*' || upper === 'FINANCE' || upper === 'FINANCE_ADMIN') return 'OTHER';
+  if (upper === 'FINANCE' || upper === 'FINANCE_ADMIN') return 'FINANCE_ADMIN';
+  if (upper === 'OTHER' || upper === 'OTHER*') return 'OTHER';
   return upper;
 };
 
 export const getApprovalRoleLabel = (role) => {
   const normalized = normalizeApprovalRole(role);
-  return APPROVER_ROLE_OPTIONS.find((option) => option.value === normalized)?.label || normalized.replace(/_/g, ' ');
+  return APPROVER_ROLE_OPTIONS.find((option) => option.value === normalized)?.label || formatRole(normalized);
 };
 
 /** Sorted by order and renumbered 1..n, with roles normalized and custom approver fields preserved. */

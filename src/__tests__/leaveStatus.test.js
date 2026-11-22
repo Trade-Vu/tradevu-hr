@@ -81,6 +81,7 @@ describe('isPendingLeaveStatus', () => {
     expect(isPendingLeaveStatus('PENDING_APPROVAL')).toBe(true);
     expect(isPendingLeaveStatus('pending')).toBe(true);
     expect(isPendingLeaveStatus('PENDING_HR')).toBe(true);
+    expect(isPendingLeaveStatus('NEEDS_INFORMATION')).toBe(true);
   });
 
   it('does not treat finalized statuses as pending', () => {

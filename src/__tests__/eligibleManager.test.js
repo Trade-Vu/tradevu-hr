@@ -336,5 +336,53 @@ describe('isEligibleManager', () => {
         label: 'Charlie Brown • General',
       });
     });
+
+    it('appends [Leave routed to HR] when manager employee class restricts leave approval', () => {
+      const classConfigurations = [
+        { name: 'TEAM LEAD', canManage: true, canApproveLeave: false },
+        { name: 'SENIOR MANAGER', canManage: true, canApproveLeave: true },
+      ];
+
+      const option = formatManagerOption(
+        {
+          id: 'mgr-restricted',
+          fullName: 'Dave Lead',
+          jobTitle: 'Team Lead',
+          departmentId: 'dept-eng',
+          employeeClass: 'TEAM LEAD',
+        },
+        departments,
+        classConfigurations
+      );
+
+      expect(option).toEqual({
+        value: 'mgr-restricted',
+        label: 'Dave Lead — Team Lead • Engineering [Leave routed to HR]',
+      });
+    });
+
+    it('does not append [Leave routed to HR] when manager employee class can approve leave', () => {
+      const classConfigurations = [
+        { name: 'TEAM LEAD', canManage: true, canApproveLeave: false },
+        { name: 'SENIOR MANAGER', canManage: true, canApproveLeave: true },
+      ];
+
+      const option = formatManagerOption(
+        {
+          id: 'mgr-authorized',
+          fullName: 'Elena Senior',
+          jobTitle: 'Senior Manager',
+          departmentId: 'dept-eng',
+          employeeClass: 'SENIOR MANAGER',
+        },
+        departments,
+        classConfigurations
+      );
+
+      expect(option).toEqual({
+        value: 'mgr-authorized',
+        label: 'Elena Senior — Senior Manager • Engineering',
+      });
+    });
   });
 });

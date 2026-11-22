@@ -253,6 +253,15 @@ export default function ClassificationListManager({
                       </span>
                     </div>
                   </label>
+
+                  {canManage && !canApproveLeave && (
+                    <div className="p-2.5 rounded-md bg-amber-50/70 border border-amber-200/80 text-amber-800 text-xs flex items-start gap-2">
+                      <span className="font-semibold text-amber-900 shrink-0">Routing Notice:</span>
+                      <span>
+                        Managers in this classification can be assigned direct reports, but their direct reports&apos; leave requests will be routed directly to HR Admins for approval.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -332,6 +341,12 @@ export default function ClassificationListManager({
                         <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 text-[11px] font-medium flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3 text-blue-600" />
                           Can Approve Leave
+                        </Badge>
+                      )}
+
+                      {perms.canManage && !perms.canApproveLeave && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] font-medium flex items-center gap-1">
+                          Leave Routed to HR
                         </Badge>
                       )}
                     </div>

@@ -123,8 +123,8 @@ describe('SettingsLeaveTypes', () => {
 describe('approvalSteps helpers', async () => {
   const { normalizeApprovalSteps, formatApprovalChain } = await import('@/lib/approvalSteps');
   it('normalizes legacy FINANCE and renumbers', () => {
-    expect(normalizeApprovalSteps([{ order: 3, role: 'finance' }, { order: 1, role: 'MANAGER' }]))
-      .toEqual([{ order: 1, role: 'MANAGER' }, { order: 2, role: 'FINANCE_ADMIN' }]);
+    expect(normalizeApprovalSteps([{ order: 3, role: 'finance' }, { order: 1, role: 'LINE_MANAGER' }]))
+      .toEqual([{ order: 1, role: 'LINE_MANAGER' }, { order: 2, role: 'FINANCE_ADMIN' }]);
     expect(formatApprovalChain([{ order: 1, role: 'FINANCE' }])).toBe('Finance Admin');
   });
 });

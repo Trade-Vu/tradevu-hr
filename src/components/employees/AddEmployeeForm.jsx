@@ -79,8 +79,12 @@ export default function AddEmployeeForm({ templates = [], departments = [], onSu
   );
 
   const managerOptions = useMemo(() => {
-    const eligible = allEmployees.filter((emp) => isEligibleManager(emp, employeeClasses));
-    return eligible.map((emp) => formatManagerOption(emp, departments));
+    const eligibleEmployees = allEmployees.filter((candidateEmployee) =>
+      isEligibleManager(candidateEmployee, employeeClasses)
+    );
+    return eligibleEmployees.map((candidateEmployee) =>
+      formatManagerOption(candidateEmployee, departments, employeeClasses)
+    );
   }, [allEmployees, departments, employeeClasses]);
 
   const handleDepartmentChange = (deptId) => {
